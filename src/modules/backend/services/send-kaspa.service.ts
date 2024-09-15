@@ -1,6 +1,5 @@
 import {Injectable} from "@nestjs/common";
-import { RpcClient, Encoding , Resolver, PrivateKey } from "kaspa-wasm-dev";
-import TransactionSender from "../../../../libs/kaspa-tools/src/TransactionSender";
+import { RpcClient, Encoding , Resolver, PrivateKey } from "../../../../libs/kaspa-dev";
 import minimist from 'minimist';
 
 @Injectable()

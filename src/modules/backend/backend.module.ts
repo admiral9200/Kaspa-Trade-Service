@@ -9,14 +9,21 @@ import {MONGO_DATABASE_CONNECTIONS} from "./constants";
 import {AppConfigModule} from "../core/modules/config/app-config.module";
 import {SellOrder, SellOrderSchema} from "./model/schemas/sell-order.schema";
 import {SendKaspaService} from "./services/send-kaspa.service";
+import {SellOrdersBookRepository} from "./repositories/sell-orders-book.repository";
 
 @Module({
     controllers: [P2pController],
     providers: [
+
+        // Providers
         P2pProvider,
+
+        // Services
+        SendKaspaService,
         P2pOrdersService,
 
-        SendKaspaService,
+        // Repositories
+        SellOrdersBookRepository
     ],
     imports: [
         HttpModule,
