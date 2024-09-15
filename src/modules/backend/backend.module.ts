@@ -10,6 +10,7 @@ import {AppConfigModule} from "../core/modules/config/app-config.module";
 import {SellOrder, SellOrderSchema} from "./model/schemas/sell-order.schema";
 import {SendKaspaService} from "./services/send-kaspa.service";
 import {SellOrdersBookRepository} from "./repositories/sell-orders-book.repository";
+import {WasmFacade} from "./providers/wasm.facade";
 
 @Module({
     controllers: [P2pController],
@@ -17,6 +18,9 @@ import {SellOrdersBookRepository} from "./repositories/sell-orders-book.reposito
 
         // Providers
         P2pProvider,
+
+        // Facades
+        WasmFacade,
 
         // Services
         SendKaspaService,
