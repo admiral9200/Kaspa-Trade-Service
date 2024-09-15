@@ -4,6 +4,7 @@ import {ValidationPipe} from "@nestjs/common";
 import helmet from 'helmet';
 import {AppConfigService} from "./modules/core/modules/config/app-config.service";
 
+
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 

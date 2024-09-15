@@ -24,4 +24,8 @@ export class AppConfigService {
   get getMailTransport(): string {
     return this.configService.get('MAIL_TRANSPORT');
   }
+
+  get p2pDatabaseConnectionUrl(): string {
+    return this.configService.get('P2P_DATABASE_CONNECTION_URL');
+  }
 }

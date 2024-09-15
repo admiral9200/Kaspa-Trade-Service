@@ -1,0 +1,6 @@
+export enum SellOrderStatus {
+    WAITING_FOR_FUNDS = 'WAITING_FOR_FUNDS',
+    LISTED_FOR_SALE = 'LISTED_FOR_SALE',
+    IN_PROGRESS = 'IN_PROGRESS',
+    COMPLETED = 'COMPLETED',
+}
