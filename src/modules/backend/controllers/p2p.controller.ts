@@ -2,7 +2,7 @@ import {Body, Controller, Post} from '@nestjs/common';
 import {P2pProvider} from '../providers/p2p.provider';
 import {SellRequestDto} from "../model/dtos/sell-request.dto";
 
-@Controller('example')
+@Controller('p2p')
 export class P2pController {
   constructor(private readonly p2pProvider: P2pProvider) {}
 
