@@ -28,4 +28,8 @@ export class AppConfigService {
   get p2pDatabaseConnectionUrl(): string {
     return this.configService.get('P2P_DATABASE_CONNECTION_URL');
   }
+
+  get kaspaNetwork(): string {
+    return this.configService.get('KASPA_NETWORK');
+  }
 }
