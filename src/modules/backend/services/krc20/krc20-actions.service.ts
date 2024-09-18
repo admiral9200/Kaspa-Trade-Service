@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrivateKey } from 'libs/kaspa-dev/kaspa';
 import { Krc20TransactionsService } from './krc20-transactions.service';
+import {
+  getTransferData,
+  KRC20_TRANSACTIONS_AMOUNTS,
+} from './classes/KRC20OperationData';
 
 @Injectable()
 export class Krc20ActionsService {
@@ -13,7 +17,7 @@ export class Krc20ActionsService {
     privateKey: PrivateKey,
     recipientAdress: string,
     amount: number,
-    gasFee: number,
+    priorityFee: number,
   ) {
     return await this.krc20TransactionsService.connectAndDo(async () => {
       const transferFundsTransaction =
@@ -21,7 +25,7 @@ export class Krc20ActionsService {
           privateKey,
           recipientAdress,
           amount,
-          gasFee,
+          priorityFee,
         );
 
       await this.krc20TransactionsService.signAndSubmitTransactions(
@@ -30,6 +34,27 @@ export class Krc20ActionsService {
       );
 
       return transferFundsTransaction.summary;
+    });
+  }
+
+  // Amount not in sompi
+  async transferKrc20Token(
+    privateKey: PrivateKey,
+    ticker: string,
+    recipientAdress: string,
+    amount: number,
+    priorityFee: number,
+  ) {
+    return await this.krc20TransactionsService.connectAndDo(async () => {
+      const result =
+        await this.krc20TransactionsService.createKrc20TransactionAndDoReveal(
+          privateKey,
+          priorityFee,
+          getTransferData(ticker, amount, recipientAdress),
+          KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+        );
+
+      return result;
     });
   }
 }

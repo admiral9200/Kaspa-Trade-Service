@@ -24,13 +24,14 @@ export class P2pController {
 
   @Get('test')
   async test() {
-    const res = await this.krc20ActionsService.transferKaspa(
+    const res = await this.krc20ActionsService.transferKrc20Token(
       new PrivateKey(
-        '0e2a5d3334fb8ac81ce6ec1d07a303e9e1692849e27e58a1d45767ee3ee05cd9',
+        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
       ),
-      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
-      20,
-      0.01,
+      'GILADA',
+      'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+      1,
+      0.1,
     );
     console.log('result', res);
     return 'asd MF';
