@@ -14,7 +14,7 @@ export const KRC20_BASE_TRANSACTION_AMOUNT = 0.1;
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: 1003,
   MINT: 2,
-  TRANSFER: 1,
+  TRANSFER: 1817 / 1e8,
 };
 
 export function getTransferData(

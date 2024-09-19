@@ -14,6 +14,7 @@ import {
   KRC20_BASE_TRANSACTION_AMOUNT,
   KRC20OperationDataInterface,
 } from './classes/KRC20OperationData';
+import { TransacionReciever } from './classes/TransacionReciever';
 
 @Injectable()
 export class Krc20TransactionsService {
@@ -126,65 +127,65 @@ export class Krc20TransactionsService {
       priorityFee: kaspaToSompi(String(priorityFee)),
       networkId: this.rpcService.getNetwork(),
     });
-    await this.signAndSubmitTransactions(startingTransactions, privateKey);
+    const transactionReciever = new TransacionReciever(
+      this.rpcService.getRpc(),
+    );
 
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          const newWalletUtxos = await this.rpcService
-            .getRpc()
-            .getUtxosByAddresses({
-              addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
-            });
-          const revealUTXOs = await this.rpcService
-            .getRpc()
-            .getUtxosByAddresses({
-              addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
-            });
+    transactionReciever.registerAddress(
+      this.convertPrivateKeyToPublicKey(privateKey),
+    );
 
-          console.log('revealUTXOs', revealUTXOs);
-          const revealTransaction = await createTransactions({
-            priorityEntries: [revealUTXOs.entries[0]],
-            entries: newWalletUtxos.entries,
-            outputs: [],
-            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-            priorityFee: kaspaToSompi(String(transactionAmount)),
-            networkId: this.rpcService.getNetwork(),
-          });
+    const sentedTransactions = await this.signAndSubmitTransactions(
+      startingTransactions,
+      privateKey,
+    );
 
-          for (const transaction of revealTransaction.transactions) {
-            transaction.sign([privateKey], false);
-            const ourOutput = transaction.transaction.inputs.findIndex(
-              (input) => input.signatureScript === '',
-            );
+    await transactionReciever.waitForTransactionCompletion(
+      sentedTransactions[0],
+    );
+    transactionReciever.dispose();
 
-            if (ourOutput !== -1) {
-              const signature = await transaction.createInputSignature(
-                ourOutput,
-                privateKey,
-              );
-
-              transaction.fillInput(
-                ourOutput,
-                scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(
-                  signature,
-                ),
-              );
-            }
-
-            const revealHash = await transaction.submit(
-              this.rpcService.getRpc(),
-            );
-
-            console.log('revealHash', revealHash);
-          }
-
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
-      }, 1500);
+    const newWalletUtxos = await this.rpcService.getRpc().getUtxosByAddresses({
+      addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
+    const revealUTXOs = await this.rpcService.getRpc().getUtxosByAddresses({
+      addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
+    });
+
+    console.log('revealUTXOs', revealUTXOs);
+    const revealTransaction = await createTransactions({
+      priorityEntries: [revealUTXOs.entries[0]],
+      entries: newWalletUtxos.entries,
+      outputs: [],
+      changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+      priorityFee: kaspaToSompi(transactionAmount.toFixed(8)),
+      networkId: this.rpcService.getNetwork(),
+    });
+
+    for (const transaction of revealTransaction.transactions) {
+      transaction.sign([privateKey], false);
+      const ourOutput = transaction.transaction.inputs.findIndex(
+        (input) => input.signatureScript === '',
+      );
+
+      if (ourOutput !== -1) {
+        const signature = await transaction.createInputSignature(
+          ourOutput,
+          privateKey,
+        );
+
+        transaction.fillInput(
+          ourOutput,
+          scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(
+            signature,
+          ),
+        );
+      }
+
+      const revealHash = await transaction.submit(this.rpcService.getRpc());
+
+      console.log('revealHash', revealHash);
+    }
   }
 
   convertPrivateKeyToPublicKey(privateKey: PrivateKey): string {

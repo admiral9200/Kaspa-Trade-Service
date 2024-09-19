@@ -31,7 +31,7 @@ export class P2pController {
       'GILADA',
       'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
       1,
-      0.1,
+      0,
     );
     console.log('result', res);
     return 'asd MF';
