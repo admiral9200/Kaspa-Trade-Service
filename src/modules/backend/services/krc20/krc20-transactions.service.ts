@@ -64,7 +64,7 @@ export class Krc20TransactionsService {
   async createKaspaTransferTransaction(
     privateKey: PrivateKey,
     recipientAdress: string,
-    amount: number,
+    amount: bigint,
     priorityFee: number,
   ) {
     return await this.createTransaction(
@@ -72,7 +72,7 @@ export class Krc20TransactionsService {
       [
         {
           address: recipientAdress,
-          amount: kaspaToSompi(String(amount)),
+          amount,
         },
       ],
       priorityFee,
@@ -114,19 +114,31 @@ export class Krc20TransactionsService {
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
 
-    const startingTransactions = await createTransactions({
-      priorityEntries: [],
-      entries,
-      outputs: [
-        {
-          address: scriptAndScriptAddress.p2shaAddress.toString(),
-          amount: kaspaToSompi(String(KRC20_BASE_TRANSACTION_AMOUNT)),
-        },
-      ],
-      changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-      priorityFee: kaspaToSompi(String(priorityFee)),
-      networkId: this.rpcService.getNetwork(),
-    });
+    let startingTransactions;
+    try {
+      startingTransactions = await createTransactions({
+        priorityEntries: [],
+        entries,
+        outputs: [
+          {
+            address: scriptAndScriptAddress.p2shaAddress.toString(),
+            amount: kaspaToSompi(String(KRC20_BASE_TRANSACTION_AMOUNT)),
+          },
+        ],
+        changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+        priorityFee: kaspaToSompi(String(priorityFee)),
+        networkId: this.rpcService.getNetwork(),
+      });
+    } catch (e) {
+      throw new Error(e);
+    }
+
+    console.log(
+      'summ',
+      startingTransactions.summary,
+      JSON.stringify(await this.rpcService.getRpc().getFeeEstimate({})),
+    );
+
     const transactionReciever = new TransacionReciever(
       this.rpcService.getRpc(),
     );
@@ -152,7 +164,6 @@ export class Krc20TransactionsService {
       addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
     });
 
-    console.log('revealUTXOs', revealUTXOs);
     const revealTransaction = await createTransactions({
       priorityEntries: [revealUTXOs.entries[0]],
       entries: newWalletUtxos.entries,
@@ -183,6 +194,8 @@ export class Krc20TransactionsService {
       }
 
       const revealHash = await transaction.submit(this.rpcService.getRpc());
+
+      console.log('summ', revealTransaction.summary);
 
       console.log('revealHash', revealHash);
     }

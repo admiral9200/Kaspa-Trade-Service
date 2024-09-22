@@ -32,4 +32,8 @@ export class AppConfigService {
   get kaspaNetwork(): string {
     return this.configService.get('KASPA_NETWORK');
   }
+
+  get walletSeed(): string {
+    return this.configService.get('WALLET_SEED');
+  }
 }
