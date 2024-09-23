@@ -10,7 +10,7 @@ export interface KRC20OperationDataInterface {
   pre?: string;
 }
 
-export const KRC20_BASE_TRANSACTION_AMOUNT = 0.3;
+export const KRC20_BASE_TRANSACTION_AMOUNT = 0.2;
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: 1003,
   MINT: 2,
@@ -19,7 +19,7 @@ export const KRC20_TRANSACTIONS_AMOUNTS = {
 
 export function getTransferData(
   ticker: string,
-  amount: number,
+  amount: bigint,
   to: string,
 ): KRC20OperationDataInterface {
   return {
@@ -27,7 +27,7 @@ export function getTransferData(
     op: 'transfer',
     tick: ticker,
     to: to,
-    amt: String(amount * 1e8),
+    amt: String(amount),
   };
 }
 

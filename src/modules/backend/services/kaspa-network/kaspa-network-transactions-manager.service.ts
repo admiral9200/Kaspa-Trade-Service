@@ -17,7 +17,7 @@ import {
 import { TransacionReciever } from './classes/TransacionReciever';
 
 @Injectable()
-export class Krc20TransactionsService {
+export class KaspaNetworkTransactionsManagerService {
   constructor(private rpcService: RpcService) {}
 
   async signAndSubmitTransactions(
@@ -27,7 +27,6 @@ export class Krc20TransactionsService {
     const results: string[] = [];
 
     for (const transaction of transactionsData.transactions) {
-      console.log('transaction', transaction);
       transaction.sign([privateKey]);
       const currentResult = await transaction.submit(this.rpcService.getRpc());
       results.push(currentResult);
@@ -61,24 +60,6 @@ export class Krc20TransactionsService {
     };
   }
 
-  async createKaspaTransferTransaction(
-    privateKey: PrivateKey,
-    recipientAdress: string,
-    amount: bigint,
-    priorityFee: number,
-  ) {
-    return await this.createTransaction(
-      privateKey,
-      [
-        {
-          address: recipientAdress,
-          amount,
-        },
-      ],
-      priorityFee,
-    );
-  }
-
   async createTransaction(
     privateKey: PrivateKey,
     outputs: IPaymentOutput[],
@@ -99,6 +80,34 @@ export class Krc20TransactionsService {
     return transactions;
   }
 
+  async createKaspaTransferTransactionAndDo(
+    privateKey: PrivateKey,
+    payments: IPaymentOutput[],
+    priorityFee: number = 0,
+  ) {
+    const transferFundsTransaction = await this.createTransaction(
+      privateKey,
+      payments,
+      priorityFee,
+    );
+
+    const transactionReciever = new TransacionReciever(
+      this.rpcService.getRpc(),
+      this.convertPrivateKeyToPublicKey(privateKey),
+      transferFundsTransaction.summary.finalTransactionId,
+    );
+
+    await transactionReciever.registerEventHandlers();
+
+    console.log('signSubmit');
+
+    await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
+
+    await transactionReciever.waitForTransactionCompletion();
+
+    return transferFundsTransaction.summary.finalTransactionId;
+  }
+
   async createKrc20TransactionAndDoReveal(
     privateKey: PrivateKey,
     priorityFee: number,
@@ -114,7 +123,7 @@ export class Krc20TransactionsService {
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
 
-    let startingTransactions;
+    let startingTransactions: ICreateTransactions;
     try {
       startingTransactions = await createTransactions({
         priorityEntries: [],
@@ -133,29 +142,17 @@ export class Krc20TransactionsService {
       throw new Error(e);
     }
 
-    console.log(
-      'summ',
-      startingTransactions.summary,
-      JSON.stringify(await this.rpcService.getRpc().getFeeEstimate({})),
-    );
-
     const transactionReciever = new TransacionReciever(
       this.rpcService.getRpc(),
-    );
-
-    transactionReciever.registerAddress(
       this.convertPrivateKeyToPublicKey(privateKey),
+      startingTransactions.summary.finalTransactionId,
     );
 
-    const sentedTransactions = await this.signAndSubmitTransactions(
-      startingTransactions,
-      privateKey,
-    );
+    await transactionReciever.registerEventHandlers();
 
-    await transactionReciever.waitForTransactionCompletion(
-      sentedTransactions[0],
-    );
-    transactionReciever.dispose();
+    await this.signAndSubmitTransactions(startingTransactions, privateKey);
+
+    await transactionReciever.waitForTransactionCompletion();
 
     const newWalletUtxos = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -193,11 +190,19 @@ export class Krc20TransactionsService {
         );
       }
 
+      const revealTransactionReciever = new TransacionReciever(
+        this.rpcService.getRpc(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        revealTransaction.summary.finalTransactionId,
+      );
+
+      await revealTransactionReciever.registerEventHandlers();
+
       const revealHash = await transaction.submit(this.rpcService.getRpc());
 
-      console.log('summ', revealTransaction.summary);
+      await revealTransactionReciever.waitForTransactionCompletion();
 
-      console.log('revealHash', revealHash);
+      return revealHash;
     }
   }
 

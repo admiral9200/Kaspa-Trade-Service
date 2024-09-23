@@ -10,9 +10,9 @@ import { AppConfigModule } from '../core/modules/config/app-config.module';
 import { SellOrder, SellOrderSchema } from './model/schemas/sell-order.schema';
 import { SellOrdersBookRepository } from './repositories/sell-orders-book.repository';
 import { WasmFacade } from './facades/wasm.facade';
-import { Krc20ActionsService } from './services/krc20/krc20-actions.service';
-import { Krc20TransactionsService } from './services/krc20/krc20-transactions.service';
-import { RpcService } from './services/krc20/rpc.service';
+import { KaspaNetworkActionsService } from './services/kaspa-network/kaspa-network-actions.service';
+import { KaspaNetworkTransactionsManagerService } from './services/kaspa-network/kaspa-network-transactions-manager.service';
+import { RpcService } from './services/kaspa-network/rpc.service';
 
 @Module({
   controllers: [P2pController],
@@ -28,8 +28,8 @@ import { RpcService } from './services/krc20/rpc.service';
 
     // Repositories
     SellOrdersBookRepository,
-    Krc20ActionsService,
-    Krc20TransactionsService,
+    KaspaNetworkActionsService,
+    KaspaNetworkTransactionsManagerService,
     RpcService,
   ],
   imports: [
