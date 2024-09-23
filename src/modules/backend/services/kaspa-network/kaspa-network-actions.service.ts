@@ -14,6 +14,7 @@ import {
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { RpcService } from './rpc.service';
 
+const AMOUNT_FOR_TESTING_FEE = 5;
 @Injectable()
 export class KaspaNetworkActionsService {
   constructor(
@@ -217,6 +218,25 @@ export class KaspaNetworkActionsService {
       });
 
       return utxos.entries.reduce((acc, curr) => acc + curr.amount, 0n);
+    });
+  }
+
+  async getCurrentFeeRate() {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      const transaction =
+        await this.transactionsManagerService.createTransaction(
+          new PrivateKey(this.config.transactionFeeTestWalletPrivateKey),
+          [
+            {
+              address: this.config.commitionWalletAddress,
+              amount: kaspaToSompi(String(AMOUNT_FOR_TESTING_FEE)),
+            },
+          ],
+        );
+
+      return await this.transactionsManagerService.calculateFeeForTransaction(
+        transaction,
+      );
     });
   }
 

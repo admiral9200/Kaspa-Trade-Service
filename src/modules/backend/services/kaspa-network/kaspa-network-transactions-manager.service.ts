@@ -63,7 +63,7 @@ export class KaspaNetworkTransactionsManagerService {
   async createTransaction(
     privateKey: PrivateKey,
     outputs: IPaymentOutput[],
-    priorityFee: bigint,
+    priorityFee: bigint = 0n,
   ) {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],

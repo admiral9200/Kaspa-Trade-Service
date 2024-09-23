@@ -44,4 +44,8 @@ export class AppConfigService {
   get commitionWalletAddress(): string {
     return this.configService.get('COMMISSION_WALLET_ADDRESS');
   }
+
+  get transactionFeeTestWalletPrivateKey(): string {
+    return this.configService.get('TRANSACTION_FEE_TEST_WALLET_PRIVATE_KEY');
+  }
 }

@@ -22,6 +22,11 @@ export class P2pController {
     return await this.p2pProvider.buy(buyRequestDto);
   }
 
+  @Get('feeRate')
+  async getFeeRate() {
+    return await this.p2pProvider.getCurrentFeeRate();
+  }
+
   @Get('test')
   async test() {
     const res = await this.kaspaNetworkActionsService.transferKrc20Token(
