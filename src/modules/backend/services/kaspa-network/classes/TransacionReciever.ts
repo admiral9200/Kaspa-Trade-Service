@@ -15,6 +15,7 @@ export class TransacionReciever {
     private readonly rpc: RpcClient,
     private publicAddress: string,
     private transactionToMonitor,
+    private walletShouldBeEmpty = false,
   ) {
     this.id =
       Date.now().toString(36) +
@@ -24,7 +25,18 @@ export class TransacionReciever {
     this.handlerWithBind = this.handleEvent.bind(this);
   }
 
+  private resolveAsSuccess() {
+    this.resolve();
+    clearTimeout(this.timeout);
+    this.clearEventListener();
+  }
+
   private handleEvent(event) {
+    if (this.walletShouldBeEmpty) {
+      this.resolveAsSuccess();
+      return;
+    }
+
     const addedEntry = event.data.added.find(
       (entry: any) =>
         entry.address.payload === this.publicAddress.toString().split(':')[1],
@@ -34,9 +46,7 @@ export class TransacionReciever {
       const addedEventTrxId = addedEntry.outpoint.transactionId;
 
       if (addedEventTrxId == this.transactionToMonitor) {
-        this.resolve();
-        clearTimeout(this.timeout);
-        this.clearEventListener();
+        this.resolveAsSuccess();
       }
     }
   }

@@ -63,7 +63,7 @@ export class KaspaNetworkTransactionsManagerService {
   async createTransaction(
     privateKey: PrivateKey,
     outputs: IPaymentOutput[],
-    priorityFee: number,
+    priorityFee: bigint,
   ) {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -73,7 +73,7 @@ export class KaspaNetworkTransactionsManagerService {
       entries,
       outputs,
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-      priorityFee: kaspaToSompi(String(priorityFee)),
+      priorityFee: priorityFee,
       networkId: this.rpcService.getNetwork(),
     });
 
@@ -83,25 +83,23 @@ export class KaspaNetworkTransactionsManagerService {
   async createKaspaTransferTransactionAndDo(
     privateKey: PrivateKey,
     payments: IPaymentOutput[],
-    priorityFee: number = 0,
+    fee: bigint = null,
+    walletShouldBeEmpty = false,
   ) {
     const transferFundsTransaction = await this.createTransaction(
       privateKey,
       payments,
-      priorityFee,
+      fee,
     );
 
     const transactionReciever = new TransacionReciever(
       this.rpcService.getRpc(),
       this.convertPrivateKeyToPublicKey(privateKey),
       transferFundsTransaction.summary.finalTransactionId,
+      walletShouldBeEmpty,
     );
 
-    console.log(transferFundsTransaction, transferFundsTransaction.summary);
-
     await transactionReciever.registerEventHandlers();
-
-    console.log('signSubmit');
 
     await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
 
@@ -230,5 +228,18 @@ export class KaspaNetworkTransactionsManagerService {
   async isServerValid(): Promise<boolean> {
     const serverInfo = await this.rpcService.getRpc().getServerInfo();
     return serverInfo.isSynced && serverInfo.hasUtxoIndex;
+  }
+
+  async calculateFeeForTransaction(
+    transactionData: ICreateTransactions,
+  ): Promise<bigint> {
+    const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
+    const massAndFeeRate =
+      transactionData.summary.mass *
+      BigInt(estimatedFees.estimate.priorityBucket.feerate);
+
+    return transactionData.summary.fees > massAndFeeRate
+      ? transactionData.summary.fees
+      : massAndFeeRate;
   }
 }

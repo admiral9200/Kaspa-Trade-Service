@@ -40,77 +40,104 @@ export class KaspaNetworkActionsService {
     kaspaAmount: bigint,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      // await this.transferKrc20Token(
-      //   holderWalletPrivateKey,
-      //   krc20tokenTicker,
-      //   buyerAddress,
-      //   krc20TokenAmount,
-      //   0,
-      // );
+      console.log('transfering krc20...');
+
+      await this.transferKrc20Token(
+        holderWalletPrivateKey,
+        krc20tokenTicker,
+        buyerAddress,
+        krc20TokenAmount,
+        0,
+      );
 
       console.log('transfered krc20');
 
       const commission = this.config.swapCommissionPercentage + 1;
       const commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
-      const amountToTransferToCommissionWallet = commissionInKaspa * 2n;
-      const amountToTransferToSeller = kaspaAmount - commissionInKaspa;
 
-      // Comission wallet
-      // await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
-      //   holderWalletPrivateKey,
-      //   [
-      //     {
-      //       address: this.config.commitionWalletAddress,
-      //       amount: amountToTransferToCommissionWallet,
-      //     },
-      //   ],
-      //   0,
-      // );
-
-      console.log('transfered commisions');
-
-      // Seller send
-      // await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
-      //   holderWalletPrivateKey,
-      //   [
-      //     {
-      //       address: sellerAddress,
-      //       amount: amountToTransferToSeller,
-      //     },
-      //   ],
-      //   0,
-      // );
-
-      console.log('transfered to seller');
-
+      let lastTransactionTotalFee = kaspaToSompi('1');
       const totalWalletAmount = await this.getWalletTotalBalance(
         this.transactionsManagerService.convertPrivateKeyToPublicKey(
           holderWalletPrivateKey,
         ),
       );
 
-      const lastTransactionTotalFee = kaspaToSompi('0.2');
+      const amountToTransferToCommissionWallet = commissionInKaspa * 2n;
+      const amountToTransferToSeller = kaspaAmount - commissionInKaspa;
 
-      const amountToTransferToBuyer =
-        totalWalletAmount - lastTransactionTotalFee;
+      let amountToTransferToBuyer =
+        totalWalletAmount -
+        (amountToTransferToCommissionWallet +
+          amountToTransferToSeller +
+          lastTransactionTotalFee); // Should be how much left in the wallet
 
       console.log({
         amountToTransferToCommissionWallet:
           Number(amountToTransferToCommissionWallet) / 1e8,
         amountToTransferToSeller: Number(amountToTransferToSeller) / 1e8,
         amountToTransferToBuyer: Number(amountToTransferToBuyer) / 1e8,
-        amountToTransferToBuyer2: amountToTransferToBuyer,
       });
 
-      await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+      if (amountToTransferToBuyer < 0) {
+        throw new Error('Not enough balance in the wallet');
+      }
+
+      console.log('Creating temp transaction...');
+
+      const tempTransaction =
+        await this.transactionsManagerService.createTransaction(
+          holderWalletPrivateKey,
+          [
+            {
+              address: this.config.commitionWalletAddress,
+              amount: amountToTransferToCommissionWallet,
+            },
+            {
+              address: sellerAddress,
+              amount: amountToTransferToSeller,
+            },
+            {
+              address: buyerAddress,
+              amount: amountToTransferToBuyer,
+            },
+          ],
+          0n,
+        );
+
+      lastTransactionTotalFee =
+        await this.transactionsManagerService.calculateFeeForTransaction(
+          tempTransaction,
+        );
+
+      amountToTransferToBuyer =
+        totalWalletAmount -
+        (amountToTransferToCommissionWallet +
+          amountToTransferToSeller +
+          lastTransactionTotalFee); // Should be how much left in the wallet
+
+      if (amountToTransferToBuyer < 0) {
+        throw new Error('Not enough balance in the wallet');
+      }
+      console.log('transfering all kaspa...');
+
+      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
         holderWalletPrivateKey,
         [
+          {
+            address: this.config.commitionWalletAddress,
+            amount: amountToTransferToCommissionWallet,
+          },
+          {
+            address: sellerAddress,
+            amount: amountToTransferToSeller,
+          },
           {
             address: buyerAddress,
             amount: amountToTransferToBuyer,
           },
         ],
-        0,
+        0n,
+        true,
       );
     });
   }
@@ -118,7 +145,7 @@ export class KaspaNetworkActionsService {
   async transferKaspa(
     privateKey: PrivateKey,
     payments: IPaymentOutput[],
-    priorityFee: number,
+    priorityFee: bigint,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
@@ -128,50 +155,6 @@ export class KaspaNetworkActionsService {
       );
     });
   }
-
-  // async transferAllAvailableKaspaInWallet(
-  //   privateKey: PrivateKey,
-  //   recipientAdress: string,
-  //   priorityFee: number,
-  // ) {
-  //   return await this.transactionsManagerService.connectAndDo(async () => {
-  //     const totalAmount = await this.getWalletTotalBalance(
-  //       privateKey
-  //         .toPublicKey()
-  //         .toAddress(this.rpcService.getNetwork())
-  //         .toString(),
-  //     );
-
-  //     console.log(totalAmount);
-
-  //     const checkTransaction =
-  //       await this.transactionsManagerService.createKaspaTransferTransaction(
-  //         privateKey,
-  //         recipientAdress,
-  //         totalAmount,
-  //         priorityFee,
-  //       );
-
-  //     console.log('frr', checkTransaction.summary.fees);
-
-  //     return;
-
-  //     const transferFundsTransaction =
-  //       await this.transactionsManagerService.createKaspaTransferTransaction(
-  //         privateKey,
-  //         recipientAdress,
-  //         0n,
-  //         priorityFee,
-  //       );
-
-  //     await this.transactionsManagerService.signAndSubmitTransactions(
-  //       transferFundsTransaction,
-  //       privateKey,
-  //     );
-
-  //     return transferFundsTransaction.summary;
-  //   });
-  // }
 
   async transferKrc20Token(
     privateKey: PrivateKey,

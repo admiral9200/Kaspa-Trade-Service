@@ -29,9 +29,23 @@ export class P2pController {
         '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
       ),
       'GILADA',
-      'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-      kaspaToSompi('1'),
+      'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+      kaspaToSompi('10'),
       0,
+    );
+
+    await this.kaspaNetworkActionsService.transferKaspa(
+      new PrivateKey(
+        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
+      ),
+      [
+        {
+          address:
+            'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+          amount: kaspaToSompi('25'),
+        },
+      ],
+      0n,
     );
 
     console.log('result', res);
@@ -64,7 +78,7 @@ export class P2pController {
           amount: kaspaToSompi('2'),
         },
       ],
-      0,
+      0n,
     );
 
     await this.kaspaNetworkActionsService.logMyWallets('after');
@@ -92,8 +106,8 @@ export class P2pController {
       'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
       'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
       'GILADA',
-      kaspaToSompi('68'),
-      kaspaToSompi('18'),
+      kaspaToSompi('10'),
+      kaspaToSompi('20'),
     );
 
     console.log('result', res);
