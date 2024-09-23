@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   IPaymentOutput,
+  kaspaToSompi,
   Mnemonic,
   PrivateKey,
   XPrv,
@@ -30,14 +31,89 @@ export class KaspaNetworkActionsService {
    * @param kaspaAmount - The price that the user pays, in sompi
    * @param priorityFee
    */
-  // async doSellSwap(
-  //   buyerAddress: string,
-  //   sellerAddress: string,
-  //   krc20tokenTicker: string,
-  //   krc20TokenAmount: bigint,
-  //   kaspaAmount: bigint,
-  //   priorityFee: number,
-  // ) {}
+  async doSellSwap(
+    holderWalletPrivateKey: PrivateKey,
+    buyerAddress: string,
+    sellerAddress: string,
+    krc20tokenTicker: string,
+    krc20TokenAmount: bigint,
+    kaspaAmount: bigint,
+  ) {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      // await this.transferKrc20Token(
+      //   holderWalletPrivateKey,
+      //   krc20tokenTicker,
+      //   buyerAddress,
+      //   krc20TokenAmount,
+      //   0,
+      // );
+
+      console.log('transfered krc20');
+
+      const commission = this.config.swapCommissionPercentage + 1;
+      const commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
+      const amountToTransferToCommissionWallet = commissionInKaspa * 2n;
+      const amountToTransferToSeller = kaspaAmount - commissionInKaspa;
+
+      // Comission wallet
+      // await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+      //   holderWalletPrivateKey,
+      //   [
+      //     {
+      //       address: this.config.commitionWalletAddress,
+      //       amount: amountToTransferToCommissionWallet,
+      //     },
+      //   ],
+      //   0,
+      // );
+
+      console.log('transfered commisions');
+
+      // Seller send
+      // await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+      //   holderWalletPrivateKey,
+      //   [
+      //     {
+      //       address: sellerAddress,
+      //       amount: amountToTransferToSeller,
+      //     },
+      //   ],
+      //   0,
+      // );
+
+      console.log('transfered to seller');
+
+      const totalWalletAmount = await this.getWalletTotalBalance(
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(
+          holderWalletPrivateKey,
+        ),
+      );
+
+      const lastTransactionTotalFee = kaspaToSompi('0.2');
+
+      const amountToTransferToBuyer =
+        totalWalletAmount - lastTransactionTotalFee;
+
+      console.log({
+        amountToTransferToCommissionWallet:
+          Number(amountToTransferToCommissionWallet) / 1e8,
+        amountToTransferToSeller: Number(amountToTransferToSeller) / 1e8,
+        amountToTransferToBuyer: Number(amountToTransferToBuyer) / 1e8,
+        amountToTransferToBuyer2: amountToTransferToBuyer,
+      });
+
+      await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+        holderWalletPrivateKey,
+        [
+          {
+            address: buyerAddress,
+            amount: amountToTransferToBuyer,
+          },
+        ],
+        0,
+      );
+    });
+  }
 
   async transferKaspa(
     privateKey: PrivateKey,

@@ -82,4 +82,22 @@ export class P2pController {
 
     return res;
   }
+
+  @Get('test4')
+  async test4() {
+    const res = await this.kaspaNetworkActionsService.doSellSwap(
+      new PrivateKey(
+        '89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8',
+      ),
+      'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
+      'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
+      'GILADA',
+      kaspaToSompi('68'),
+      kaspaToSompi('18'),
+    );
+
+    console.log('result', res);
+
+    return res;
+  }
 }

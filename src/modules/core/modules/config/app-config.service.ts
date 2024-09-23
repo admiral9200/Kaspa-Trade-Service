@@ -36,4 +36,12 @@ export class AppConfigService {
   get walletSeed(): string {
     return this.configService.get('WALLET_SEED');
   }
+
+  get swapCommissionPercentage(): number {
+    return Number(this.configService.get('SWAP_COMMISSION_PERCANTAGE'));
+  }
+
+  get commitionWalletAddress(): string {
+    return this.configService.get('COMMISSION_WALLET_ADDRESS');
+  }
 }

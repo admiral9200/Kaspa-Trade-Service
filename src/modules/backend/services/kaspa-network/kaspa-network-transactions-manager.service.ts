@@ -97,6 +97,8 @@ export class KaspaNetworkTransactionsManagerService {
       transferFundsTransaction.summary.finalTransactionId,
     );
 
+    console.log(transferFundsTransaction, transferFundsTransaction.summary);
+
     await transactionReciever.registerEventHandlers();
 
     console.log('signSubmit');
