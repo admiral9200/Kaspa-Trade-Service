@@ -1,4 +1,4 @@
-import { RpcClient } from 'libs/kaspa-dev/kaspa';
+import { RpcClient } from 'libs/kaspa/kaspa';
 
 const WAIT_TIMEOUT = 2 * 60 * 1000;
 export class TransacionReciever {
