@@ -11,6 +11,8 @@ import {SellOrder, SellOrderSchema} from "./model/schemas/sell-order.schema";
 import {SendKaspaService} from "./services/send-kaspa.service";
 import {SellOrdersBookRepository} from "./repositories/sell-orders-book.repository";
 import {WasmFacade} from "./facades/wasm.facade";
+import {TemporaryWallet, TemporaryWalletSchema} from "./model/schemas/temporary-wallet.schema";
+import {P2pTemporaryWalletsRepository} from "./repositories/p2p-temporary-wallets.repository";
 
 @Module({
     controllers: [P2pController],
@@ -27,7 +29,8 @@ import {WasmFacade} from "./facades/wasm.facade";
         P2pOrdersService,
 
         // Repositories
-        SellOrdersBookRepository
+        SellOrdersBookRepository,
+        P2pTemporaryWalletsRepository
     ],
     imports: [
         HttpModule,
@@ -41,6 +44,7 @@ import {WasmFacade} from "./facades/wasm.facade";
         }),
         MongooseModule.forFeature([
             {name: SellOrder.name, schema: SellOrderSchema},
+            {name: TemporaryWallet.name, schema: TemporaryWalletSchema},
         ], MONGO_DATABASE_CONNECTIONS.P2P),
     ],
     exports: []

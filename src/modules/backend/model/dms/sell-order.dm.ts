@@ -1,7 +1,13 @@
+import {SellOrderStatus} from "../enums/sell-order-status.enum";
+
 export interface SellOrderDm {
     id?: string;
     quantity: number;
-    token: string;
+    ticker: string;
     atPrice: number;
-    walletAddress: string;
+    sellerWalletAddress: string;
+    buyerWalletAddress?: string;
+    tempMiddlemanWalletAddress?: string;
+    status?: SellOrderStatus;
+    createdAt?: Date;
 }
