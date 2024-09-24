@@ -13,6 +13,7 @@ import { WasmFacade } from './facades/wasm.facade';
 import { KaspaNetworkActionsService } from './services/kaspa-network/kaspa-network-actions.service';
 import { KaspaNetworkTransactionsManagerService } from './services/kaspa-network/kaspa-network-transactions-manager.service';
 import { RpcService } from './services/kaspa-network/rpc.service';
+import { EncryptionService } from './services/encryption.service';
 
 @Module({
   controllers: [P2pController],
@@ -31,6 +32,7 @@ import { RpcService } from './services/kaspa-network/rpc.service';
     KaspaNetworkActionsService,
     KaspaNetworkTransactionsManagerService,
     RpcService,
+    EncryptionService,
   ],
   imports: [
     HttpModule,

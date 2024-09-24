@@ -79,7 +79,10 @@ export class TransacionReciever {
 
   private async clearEventListener() {
     this.rpc.removeEventListener('utxos-changed', this.handlerWithBind);
-    delete TransacionReciever.addressesToMontior[this.publicAddress][this.id];
+
+    if (TransacionReciever.addressesToMontior[this.publicAddress][this.id]) {
+      delete TransacionReciever.addressesToMontior[this.publicAddress][this.id];
+    }
 
     if (
       Object.keys(TransacionReciever.addressesToMontior[this.publicAddress])

@@ -26,4 +26,8 @@ export class P2pProvider {
   async getCurrentFeeRate() {
     return await this.kaspaNetworkActionsService.getCurrentFeeRate();
   }
+
+  async generateMasterWallet() {
+    return await this.kaspaNetworkActionsService.generateMasterWallet();
+  }
 }

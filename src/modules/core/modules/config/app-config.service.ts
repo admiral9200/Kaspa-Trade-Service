@@ -45,7 +45,18 @@ export class AppConfigService {
     return this.configService.get('COMMISSION_WALLET_ADDRESS');
   }
 
-  get transactionFeeTestWalletPrivateKey(): string {
-    return this.configService.get('TRANSACTION_FEE_TEST_WALLET_PRIVATE_KEY');
+  get masterWalletKey(): string {
+    return this.configService.get('MASTER_WALLET_KEY');
+  }
+
+  get encryptionKeys() {
+    return {
+      KEY_32: this.configService.get('ENCRYPTION_32_CHARS_KEY'),
+      KEY_16: this.configService.get('ENCRYPTION_16_CHARS_IV_KEY'),
+    };
+  }
+
+  get generateMasterSeedPassword(): string {
+    return this.configService.get('GENERATE_MASTER_SEED_PASSWORD');
   }
 }

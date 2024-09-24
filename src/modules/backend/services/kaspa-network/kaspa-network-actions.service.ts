@@ -14,6 +14,7 @@ import {
 } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { RpcService } from './rpc.service';
+import { EncryptionService } from '../encryption.service';
 
 const AMOUNT_FOR_TESTING_FEE = 5;
 @Injectable()
@@ -22,6 +23,7 @@ export class KaspaNetworkActionsService {
     private readonly transactionsManagerService: KaspaNetworkTransactionsManagerService,
     private readonly config: AppConfigService,
     private readonly rpcService: RpcService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -184,68 +186,40 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async createWallet() {
+  async generateMasterWallet() {
     const mnemonic = Mnemonic.random();
     const seed = mnemonic.toSeed(this.config.walletSeed);
     const xprv = new XPrv(seed);
+    const masterWalletKey = xprv.intoString('kprv');
 
-    const receivePrivateKey = xprv
-      .derivePath("m/44'/111111'/0'/0/0")
-      .toPrivateKey(); // Derive the private key for the receive address
-    const changePrivateKey = xprv
-      .derivePath("m/44'/111111'/0'/1/0")
-      .toPrivateKey(); // Derive the private key for the change address
+    const encryptedKey = await this.encryptionService.encrypt(masterWalletKey);
 
-    const receivePublicKey = receivePrivateKey.toPublicKey();
-    const changePublicKey = changePrivateKey.toPublicKey();
-
-    const receiveAddress = receivePublicKey
-      .toAddress(this.rpcService.getNetwork())
-      .toString();
-    const changeAddress = changePublicKey
-      .toAddress(this.rpcService.getNetwork())
-      .toString();
-
-    const receivePrivateKeyString = receivePrivateKey.toString();
-    const changePrivateKeyString = changePrivateKey.toString();
+    console.log('xprv');
+    console.log('enc', encryptedKey);
+    console.log('dec', await this.encryptionService.decrypt(encryptedKey));
 
     return {
-      mnemonic: mnemonic.phrase,
-      receivePrivateKey: receivePrivateKeyString,
-      changePrivateKey: changePrivateKeyString,
-      receive: receiveAddress,
-      change: changeAddress,
+      encryptedXPrv: encryptedKey,
+      walletForFeeCalc: (await this.getWalletAccountAtIndex(0, masterWalletKey)).address,
     };
   }
 
-  async createAccount(seed) {
-    const mnemonic = new Mnemonic(seed);
-    const withPass = mnemonic.toSeed(this.config.walletSeed);
-    const xprv = new XPrv(withPass);
+  async getWalletAccountAtIndex(index: number, xprvString: string = null) {
+    const xprv = XPrv.fromXPrv(
+      xprvString ||
+        (await this.encryptionService.decrypt(this.config.masterWalletKey)),
+    );
 
-    const g = new PrivateKeyGenerator(xprv, false, 0n);
-    g.receiveKey(0);
+    const account = new PrivateKeyGenerator(xprv, false, 0n);
 
-    const receivePrivateKey = xprv
-      .derivePath("m/44'/111111'/0'/0/0")
-      .toPrivateKey(); // Derive the private key for the receive address
-
-    g.receiveKey(1).toAddress(this.rpcService.getNetwork());
+    const privateKey = account.receiveKey(index);
 
     return {
-      receivePrivateKey: receivePrivateKey.toString(),
-      receiveKey1: g.receiveKey(1).toString(),
-      receiveKey2: g.receiveKey(2).toString(),
-      receiveKey1a: g
-        .receiveKey(1)
-        .toPublicKey()
-        .toAddress(this.rpcService.getNetwork())
-        .toString(),
-      receiveKey2a: g
-        .receiveKey(2)
-        .toPublicKey()
-        .toAddress(this.rpcService.getNetwork())
-        .toString(),
+      privateKey,
+      address:
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(
+          privateKey,
+        ),
     };
   }
 
@@ -259,7 +233,7 @@ export class KaspaNetworkActionsService {
     return await this.transactionsManagerService.connectAndDo(async () => {
       const transaction =
         await this.transactionsManagerService.createTransaction(
-          new PrivateKey(this.config.transactionFeeTestWalletPrivateKey),
+          (await this.getWalletAccountAtIndex(0)).privateKey,
           [
             {
               address: this.config.commitionWalletAddress,

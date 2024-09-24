@@ -1,15 +1,24 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Post,
+  Request,
+} from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellRequestDto } from '../model/dtos/sell-request.dto';
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { kaspaToSompi, PrivateKey } from 'libs/kaspa-dev/kaspa';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 
 @Controller('p2p')
 export class P2pController {
   constructor(
     private readonly p2pProvider: P2pProvider,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+    private readonly config: AppConfigService,
   ) {}
 
   @Post('sell')
@@ -27,6 +36,14 @@ export class P2pController {
     return await this.p2pProvider.getCurrentFeeRate();
   }
 
+  @Post('generateMasterWallet')
+  async generateMasterWallet(@Request() req) {
+    const token = req.headers['authorization'];
+    if (token != this.config.generateMasterSeedPassword) {
+      throw new NotFoundException();
+    }
+    return this.p2pProvider.generateMasterWallet();
+  }
   @Get('test')
   async test() {
     // const res = await this.kaspaNetworkActionsService.transferKrc20Token(
@@ -70,17 +87,17 @@ export class P2pController {
         {
           address:
             'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-          amount: kaspaToSompi('0.2'),
+          amount: kaspaToSompi('1'),
         },
         {
           address:
             'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('0.25'),
+          amount: kaspaToSompi('2'),
         },
         {
           address:
             'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-          amount: kaspaToSompi('0.31'),
+          amount: kaspaToSompi('3'),
         },
       ],
       0n,
@@ -95,14 +112,11 @@ export class P2pController {
 
   @Get('test3')
   async test3() {
+    // return this.kaspaNetworkActionsService.generateMasterWallet();
     // const res = await this.kaspaNetworkActionsService.createWallet();
-    const res = await this.kaspaNetworkActionsService.createAccount(
-      'eyebrow vintage fantasy boost enrich demand chat vehicle myth just chuckle hungry century asthma float candy boss asthma silver sleep spend maple bracket rude',
-    );
-
-    console.log('result', res);
-
-    return res;
+    // const res = await this.kaspaNetworkActionsService.createAccount();
+    // console.log('result', res);
+    // return res;
   }
 
   @Get('test4')
