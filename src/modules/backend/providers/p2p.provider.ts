@@ -1,15 +1,16 @@
-import {Injectable} from "@nestjs/common";
-import {SellRequestDto} from "../model/dtos/sell-request.dto";
-import {P2pOrdersService} from "../services/p2p-orders.service";
-import {P2pOrderBookTransformer} from "../transformers/p2p-order-book.transformer";
-import {SellOrderDm} from "../model/dms/sell-order.dm";
-import {P2pOrderBookResponseTransformer} from "../transformers/p2p-order-book-response.transformer";
-import {ConfirmSellOrderRequestResponseDto} from "../model/dtos/responses/confirm-sell-order-request.response.dto";
-import {BuyRequestResponseDto} from "../model/dtos/responses/buy-request.response.dto";
-import {SellRequestResponseDto} from "../model/dtos/responses/sell-request.response.dto";
-import {ConfirmBuyOrderRequestResponseDto} from "../model/dtos/responses/confirm-buy-order-request.response.dto";
-import {SellOrderResponseDto} from "../model/dtos/responses/sell-order.response.dto";
+import { Injectable } from '@nestjs/common';
+import { SellRequestDto } from '../model/dtos/sell-request.dto';
+import { P2pOrdersService } from '../services/p2p-orders.service';
+import { P2pOrderBookTransformer } from '../transformers/p2p-order-book.transformer';
+import { SellOrderDm } from '../model/dms/sell-order.dm';
+import { P2pOrderBookResponseTransformer } from '../transformers/p2p-order-book-response.transformer';
+import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/responses/confirm-sell-order-request.response.dto';
+import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
+import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
+import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/responses/confirm-buy-order-request.response.dto';
+import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -18,18 +19,18 @@ export class P2pProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-    public async listSellOrders(): Promise<SellOrderResponseDto[]> {
-        const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders();
-        return orders.map(order => P2pOrderBookTransformer.transformSellOrderDmToSellOrderDto(order));
-    }
+  public async listSellOrders(): Promise<SellOrderResponseDto[]> {
+    const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders();
+    return orders.map((order) => P2pOrderBookTransformer.transformSellOrderDmToSellOrderDto(order));
+  }
 
-    public async createSellOrder(dto: SellRequestDto): Promise<SellRequestResponseDto> {
-        const sellOrderDm = P2pOrderBookTransformer.transformSellRequestDtoToOrderDm(dto);
+  public async createSellOrder(dto: SellRequestDto): Promise<SellRequestResponseDto> {
+    const sellOrderDm = P2pOrderBookTransformer.transformSellRequestDtoToOrderDm(dto);
 
-        const createdSellOrderDm: SellOrderDm = await this.p2pOrderBookService.createSell(sellOrderDm);
+    const createdSellOrderDm: SellOrderDm = await this.p2pOrderBookService.createSell(sellOrderDm);
 
-        return P2pOrderBookResponseTransformer.transformDmToSellResponseDto(createdSellOrderDm);
-    }
+    return P2pOrderBookResponseTransformer.transformDmToSellResponseDto(createdSellOrderDm);
+  }
 
   async getCurrentFeeRate() {
     return await this.kaspaNetworkActionsService.getCurrentFeeRate();
@@ -38,25 +39,32 @@ export class P2pProvider {
   async generateMasterWallet() {
     return await this.kaspaNetworkActionsService.generateMasterWallet();
   }
-    public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
-        const sellOrderDm: SellOrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);
-        return P2pOrderBookResponseTransformer.transformDmToBuyResponseDto(sellOrderDm);
-    }
 
-    public async confirmAndValidateSellOrderListing(sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
-        const confirmed: boolean = await this.p2pOrderBookService.confirmAndValidateSellOrderListing(sellOrderId);
-        return {
-            confirmed
-        }
-    }
+  public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
+    const sellOrderDm: SellOrderDm = await this.p2pOrderBookService.assignBuyerToOrder(
+      orderId,
+      buyRequestDto.walletAddress,
+    );
+    return P2pOrderBookResponseTransformer.transformDmToBuyResponseDto(sellOrderDm);
+  }
 
-    public async confirmBuy(sellOrderId: string): Promise<ConfirmBuyOrderRequestResponseDto> {
-        const confirmed: boolean = await this.p2pOrderBookService.confirmBuy(sellOrderId);
+  public async confirmAndValidateSellOrderListing(
+    sellOrderId: string,
+  ): Promise<ConfirmSellOrderRequestResponseDto> {
+    const confirmed: boolean =
+      await this.p2pOrderBookService.confirmAndValidateSellOrderListing(sellOrderId);
+    return {
+      confirmed,
+    };
+  }
 
-        // PERFORM SWAP TODO
+  public async confirmBuy(sellOrderId: string): Promise<ConfirmBuyOrderRequestResponseDto> {
+    const confirmed: boolean = await this.p2pOrderBookService.confirmBuy(sellOrderId);
 
-        return {
-            confirmed,
-        };
-    }
+    // PERFORM SWAP TODO
+
+    return {
+      confirmed,
+    };
+  }
 }

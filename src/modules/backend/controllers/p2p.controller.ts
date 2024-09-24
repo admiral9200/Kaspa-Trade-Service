@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Post} from '@nestjs/common';
+import {Request, Body, Controller, Get, NotFoundException, Param, Post} from '@nestjs/common';
 import {P2pProvider} from '../providers/p2p.provider';
 import {SellRequestDto} from "../model/dtos/sell-request.dto";
 import {SellRequestResponseDto} from "../model/dtos/responses/sell-request.response.dto";
@@ -6,18 +6,20 @@ import {ConfirmSellOrderRequestResponseDto} from "../model/dtos/responses/confir
 import {BuyRequestResponseDto} from "../model/dtos/responses/buy-request.response.dto";
 import {ConfirmBuyOrderRequestResponseDto} from "../model/dtos/responses/confirm-buy-order-request.response.dto";
 import {SellOrderResponseDto} from "../model/dtos/responses/sell-order.response.dto";
-import { kaspaToSompi, PrivateKey } from 'libs/kaspa-dev/kaspa';
-import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
-import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
+import {kaspaToSompi, PrivateKey} from 'libs/kaspa-dev/kaspa';
+import {KaspaNetworkActionsService} from '../services/kaspa-network/kaspa-network-actions.service';
+import {AppConfigService} from 'src/modules/core/modules/config/app-config.service';
+import {BuyRequestDto} from "../model/dtos/buy-request.dto";
 
 @Controller('p2p')
 export class P2pController {
 
-  constructor(
-    private readonly p2pProvider: P2pProvider,
-    private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
-    private readonly config: AppConfigService,
-  ) {}
+    constructor(
+        private readonly p2pProvider: P2pProvider,
+        private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+        private readonly config: AppConfigService,
+    ) {
+    }
 
     @Get('getSellOrders')
     async getSellOrders(): Promise<SellOrderResponseDto[]> {
@@ -68,116 +70,113 @@ export class P2pController {
         }
     }
 
-  @Post('buy')
-  async buyToken(@Body() buyRequestDto: BuyRequestDto) {
-    return await this.p2pProvider.buy(buyRequestDto);
-  }
-
-  @Get('feeRate')
-  async getFeeRate() {
-    return await this.p2pProvider.getCurrentFeeRate();
-  }
-
-  @Post('generateMasterWallet')
-  async generateMasterWallet(@Request() req) {
-    const token = req.headers['authorization'];
-    if (token != this.config.generateMasterSeedPassword) {
-      throw new NotFoundException();
+    @Get('feeRate')
+    async getFeeRate() {
+        return await this.p2pProvider.getCurrentFeeRate();
     }
-    return this.p2pProvider.generateMasterWallet();
-  }
-  @Get('test')
-  async test() {
-    // const res = await this.kaspaNetworkActionsService.transferKrc20Token(
-    //   new PrivateKey(
-    //     '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
-    //   ),
-    //   'GILADA',
-    //   'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-    //   kaspaToSompi('10'),
-    //   0n,
-    // );
 
-    const res2 = await this.kaspaNetworkActionsService.transferKaspa(
-      new PrivateKey(
-        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
-      ),
-      [
-        {
-          address:
-            'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('25'),
-        },
-      ],
-      0n,
-    );
+    @Post('generateMasterWallet')
+    async generateMasterWallet(@Request() req) {
+        const token = req.headers['authorization'];
+        if (token != this.config.generateMasterSeedPassword) {
+            throw new NotFoundException();
+        }
+        return this.p2pProvider.generateMasterWallet();
+    }
 
-    console.log('result', res2);
+    @Get('test')
+    async test() {
+        // const res = await this.kaspaNetworkActionsService.transferKrc20Token(
+        //   new PrivateKey(
+        //     '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
+        //   ),
+        //   'GILADA',
+        //   'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+        //   kaspaToSompi('10'),
+        //   0n,
+        // );
 
-    return 'asd MF';
-  }
+        const res2 = await this.kaspaNetworkActionsService.transferKaspa(
+            new PrivateKey(
+                '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
+            ),
+            [
+                {
+                    address:
+                        'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+                    amount: kaspaToSompi('25'),
+                },
+            ],
+            0n,
+        );
 
-  @Get('test2')
-  async test2() {
-    await this.kaspaNetworkActionsService.logMyWallets('before');
+        console.log('result', res2);
 
-    const res = await this.kaspaNetworkActionsService.transferKaspa(
-      new PrivateKey(
-        '7a41d1df2b0e0a54384da99de1e0bfc76a95abc31bed90dfe8c427b0bef45a1c',
-      ),
-      [
-        {
-          address:
+        return 'asd MF';
+    }
+
+    @Get('test2')
+    async test2() {
+        await this.kaspaNetworkActionsService.logMyWallets('before');
+
+        const res = await this.kaspaNetworkActionsService.transferKaspa(
+            new PrivateKey(
+                '7a41d1df2b0e0a54384da99de1e0bfc76a95abc31bed90dfe8c427b0bef45a1c',
+            ),
+            [
+                {
+                    address:
+                        'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
+                    amount: kaspaToSompi('1'),
+                },
+                {
+                    address:
+                        'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+                    amount: kaspaToSompi('2'),
+                },
+                {
+                    address:
+                        'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
+                    amount: kaspaToSompi('3'),
+                },
+            ],
+            0n,
+        );
+
+        await this.kaspaNetworkActionsService.logMyWallets('after');
+
+        console.log('result', res);
+
+        return 'asd MF 2';
+    }
+
+    @Get('test3')
+    async test3() {
+        // return this.kaspaNetworkActionsService.generateMasterWallet();
+        // const res = await this.kaspaNetworkActionsService.createWallet();
+        // const res = await this.kaspaNetworkActionsService.createAccount();
+        // console.log('result', res);
+        // return res;
+    }
+
+    @Get('test4')
+    async test4() {
+        const res = await this.kaspaNetworkActionsService.doSellSwap(
+            new PrivateKey(
+                '89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8',
+            ),
             'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-          amount: kaspaToSompi('1'),
-        },
-        {
-          address:
-            'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('2'),
-        },
-        {
-          address:
             'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-          amount: kaspaToSompi('3'),
-        },
-      ],
-      0n,
-    );
+            'GILADA',
+            kaspaToSompi('10'),
+            kaspaToSompi('20'),
+        );
 
-    await this.kaspaNetworkActionsService.logMyWallets('after');
+        console.log('result', res);
 
-    console.log('result', res);
+        return res;
+    }
 
-    return 'asd MF 2';
-  }
-
-  @Get('test3')
-  async test3() {
-    // return this.kaspaNetworkActionsService.generateMasterWallet();
-    // const res = await this.kaspaNetworkActionsService.createWallet();
-    // const res = await this.kaspaNetworkActionsService.createAccount();
-    // console.log('result', res);
-    // return res;
-  }
-
-  @Get('test4')
-  async test4() {
-    const res = await this.kaspaNetworkActionsService.doSellSwap(
-      new PrivateKey(
-        '89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8',
-      ),
-      'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-      'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-      'GILADA',
-      kaspaToSompi('10'),
-      kaspaToSompi('20'),
-    );
-
-    console.log('result', res);
-
-    return res;
-  }
     /**
      * Confirms that the buyer has sent the payment to the seller
      * @param sellOrderId The order ID of the sell order
