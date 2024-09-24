@@ -34,6 +34,7 @@
     "axios": "^1.7.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "crypto": "^1.0.1",
     "ejs": "^3.1.10",
     "helmet": "^7.1.0",
     "minimist": "^1.2.8",
@@ -41,6 +42,7 @@
     "nodemailer": "^6.9.14",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
+    "websocket": "^1.0.35",
     "winston": "^3.13.1"
   },
   "devDependencies": {
