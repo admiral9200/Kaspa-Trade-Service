@@ -4,6 +4,7 @@ import {
   kaspaToSompi,
   Mnemonic,
   PrivateKey,
+  PrivateKeyGenerator,
   XPrv,
 } from 'libs/kaspa-dev/kaspa';
 import { KaspaNetworkTransactionsManagerService } from './kaspa-network-transactions-manager.service';
@@ -208,6 +209,37 @@ export class KaspaNetworkActionsService {
       changePrivateKey: changePrivateKeyString,
       receive: receiveAddress,
       change: changeAddress,
+    };
+  }
+
+  async createAccount(seed) {
+    const mnemonic = new Mnemonic(seed);
+    const withPass = mnemonic.toSeed(this.config.walletSeed);
+    const xprv = new XPrv(withPass);
+
+    const g = new PrivateKeyGenerator(xprv, false, 0n);
+    g.receiveKey(0);
+
+    const receivePrivateKey = xprv
+      .derivePath("m/44'/111111'/0'/0/0")
+      .toPrivateKey(); // Derive the private key for the receive address
+
+    g.receiveKey(1).toAddress(this.rpcService.getNetwork());
+
+    return {
+      receivePrivateKey: receivePrivateKey.toString(),
+      receiveKey1: g.receiveKey(1).toString(),
+      receiveKey2: g.receiveKey(2).toString(),
+      receiveKey1a: g
+        .receiveKey(1)
+        .toPublicKey()
+        .toAddress(this.rpcService.getNetwork())
+        .toString(),
+      receiveKey2a: g
+        .receiveKey(2)
+        .toPublicKey()
+        .toAddress(this.rpcService.getNetwork())
+        .toString(),
     };
   }
 

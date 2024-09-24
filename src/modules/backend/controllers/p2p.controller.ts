@@ -64,23 +64,23 @@ export class P2pController {
 
     const res = await this.kaspaNetworkActionsService.transferKaspa(
       new PrivateKey(
-        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
+        '7a41d1df2b0e0a54384da99de1e0bfc76a95abc31bed90dfe8c427b0bef45a1c',
       ),
       [
         {
           address:
             'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-          amount: kaspaToSompi('1.2'),
+          amount: kaspaToSompi('1'),
         },
         {
           address:
             'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('1.5'),
+          amount: kaspaToSompi('2'),
         },
         {
           address:
             'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-          amount: kaspaToSompi('2'),
+          amount: kaspaToSompi('3'),
         },
       ],
       0n,
@@ -95,7 +95,10 @@ export class P2pController {
 
   @Get('test3')
   async test3() {
-    const res = await this.kaspaNetworkActionsService.createWallet();
+    // const res = await this.kaspaNetworkActionsService.createWallet();
+    const res = await this.kaspaNetworkActionsService.createAccount(
+      'eyebrow vintage fantasy boost enrich demand chat vehicle myth just chuckle hungry century asthma float candy boss asthma silver sleep spend maple bracket rude',
+    );
 
     console.log('result', res);
 
