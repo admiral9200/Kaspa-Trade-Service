@@ -10,9 +10,9 @@ export class P2pOrderBookTransformer {
 
     static transformSellOrderDmToSellOrderDto(sellOrderDm: SellOrderDm): SellOrderResponseDto {
         return {
-            id: sellOrderDm.id,
+            orderId: sellOrderDm.id,
             quantity: sellOrderDm.quantity,
-            token: sellOrderDm.token,
+            ticker: sellOrderDm.ticker,
             atPrice: sellOrderDm.atPrice,
             status: sellOrderDm.status,
             createdAt: sellOrderDm.createdAt
@@ -23,18 +23,18 @@ export class P2pOrderBookTransformer {
         return {
             id,
             quantity: dto.quantity,
-            token: dto.token,
+            ticker: dto.ticker,
             atPrice: dto.atPrice,
-            walletAddress: dto.walletAddress
+            sellerWalletAddress: dto.walletAddress
         }
     }
 
     static createSellOrder(sellOrderDm: SellOrderDm, temporaryWalletId: string): SellOrder {
         return {
-            token: sellOrderDm.token,
+            ticker: sellOrderDm.ticker,
             quantity: sellOrderDm.quantity,
             atPrice: sellOrderDm.atPrice,
-            walletAddress: sellOrderDm.walletAddress,
+            sellerWalletAddress: sellOrderDm.sellerWalletAddress,
             temporaryWalletId: temporaryWalletId,
             status: SellOrderStatus.WAITING_FOR_TOKENS
         }
@@ -44,9 +44,9 @@ export class P2pOrderBookTransformer {
         return {
             id: sellOrder._id.toString(),
             quantity: sellOrder.quantity,
-            token: sellOrder.token,
+            ticker: sellOrder.ticker,
             atPrice: sellOrder.atPrice,
-            walletAddress: sellOrder.temporaryWalletId,
+            sellerWalletAddress: sellOrder.temporaryWalletId,
             tempMiddlemanWalletAddress: sellOrder.temporaryWalletId,
             status: sellOrder.status
         }

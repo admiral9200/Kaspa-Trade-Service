@@ -5,7 +5,7 @@ export class SellRequestDto {
     quantity: number;
 
     @IsString()
-    token: string;
+    ticker: string;
 
     @IsNumber()
     atPrice: number;

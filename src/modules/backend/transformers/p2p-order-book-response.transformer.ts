@@ -6,14 +6,14 @@ export class P2pOrderBookResponseTransformer {
     static transformDmToSellResponseDto(sellOrderDm: SellOrderDm): SellRequestResponseDto {
         return {
             id: sellOrderDm.id,
-            temporaryWalletAddress: sellOrderDm.walletAddress,
+            temporaryWalletAddress: sellOrderDm.sellerWalletAddress,
             status: sellOrderDm.status
         }
     }
 
     static transformDmToBuyResponseDto(sellOrderDm: SellOrderDm): BuyRequestResponseDto {
         return {
-            temporaryWalletAddress: sellOrderDm.walletAddress,
+            temporaryWalletAddress: sellOrderDm.sellerWalletAddress,
             status: sellOrderDm.status
         }
     }

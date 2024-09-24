@@ -6,6 +6,7 @@ import {ConfirmSellOrderRequestResponseDto} from "../model/dtos/responses/confir
 import {BuyRequestResponseDto} from "../model/dtos/responses/buy-request.response.dto";
 import {ConfirmBuyOrderRequestResponseDto} from "../model/dtos/responses/confirm-buy-order-request.response.dto";
 import {SellOrderResponseDto} from "../model/dtos/responses/sell-order.response.dto";
+import {BuyRequestDto} from "../model/dtos/buy-request.dto";
 
 @Controller('p2p')
 export class P2pController {
@@ -50,11 +51,12 @@ export class P2pController {
     /**
      * Starts the buying flow
      * @param sellOrderId The order ID of the sell order
+     * @param body
      */
     @Post('buy/:sellOrderId')
-    async buyToken(@Param('sellOrderId') sellOrderId: string): Promise<BuyRequestResponseDto> {
+    async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
         try {
-            return await this.p2pProvider.buy(sellOrderId);
+            return await this.p2pProvider.buy(sellOrderId, body);
         } catch (error) {
             throw error;
         }

@@ -9,6 +9,7 @@ import {BuyRequestResponseDto} from "../model/dtos/responses/buy-request.respons
 import {SellRequestResponseDto} from "../model/dtos/responses/sell-request.response.dto";
 import {ConfirmBuyOrderRequestResponseDto} from "../model/dtos/responses/confirm-buy-order-request.response.dto";
 import {SellOrderResponseDto} from "../model/dtos/responses/sell-order.response.dto";
+import {BuyRequestDto} from "../model/dtos/buy-request.dto";
 
 @Injectable()
 export class P2pProvider {
@@ -29,8 +30,8 @@ export class P2pProvider {
         return P2pOrderBookResponseTransformer.transformDmToSellResponseDto(createdSellOrderDm);
     }
 
-    public async buy(orderId: string): Promise<BuyRequestResponseDto> {
-        const sellOrderDm: SellOrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId);
+    public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
+        const sellOrderDm: SellOrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);
         return P2pOrderBookResponseTransformer.transformDmToBuyResponseDto(sellOrderDm);
     }
 

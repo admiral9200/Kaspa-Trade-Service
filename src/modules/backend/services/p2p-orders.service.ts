@@ -7,11 +7,16 @@ import {WasmFacade} from "../facades/wasm.facade";
 import {TemporaryWallet} from "../model/schemas/temporary-wallet.schema";
 import {P2pTemporaryWalletsRepository} from "../repositories/p2p-temporary-wallets.repository";
 import {SellOrderStatus} from "../model/enums/sell-order-status.enum";
+import {ClientSession, Connection} from "mongoose";
+import {InjectConnection} from "@nestjs/mongoose";
+import {MONGO_DATABASE_CONNECTIONS} from "../constants";
 
 @Injectable()
 export class P2pOrdersService {
 
     constructor (
+        @InjectConnection(MONGO_DATABASE_CONNECTIONS.P2P) private connection: Connection,
+
         private readonly wasmFacade: WasmFacade,
         private readonly p2pTemporaryWalletsRepository: P2pTemporaryWalletsRepository,
         private readonly sellOrdersBookRepository: SellOrdersBookRepository){}
@@ -35,18 +40,33 @@ export class P2pOrdersService {
         }
     }
 
-    public async assignBuyerToOrder(orderId: string): Promise<SellOrderDm> {
-        const sellOrder: SellOrder = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId);
-        if (!sellOrder) {
-            throw new HttpException('Failed assigning buyer, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public async assignBuyerToOrder(orderId: string, buyerWalletAddress: string): Promise<SellOrderDm> {
+        const session: ClientSession = await this.connection.startSession();
+        session.startTransaction();
 
-        const temporaryWallet: TemporaryWallet = await this.p2pTemporaryWalletsRepository.findOneBy('_id', sellOrder.temporaryWalletId);
-        if (!temporaryWallet) {
-            throw new HttpException(`Temporary wallet not found wallet ID(${ sellOrder.temporaryWalletId})`, HttpStatus.NOT_FOUND);
-        }
+        try {
 
-        return P2pOrderBookTransformer.transformSellOrderModelToDm(sellOrder, temporaryWallet.address);
+            const sellOrder: SellOrder = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId);
+            if (!sellOrder) {
+                throw new HttpException('Failed assigning buyer, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            const temporaryWallet: TemporaryWallet = await this.p2pTemporaryWalletsRepository.findOneBy('_id', sellOrder.temporaryWalletId);
+            if (!temporaryWallet) {
+                throw new HttpException(`Temporary wallet not found wallet ID(${ sellOrder.temporaryWalletId})`, HttpStatus.NOT_FOUND);
+            }
+
+            const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(orderId, buyerWalletAddress);
+            if (!buyerWalletAssigned) {
+                throw new HttpException('Failed to assign buyer wallet address', HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            await session.commitTransaction();
+
+            return P2pOrderBookTransformer.transformSellOrderModelToDm(sellOrder, temporaryWallet.address);
+        } catch (error) {
+            await session.abortTransaction();
+        }
     }
 
     public async confirmAndValidateSellOrderListing(sellOrderId: string): Promise<boolean> {

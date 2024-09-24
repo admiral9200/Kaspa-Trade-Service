@@ -16,18 +16,39 @@ export class SellOrdersBookRepository extends BaseRepository<SellOrder> {
     }
 
     async setWaitingForKasStatus(orderId: string): Promise<SellOrder> {
-        return await super.updateByOne('_id', orderId, { status: SellOrderStatus.WAITING_FOR_KAS }, {status: SellOrderStatus.LISTED_FOR_SALE});
+        try {
+            return await super.updateByOne('_id', orderId, { status: SellOrderStatus.WAITING_FOR_KAS }, {status: SellOrderStatus.LISTED_FOR_SALE});
+        } catch (error) {
+            console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+            throw error;
+        }
     }
 
     async setCheckoutStatus(orderId: string): Promise<SellOrder> {
-        return await super.updateByOne('_id', orderId, { status: SellOrderStatus.CHECKOUT }, {status: SellOrderStatus.WAITING_FOR_KAS});
+        try {
+            return await super.updateByOne('_id', orderId, { status: SellOrderStatus.CHECKOUT }, {status: SellOrderStatus.WAITING_FOR_KAS});
+        } catch (error) {
+            console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
+            throw error;
+        }
     }
 
-    async updateStatusById(id: string, status: SellOrderStatus): Promise<SellOrder> {
+    async updateStatusById(orderId: string, status: SellOrderStatus): Promise<SellOrder> {
         try {
-            return await super.updateByOne('_id', id, { status });
+            return await super.updateByOne('_id', orderId, { status });
         } catch (error) {
-            console.error('Error updating sell order status by ID:', error);
+            console.error(`Error updating sell order status by ID(${orderId}):`, error);
+
+            throw error;
+        }
+    }
+
+    async setBuyerWalletAddress(orderId: string, buyerWalletAddress: string): Promise<boolean> {
+        try {
+            const res = await super.updateByOne('_id', orderId, { buyerWalletAddress });
+            return res !== null;
+        } catch (error) {
+            console.error(`Error updating buyer wallet address for order by ID(${orderId}):`, error);
             throw error;
         }
     }

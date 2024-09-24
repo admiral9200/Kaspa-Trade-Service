@@ -1,10 +1,10 @@
 import {SellOrderStatus} from "../../enums/sell-order-status.enum";
 
 export interface SellOrderResponseDto {
-    id: string;
+    orderId: string;
     atPrice: number;
     quantity: number;
-    token: string;
+    ticker: string;
     status: SellOrderStatus;
     createdAt: Date;
 }

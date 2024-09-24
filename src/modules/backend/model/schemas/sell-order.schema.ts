@@ -11,7 +11,7 @@ export class SellOrder {
     _id?: string;
 
     @Prop({ required: true })
-    token: string;
+    ticker: string;
 
     @Prop({ required: true })
     quantity: number;
@@ -22,8 +22,11 @@ export class SellOrder {
     @Prop({ required: true })
     temporaryWalletId: string;
 
+    @Prop({required: true})
+    sellerWalletAddress: string;
+
     @Prop()
-    walletAddress: string;
+    buyerWalletAddress?: string;
 
     @Prop()
     status?: SellOrderStatus;
