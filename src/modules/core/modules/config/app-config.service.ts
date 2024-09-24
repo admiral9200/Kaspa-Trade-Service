@@ -20,7 +20,7 @@ export class AppConfigService {
   }
 
   get getServicePort(): number {
-    return this.configService.get('port');
+    return this.configService.get('PORT');
   }
 
   get getMailTransport(): string {
