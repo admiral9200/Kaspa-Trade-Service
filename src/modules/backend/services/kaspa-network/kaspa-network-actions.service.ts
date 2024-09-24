@@ -42,6 +42,13 @@ export class KaspaNetworkActionsService {
     kaspaAmount: bigint,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
+      const totalWalletAmountAtStart = await this.getWalletTotalBalance(
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(
+          holderWalletPrivateKey,
+        ),
+      );
+
+      const maxPriorityFee = (totalWalletAmountAtStart - kaspaAmount) / 10n;
       console.log('transfering krc20...');
 
       await this.transferKrc20Token(
@@ -49,7 +56,7 @@ export class KaspaNetworkActionsService {
         krc20tokenTicker,
         buyerAddress,
         krc20TokenAmount,
-        0,
+        maxPriorityFee,
       );
 
       console.log('transfered krc20');
@@ -57,7 +64,6 @@ export class KaspaNetworkActionsService {
       const commission = this.config.swapCommissionPercentage + 1;
       const commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
 
-      let lastTransactionTotalFee = kaspaToSompi('1');
       const totalWalletAmount = await this.getWalletTotalBalance(
         this.transactionsManagerService.convertPrivateKeyToPublicKey(
           holderWalletPrivateKey,
@@ -71,14 +77,7 @@ export class KaspaNetworkActionsService {
         totalWalletAmount -
         (amountToTransferToCommissionWallet +
           amountToTransferToSeller +
-          lastTransactionTotalFee); // Should be how much left in the wallet
-
-      console.log({
-        amountToTransferToCommissionWallet:
-          Number(amountToTransferToCommissionWallet) / 1e8,
-        amountToTransferToSeller: Number(amountToTransferToSeller) / 1e8,
-        amountToTransferToBuyer: Number(amountToTransferToBuyer) / 1e8,
-      });
+          kaspaToSompi('1'));
 
       if (amountToTransferToBuyer < 0) {
         throw new Error('Not enough balance in the wallet');
@@ -106,8 +105,8 @@ export class KaspaNetworkActionsService {
           0n,
         );
 
-      lastTransactionTotalFee =
-        await this.transactionsManagerService.calculateFeeForTransaction(
+      const lastTransactionFees =
+        await this.transactionsManagerService.getTransactionFees(
           tempTransaction,
         );
 
@@ -115,7 +114,14 @@ export class KaspaNetworkActionsService {
         totalWalletAmount -
         (amountToTransferToCommissionWallet +
           amountToTransferToSeller +
-          lastTransactionTotalFee); // Should be how much left in the wallet
+          lastTransactionFees.maxFee); // Should be how much left in the wallet
+
+      console.log({
+        amountToTransferToCommissionWallet:
+          Number(amountToTransferToCommissionWallet) / 1e8,
+        amountToTransferToSeller: Number(amountToTransferToSeller) / 1e8,
+        amountToTransferToBuyer: Number(amountToTransferToBuyer) / 1e8,
+      });
 
       if (amountToTransferToBuyer < 0) {
         throw new Error('Not enough balance in the wallet');
@@ -138,7 +144,7 @@ export class KaspaNetworkActionsService {
             amount: amountToTransferToBuyer,
           },
         ],
-        0n,
+        lastTransactionFees.priorityFee,
         true,
       );
     });
@@ -147,13 +153,13 @@ export class KaspaNetworkActionsService {
   async transferKaspa(
     privateKey: PrivateKey,
     payments: IPaymentOutput[],
-    priorityFee: bigint,
+    maxPriorityFee: bigint,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
         privateKey,
         payments,
-        priorityFee,
+        maxPriorityFee,
       );
     });
   }
@@ -163,15 +169,15 @@ export class KaspaNetworkActionsService {
     ticker: string,
     recipientAdress: string,
     amount: bigint,
-    priorityFee: number,
+    maxPriorityFee: bigint = 0n,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       const result =
         await this.transactionsManagerService.createKrc20TransactionAndDoReveal(
           privateKey,
-          priorityFee,
           getTransferData(ticker, amount, recipientAdress),
           KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+          maxPriorityFee,
         );
 
       return result;
@@ -245,11 +251,7 @@ export class KaspaNetworkActionsService {
 
   async getWalletTotalBalance(address: string): Promise<bigint> {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      const utxos = await this.rpcService.getRpc().getUtxosByAddresses({
-        addresses: [address],
-      });
-
-      return utxos.entries.reduce((acc, curr) => acc + curr.amount, 0n);
+      return this.transactionsManagerService.getWalletTotalBalance(address);
     });
   }
 
@@ -266,9 +268,10 @@ export class KaspaNetworkActionsService {
           ],
         );
 
-      return await this.transactionsManagerService.calculateFeeForTransaction(
-        transaction,
-      );
+      const feeResults =
+        await this.transactionsManagerService.getTransactionFees(transaction);
+
+      return feeResults.maxFee;
     });
   }
 

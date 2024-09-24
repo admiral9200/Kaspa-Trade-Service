@@ -1,3 +1,5 @@
+import { kaspaToSompi } from 'libs/kaspa/kaspa';
+
 export interface KRC20OperationDataInterface {
   p: 'krc-20';
   op: 'mint' | 'deploy' | 'transfer';
@@ -10,11 +12,11 @@ export interface KRC20OperationDataInterface {
   pre?: string;
 }
 
-export const KRC20_BASE_TRANSACTION_AMOUNT = 0.2;
+export const KRC20_BASE_TRANSACTION_AMOUNT = 1;
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: 1003,
   MINT: 2,
-  TRANSFER: 1817 / 1e8,
+  TRANSFER: kaspaToSompi(String(1817 / 1e8)),
 };
 
 export function getTransferData(
