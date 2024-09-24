@@ -1,13 +1,13 @@
 import {Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import {HydratedDocument} from 'mongoose';
+import {HydratedDocument, SchemaTypes} from 'mongoose';
 import {SellOrderStatus} from "../enums/sell-order-status.enum";
 
 @Schema({
     versionKey: false,
-    collection: 'p2p_sell_orders'
+    collection: 'p2p_sell_orders',
+    timestamps: true,
 })
 export class SellOrder {
-    @Prop()
     _id?: string;
 
     @Prop({ required: true })
@@ -20,15 +20,18 @@ export class SellOrder {
     atPrice: number;
 
     @Prop({ required: true })
+    temporaryWalletId: string;
+
+    @Prop()
     walletAddress: string;
 
     @Prop()
     status?: SellOrderStatus;
 
-    @Prop({ required: true })
+    @Prop()
     createdAt?: Date;
 
-    @Prop({ required: true })
+    @Prop()
     updatedAt?: Date;
 }
 
