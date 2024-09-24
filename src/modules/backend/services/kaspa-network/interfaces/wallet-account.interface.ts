@@ -1,4 +1,4 @@
-import { PrivateKey } from 'libs/kaspa-dev/kaspa';
+import { PrivateKey } from 'libs/kaspa/kaspa';
 
 export interface WalletAccount {
   privateKey: PrivateKey;

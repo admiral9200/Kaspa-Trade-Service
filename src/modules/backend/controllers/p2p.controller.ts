@@ -6,7 +6,7 @@ import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/responses/conf
 import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
 import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/responses/confirm-buy-order-request.response.dto';
 import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
-import { kaspaToSompi, PrivateKey } from 'libs/kaspa-dev/kaspa';
+import { kaspaToSompi, PrivateKey } from 'libs/kaspa/kaspa';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
