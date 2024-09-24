@@ -17,7 +17,7 @@ export class P2pOrder {
   quantity: number;
 
   @Prop({ required: true })
-  atPrice: number;
+  pricePerToken: number;
 
   @Prop({ required: true })
   totalPrice: number;

@@ -9,7 +9,7 @@ export class SellRequestDto {
   ticker: string;
 
   @IsNumber()
-  atPrice: number;
+  pricePerToken: number;
 
   @IsNumber()
   @Min(1)

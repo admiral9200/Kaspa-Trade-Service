@@ -4,7 +4,7 @@ export interface SellOrderDm {
   id?: string;
   quantity: number;
   ticker: string;
-  atPrice: number;
+  pricePerToken: number;
   totalPrice: number;
   sellerWalletAddress: string;
   buyerWalletAddress?: string;

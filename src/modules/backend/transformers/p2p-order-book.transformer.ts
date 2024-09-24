@@ -12,7 +12,7 @@ export class P2pOrderBookTransformer {
       orderId: sellOrderDm.id,
       quantity: sellOrderDm.quantity,
       ticker: sellOrderDm.ticker,
-      atPrice: sellOrderDm.atPrice,
+      pricePerToken: sellOrderDm.pricePerToken,
       status: sellOrderDm.status,
       expiresAt: sellOrderDm.expiresAt,
       createdAt: sellOrderDm.createdAt,
@@ -24,8 +24,8 @@ export class P2pOrderBookTransformer {
       id,
       quantity: dto.quantity,
       ticker: dto.ticker,
-      atPrice: dto.atPrice,
       totalPrice: dto.totalPrice,
+      pricePerToken: dto.pricePerToken,
       sellerWalletAddress: dto.walletAddress,
     };
   }
@@ -34,8 +34,8 @@ export class P2pOrderBookTransformer {
     return {
       ticker: sellOrderDm.ticker,
       quantity: sellOrderDm.quantity,
-      atPrice: sellOrderDm.atPrice,
-      totalPrice: sellOrderDm.totalPrice,
+      pricePerToken: sellOrderDm.pricePerToken,
+      totalPrice: sellOrderDm.pricePerToken,
       sellerWalletAddress: sellOrderDm.sellerWalletAddress,
       walletSequenceId: walletSequenceId,
       status: SellOrderStatus.WAITING_FOR_TOKENS,
@@ -47,7 +47,7 @@ export class P2pOrderBookTransformer {
       id: sellOrder._id.toString(),
       quantity: sellOrder.quantity,
       ticker: sellOrder.ticker,
-      atPrice: sellOrder.atPrice,
+      pricePerToken: sellOrder.pricePerToken,
       totalPrice: sellOrder.totalPrice,
       sellerWalletAddress: sellOrder.sellerWalletAddress,
       temporaryWalletAddress: temporaryWalletAddress,

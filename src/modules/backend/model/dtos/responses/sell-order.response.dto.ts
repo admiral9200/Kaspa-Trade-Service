@@ -2,7 +2,7 @@ import { SellOrderStatus } from '../../enums/sell-order-status.enum';
 
 export interface SellOrderResponseDto {
   orderId: string;
-  atPrice: number;
+  pricePerToken: number;
   quantity: number;
   ticker: string;
   status: SellOrderStatus;
