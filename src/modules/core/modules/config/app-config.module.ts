@@ -1,8 +1,8 @@
-import {Global, Module} from "@nestjs/common";
+import { Global, Module } from '@nestjs/common';
 
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from '@hapi/joi';
-import {AppConfigService} from "./app-config.service";
+import { AppConfigService } from './app-config.service';
 
 @Global()
 @Module({

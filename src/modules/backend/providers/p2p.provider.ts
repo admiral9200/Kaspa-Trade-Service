@@ -9,13 +9,14 @@ import {BuyRequestResponseDto} from "../model/dtos/responses/buy-request.respons
 import {SellRequestResponseDto} from "../model/dtos/responses/sell-request.response.dto";
 import {ConfirmBuyOrderRequestResponseDto} from "../model/dtos/responses/confirm-buy-order-request.response.dto";
 import {SellOrderResponseDto} from "../model/dtos/responses/sell-order.response.dto";
-import {BuyRequestDto} from "../model/dtos/buy-request.dto";
+import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 
 @Injectable()
 export class P2pProvider {
-    constructor(
-        private readonly p2pOrderBookService: P2pOrdersService,
-    ) {}
+  constructor(
+    private readonly p2pOrderBookService: P2pOrdersService,
+    private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+  ) {}
 
     public async listSellOrders(): Promise<SellOrderResponseDto[]> {
         const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders();
@@ -30,6 +31,13 @@ export class P2pProvider {
         return P2pOrderBookResponseTransformer.transformDmToSellResponseDto(createdSellOrderDm);
     }
 
+  async getCurrentFeeRate() {
+    return await this.kaspaNetworkActionsService.getCurrentFeeRate();
+  }
+
+  async generateMasterWallet() {
+    return await this.kaspaNetworkActionsService.generateMasterWallet();
+  }
     public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
         const sellOrderDm: SellOrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);
         return P2pOrderBookResponseTransformer.transformDmToBuyResponseDto(sellOrderDm);
