@@ -1,9 +1,11 @@
-import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppConfigService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    console.log('All Environment Variables:', JSON.stringify(process.env));
+  }
 
   get isProduction(): boolean {
     return this.configService.get('nodeEnv') === 'production';
