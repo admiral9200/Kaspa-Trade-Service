@@ -1,15 +1,20 @@
-import {IsNumber, IsString} from "class-validator";
+import { IsNumber, IsString, Min } from 'class-validator';
 
 export class SellRequestDto {
-    @IsNumber()
-    quantity: number;
+  @IsNumber()
+  @Min(1)
+  quantity: number;
 
-    @IsString()
-    ticker: string;
+  @IsString()
+  ticker: string;
 
-    @IsNumber()
-    atPrice: number;
+  @IsNumber()
+  atPrice: number;
 
-    @IsString()
-    walletAddress: string;
+  @IsNumber()
+  @Min(1)
+  totalPrice: number;
+
+  @IsString()
+  walletAddress: string;
 }

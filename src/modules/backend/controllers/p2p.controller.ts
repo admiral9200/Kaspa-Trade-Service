@@ -10,6 +10,7 @@ import { kaspaToSompi, PrivateKey } from 'libs/kaspa-dev/kaspa';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
+import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 
 @Controller('p2p')
 export class P2pController {
@@ -22,7 +23,7 @@ export class P2pController {
   @Get('getSellOrders')
   async getSellOrders(): Promise<SellOrderResponseDto[]> {
     try {
-      return await this.p2pProvider.listSellOrders();
+      return await this.p2pProvider.listOrders();
     } catch (error) {
       throw error;
     }
@@ -35,7 +36,7 @@ export class P2pController {
   @Post('sell')
   async sellToken(@Body() sellRequestDto: SellRequestDto): Promise<SellRequestResponseDto> {
     try {
-      return await this.p2pProvider.createSellOrder(sellRequestDto);
+      return await this.p2pProvider.createOrder(sellRequestDto);
     } catch (error) {
       throw error;
     }
@@ -46,11 +47,9 @@ export class P2pController {
    * @param sellOrderId The order ID of the sell order
    */
   @Get('confirmSellOrder/:sellOrderId')
-  async confirmSellOrder(
-    @Param('sellOrderId') sellOrderId: string,
-  ): Promise<ConfirmSellOrderRequestResponseDto> {
+  async confirmSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
     try {
-      return await this.p2pProvider.confirmAndValidateSellOrderListing(sellOrderId);
+      return await this.p2pProvider.confirmSell(sellOrderId);
     } catch (error) {
       throw error;
     }
@@ -62,10 +61,7 @@ export class P2pController {
    * @param body
    */
   @Post('buy/:sellOrderId')
-  async buyToken(
-    @Param('sellOrderId') sellOrderId: string,
-    @Body() body: BuyRequestDto,
-  ): Promise<BuyRequestResponseDto> {
+  async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
     try {
       return await this.p2pProvider.buy(sellOrderId, body);
     } catch (error) {
@@ -152,11 +148,6 @@ export class P2pController {
     // const res = await this.kaspaNetworkActionsService.createAccount();
     // console.log('result', res);
     // return res;
-
-    return this.kaspaNetworkActionsService.transferAllKaspaInWallet(
-      new PrivateKey('acc0ca3018947d067cff6abefc453080706d408324e8728b2c63e8da46efed7d'),
-      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
-    );
   }
 
   @Get('test4')
@@ -178,13 +169,15 @@ export class P2pController {
   /**
    * Confirms that the buyer has sent the payment to the seller
    * @param sellOrderId The order ID of the sell order
+   * @param body
    */
   @Post('confirmBuyOrder/:sellOrderId')
   async confirmBuy(
     @Param('sellOrderId') sellOrderId: string,
+    @Body() body: ConfirmBuyRequestDto,
   ): Promise<ConfirmBuyOrderRequestResponseDto> {
     try {
-      return await this.p2pProvider.confirmBuy(sellOrderId);
+      return await this.p2pProvider.confirmBuy(sellOrderId, body);
     } catch (error) {
       throw error;
     }

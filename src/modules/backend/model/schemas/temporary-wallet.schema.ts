@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, SchemaTypes } from 'mongoose';
 
 @Schema({
   versionKey: false,
@@ -14,6 +14,9 @@ export class TemporaryWallet {
 
   @Prop({ default: false })
   isInUse: boolean;
+
+  @Prop({ index: true })
+  walletSequenceId: number;
 
   @Prop()
   createdAt?: Date;

@@ -1,0 +1,1 @@
+export const P2P_ORDER_EXPIRATION_TIME_MINUTES = 4;
