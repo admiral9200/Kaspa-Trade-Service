@@ -81,6 +81,6 @@ jobs:
             --region $AWS_REGION
         
         aws elasticbeanstalk update-environment \
-            --environment-name p2p-trade \
+            --environment-name p2p-trade-service \
             --version-label ${VERSION_LABEL} \
             --region $AWS_REGION
