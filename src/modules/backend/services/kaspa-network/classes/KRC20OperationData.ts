@@ -12,7 +12,7 @@ export interface KRC20OperationDataInterface {
   pre?: string;
 }
 
-export const KRC20_BASE_TRANSACTION_AMOUNT = 1;
+export const KRC20_BASE_TRANSACTION_AMOUNT = 0.2;
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: 1003,
   MINT: 2,

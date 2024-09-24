@@ -8,13 +8,12 @@ import {
   XPrv,
 } from 'libs/kaspa-dev/kaspa';
 import { KaspaNetworkTransactionsManagerService } from './kaspa-network-transactions-manager.service';
-import {
-  getTransferData,
-  KRC20_TRANSACTIONS_AMOUNTS,
-} from './classes/KRC20OperationData';
+import { getTransferData, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { RpcService } from './rpc.service';
 import { EncryptionService } from '../encryption.service';
+import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
+import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
 
 const AMOUNT_FOR_TESTING_FEE = 5;
 @Injectable()
@@ -45,9 +44,7 @@ export class KaspaNetworkActionsService {
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       const totalWalletAmountAtStart = await this.getWalletTotalBalance(
-        this.transactionsManagerService.convertPrivateKeyToPublicKey(
-          holderWalletPrivateKey,
-        ),
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
       );
 
       const maxPriorityFee = (totalWalletAmountAtStart - kaspaAmount) / 10n;
@@ -67,9 +64,7 @@ export class KaspaNetworkActionsService {
       const commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
 
       const totalWalletAmount = await this.getWalletTotalBalance(
-        this.transactionsManagerService.convertPrivateKeyToPublicKey(
-          holderWalletPrivateKey,
-        ),
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
       );
 
       const amountToTransferToCommissionWallet = commissionInKaspa * 2n;
@@ -77,40 +72,35 @@ export class KaspaNetworkActionsService {
 
       let amountToTransferToBuyer =
         totalWalletAmount -
-        (amountToTransferToCommissionWallet +
-          amountToTransferToSeller +
-          kaspaToSompi('1'));
+        (amountToTransferToCommissionWallet + amountToTransferToSeller + kaspaToSompi('1'));
 
       if (amountToTransferToBuyer < 0) {
-        throw new Error('Not enough balance in the wallet');
+        throw new NotEnoughBalanceError();
       }
 
       console.log('Creating temp transaction...');
 
-      const tempTransaction =
-        await this.transactionsManagerService.createTransaction(
-          holderWalletPrivateKey,
-          [
-            {
-              address: this.config.commitionWalletAddress,
-              amount: amountToTransferToCommissionWallet,
-            },
-            {
-              address: sellerAddress,
-              amount: amountToTransferToSeller,
-            },
-            {
-              address: buyerAddress,
-              amount: amountToTransferToBuyer,
-            },
-          ],
-          0n,
-        );
+      const tempTransaction = await this.transactionsManagerService.createTransaction(
+        holderWalletPrivateKey,
+        [
+          {
+            address: this.config.commitionWalletAddress,
+            amount: amountToTransferToCommissionWallet,
+          },
+          {
+            address: sellerAddress,
+            amount: amountToTransferToSeller,
+          },
+          {
+            address: buyerAddress,
+            amount: amountToTransferToBuyer,
+          },
+        ],
+        0n,
+      );
 
       const lastTransactionFees =
-        await this.transactionsManagerService.getTransactionFees(
-          tempTransaction,
-        );
+        await this.transactionsManagerService.getTransactionFees(tempTransaction);
 
       amountToTransferToBuyer =
         totalWalletAmount -
@@ -119,14 +109,13 @@ export class KaspaNetworkActionsService {
           lastTransactionFees.maxFee); // Should be how much left in the wallet
 
       console.log({
-        amountToTransferToCommissionWallet:
-          Number(amountToTransferToCommissionWallet) / 1e8,
+        amountToTransferToCommissionWallet: Number(amountToTransferToCommissionWallet) / 1e8,
         amountToTransferToSeller: Number(amountToTransferToSeller) / 1e8,
         amountToTransferToBuyer: Number(amountToTransferToBuyer) / 1e8,
       });
 
       if (amountToTransferToBuyer < 0) {
-        throw new Error('Not enough balance in the wallet');
+        throw new NotEnoughBalanceError();
       }
       console.log('transfering all kaspa...');
 
@@ -152,16 +141,56 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async transferKaspa(
-    privateKey: PrivateKey,
-    payments: IPaymentOutput[],
-    maxPriorityFee: bigint,
-  ) {
+  async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
         privateKey,
         payments,
         maxPriorityFee,
+      );
+    });
+  }
+
+  async transferAllKaspaInWallet(sourceWalletprivateKey: PrivateKey, targetAddress: string) {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      const totalWalletAmount = await this.getWalletTotalBalance(
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(sourceWalletprivateKey),
+      );
+
+      if (totalWalletAmount <= kaspaToSompi('0.2')) {
+        throw new NotEnoughBalanceError();
+      }
+
+      const tempTransaction = await this.transactionsManagerService.createTransaction(
+        sourceWalletprivateKey,
+        [
+          {
+            address: this.config.commitionWalletAddress,
+            amount: totalWalletAmount - kaspaToSompi('0.2'),
+          },
+        ],
+        0n,
+      );
+
+      const transactionsFees =
+        await this.transactionsManagerService.getTransactionFees(tempTransaction);
+
+      const amountToTransfer = totalWalletAmount - transactionsFees.maxFee;
+
+      if (amountToTransfer <= 0) {
+        throw new PriorityFeeTooHighError();
+      }
+
+      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+        sourceWalletprivateKey,
+        [
+          {
+            address: targetAddress,
+            amount: totalWalletAmount - transactionsFees.maxFee,
+          },
+        ],
+        transactionsFees.priorityFee,
+        true,
       );
     });
   }
@@ -174,13 +203,12 @@ export class KaspaNetworkActionsService {
     maxPriorityFee: bigint = 0n,
   ) {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      const result =
-        await this.transactionsManagerService.createKrc20TransactionAndDoReveal(
-          privateKey,
-          getTransferData(ticker, amount, recipientAdress),
-          KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
-          maxPriorityFee,
-        );
+      const result = await this.transactionsManagerService.createKrc20TransactionAndDoReveal(
+        privateKey,
+        getTransferData(ticker, amount, recipientAdress),
+        KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+        maxPriorityFee,
+      );
 
       return result;
     });
@@ -206,8 +234,7 @@ export class KaspaNetworkActionsService {
 
   async getWalletAccountAtIndex(index: number, xprvString: string = null) {
     const xprv = XPrv.fromXPrv(
-      xprvString ||
-        (await this.encryptionService.decrypt(this.config.masterWalletKey)),
+      xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)),
     );
 
     const account = new PrivateKeyGenerator(xprv, false, 0n);
@@ -216,10 +243,7 @@ export class KaspaNetworkActionsService {
 
     return {
       privateKey,
-      address:
-        this.transactionsManagerService.convertPrivateKeyToPublicKey(
-          privateKey,
-        ),
+      address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
     };
   }
 
@@ -231,19 +255,17 @@ export class KaspaNetworkActionsService {
 
   async getCurrentFeeRate() {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      const transaction =
-        await this.transactionsManagerService.createTransaction(
-          (await this.getWalletAccountAtIndex(0)).privateKey,
-          [
-            {
-              address: this.config.commitionWalletAddress,
-              amount: kaspaToSompi(String(AMOUNT_FOR_TESTING_FEE)),
-            },
-          ],
-        );
+      const transaction = await this.transactionsManagerService.createTransaction(
+        (await this.getWalletAccountAtIndex(0)).privateKey,
+        [
+          {
+            address: this.config.commitionWalletAddress,
+            amount: kaspaToSompi(String(AMOUNT_FOR_TESTING_FEE)),
+          },
+        ],
+      );
 
-      const feeResults =
-        await this.transactionsManagerService.getTransactionFees(transaction);
+      const feeResults = await this.transactionsManagerService.getTransactionFees(transaction);
 
       return feeResults.maxFee;
     });

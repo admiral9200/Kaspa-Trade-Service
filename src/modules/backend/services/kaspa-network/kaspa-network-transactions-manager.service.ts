@@ -37,10 +37,7 @@ export class KaspaNetworkTransactionsManagerService {
     return results;
   }
 
-  createP2SHAddressScript(
-    data: KRC20OperationDataInterface,
-    privateKey: PrivateKey,
-  ) {
+  createP2SHAddressScript(data: KRC20OperationDataInterface, privateKey: PrivateKey) {
     const script = new ScriptBuilder()
       .addData(privateKey.toPublicKey().toXOnlyPublicKey().toString())
       .addOp(Opcodes.OpCheckSig)
@@ -71,13 +68,15 @@ export class KaspaNetworkTransactionsManagerService {
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
 
-    const transactions = await createTransactions({
+    const transactionData = {
       entries,
       outputs,
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
       priorityFee: priorityFee,
       networkId: this.rpcService.getNetwork(),
-    });
+    };
+
+    const transactions = await createTransactions(transactionData);
 
     return transactions;
   }
@@ -124,10 +123,7 @@ export class KaspaNetworkTransactionsManagerService {
     transactionFeeAmount: bigint,
     maxPriorityFee: bigint = 0n,
   ) {
-    const scriptAndScriptAddress = this.createP2SHAddressScript(
-      krc20transactionData,
-      privateKey,
-    );
+    const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -203,16 +199,11 @@ export class KaspaNetworkTransactionsManagerService {
       );
 
       if (ourOutput !== -1) {
-        const signature = await transaction.createInputSignature(
-          ourOutput,
-          privateKey,
-        );
+        const signature = await transaction.createInputSignature(ourOutput, privateKey);
 
         transaction.fillInput(
           ourOutput,
-          scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(
-            signature,
-          ),
+          scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature),
         );
       }
 
@@ -233,10 +224,7 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   convertPrivateKeyToPublicKey(privateKey: PrivateKey): string {
-    return privateKey
-      .toPublicKey()
-      .toAddress(this.rpcService.getNetwork())
-      .toString();
+    return privateKey.toPublicKey().toAddress(this.rpcService.getNetwork()).toString();
   }
 
   async connectAndDo<T>(fn: () => Promise<T>): Promise<T> {
@@ -256,25 +244,18 @@ export class KaspaNetworkTransactionsManagerService {
     return serverInfo.isSynced && serverInfo.hasUtxoIndex;
   }
 
-  async getTransactionFees(
-    transactionData: ICreateTransactions,
-  ): Promise<FeesCalculation> {
+  async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
     const massAndFeeRate = BigInt(
       Math.ceil(
-        Number(transactionData.summary.mass) *
-          estimatedFees.estimate.priorityBucket.feerate,
+        Number(transactionData.summary.mass) * estimatedFees.estimate.priorityBucket.feerate,
       ),
     );
     const maxFee =
-      transactionData.summary.fees > massAndFeeRate
-        ? transactionData.summary.fees
-        : massAndFeeRate;
+      transactionData.summary.fees > massAndFeeRate ? transactionData.summary.fees : massAndFeeRate;
 
     const priorityFee =
-      maxFee - transactionData.summary.fees < 0
-        ? 0n
-        : maxFee - transactionData.summary.fees;
+      maxFee - transactionData.summary.fees < 0 ? 0n : maxFee - transactionData.summary.fees;
 
     return {
       originalFee: transactionData.summary.fees,
