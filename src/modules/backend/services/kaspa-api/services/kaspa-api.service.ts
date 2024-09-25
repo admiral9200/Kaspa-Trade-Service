@@ -20,13 +20,12 @@ export class KaspaApiService {
 
         return response.data;
       },
-      3,
+      5,
       5000,
     );
   }
 
-  async verifyPaymentTransaction(txnId: string, senderAddr: string, reciverAddr: string, amount: number): Promise<boolean> {
-    const receiverAddr = reciverAddr;
+  async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: number): Promise<boolean> {
     const txnInfo = await this.getTxnInfo(txnId);
     if (!txnInfo) {
       console.error('Transaction info not found.');

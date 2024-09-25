@@ -3,7 +3,6 @@ import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator
 import { KaspaNetworkTransactionsManagerService } from './kaspa-network-transactions-manager.service';
 import { getTransferData, KRC20_BASE_TRANSACTION_AMOUNT, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
-import { RpcService } from './rpc.service';
 import { EncryptionService } from '../encryption.service';
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
@@ -35,15 +34,18 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(amount));
-
+    const totalAmount = amount + AMOUNT_FOR_SWAP_FEES;
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(totalAmount));
     if (!kaspaApiResult) {
       return false;
     }
 
     const walletTotalBalance = await this.getWalletTotalBalance(to);
 
-    return walletTotalBalance >= amount;
+    // Must be == and not >=, Because if there is there extra money it belongs to someone else
+    // And it will be sent to the buyer even though it's not his money
+    // This is in case of an error
+    return walletTotalBalance === totalAmount;
   }
 
   /**
