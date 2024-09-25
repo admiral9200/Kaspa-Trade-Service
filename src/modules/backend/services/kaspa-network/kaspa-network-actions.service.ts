@@ -35,7 +35,12 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(amount));
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(
+      transactionId,
+      from,
+      to,
+      Number(amount + AMOUNT_FOR_SWAP_FEES),
+    );
 
     if (!kaspaApiResult) {
       return false;
@@ -43,7 +48,10 @@ export class KaspaNetworkActionsService {
 
     const walletTotalBalance = await this.getWalletTotalBalance(to);
 
-    return walletTotalBalance >= amount;
+    // Must be == and not >=, Because if there is there extra money it belongs to someone else
+    // And it will be sent to the buyer even though it's not his money
+    // This is in case of an error
+    return walletTotalBalance === amount;
   }
 
   /**
