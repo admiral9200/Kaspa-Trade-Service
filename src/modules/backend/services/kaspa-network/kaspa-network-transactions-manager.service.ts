@@ -9,23 +9,21 @@ import {
   addressFromScriptPublicKey,
   ScriptBuilder,
 } from 'libs/kaspa/kaspa';
-import {
-  KRC20_BASE_TRANSACTION_AMOUNT,
-  KRC20OperationDataInterface,
-} from './classes/KRC20OperationData';
+import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
 import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
 import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
+import { UtilsHelper } from '../../helpers/utils.helper';
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
-  constructor(private rpcService: RpcService) {}
+  constructor(
+    private rpcService: RpcService,
+    private readonly utils: UtilsHelper,
+  ) {}
 
-  async signAndSubmitTransactions(
-    transactionsData: ICreateTransactions,
-    privateKey: PrivateKey,
-  ): Promise<string[]> {
+  async signAndSubmitTransactions(transactionsData: ICreateTransactions, privateKey: PrivateKey): Promise<string[]> {
     const results: string[] = [];
 
     for (const transaction of transactionsData.transactions) {
@@ -48,10 +46,7 @@ export class KaspaNetworkTransactionsManagerService {
       .addData(Buffer.from(JSON.stringify(data)))
       .addOp(Opcodes.OpEndIf);
 
-    const scriptAddress = addressFromScriptPublicKey(
-      script.createPayToScriptHashScript(),
-      this.rpcService.getNetwork(),
-    );
+    const scriptAddress = addressFromScriptPublicKey(script.createPayToScriptHashScript(), this.rpcService.getNetwork());
 
     return {
       script: script,
@@ -59,12 +54,7 @@ export class KaspaNetworkTransactionsManagerService {
     };
   }
 
-  async createTransaction(
-    privateKey: PrivateKey,
-    outputs: IPaymentOutput[],
-    priorityFee: bigint = 0n,
-    withoutRetry = false,
-  ) {
+  async createTransaction(privateKey: PrivateKey, outputs: IPaymentOutput[], priorityFee: bigint = 0n, withoutRetry = false) {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
@@ -82,7 +72,7 @@ export class KaspaNetworkTransactionsManagerService {
     if (withoutRetry) {
       transactions = await createTransactions(transactionData);
     } else {
-      transactions = await this.retryOnError(async () => await createTransactions(transactionData));
+      transactions = await this.utils.retryOnError(async () => await createTransactions(transactionData));
     }
 
     return transactions;
@@ -103,13 +93,8 @@ export class KaspaNetworkTransactionsManagerService {
       finalPriorityFee = (await this.getTransactionFees(transferFundsTransaction)).priorityFee;
     }
 
-    return await this.retryOnError(async () => {
-      const transferFundsTransaction = await this.createTransaction(
-        privateKey,
-        payments,
-        finalPriorityFee,
-        true,
-      );
+    return await this.utils.retryOnError(async () => {
+      const transferFundsTransaction = await this.createTransaction(privateKey, payments, finalPriorityFee, true);
 
       const transactionReciever = new TransacionReciever(
         this.rpcService.getRpc(),
@@ -171,7 +156,7 @@ export class KaspaNetworkTransactionsManagerService {
     };
 
     if (maxPriorityFee && maxPriorityFee > 0n) {
-      await this.retryOnError(async () => {
+      await this.utils.retryOnError(async () => {
         const currentTransaction = await createTransactions(baseTransactionData);
 
         const fees = await this.getTransactionFees(currentTransaction);
@@ -191,7 +176,7 @@ export class KaspaNetworkTransactionsManagerService {
       });
     }
 
-    const commitTransaction = await this.retryOnError(async () => {
+    const commitTransaction = await this.utils.retryOnError(async () => {
       const transaction = await createTransactions(baseTransactionData);
 
       const transactionReciever = new TransacionReciever(
@@ -222,7 +207,7 @@ export class KaspaNetworkTransactionsManagerService {
       addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
     });
 
-    const revealTransaction = await this.retryOnError(async () => {
+    const revealTransaction = await this.utils.retryOnError(async () => {
       const currentRevealTransaction = await createTransactions({
         priorityEntries: [revealUTXOs.entries[0]],
         entries: newWalletUtxos.entries,
@@ -234,17 +219,12 @@ export class KaspaNetworkTransactionsManagerService {
 
       for (const transaction of currentRevealTransaction.transactions) {
         transaction.sign([privateKey], false);
-        const ourOutput = transaction.transaction.inputs.findIndex(
-          (input) => input.signatureScript === '',
-        );
+        const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
 
         if (ourOutput !== -1) {
           const signature = await transaction.createInputSignature(ourOutput, privateKey);
 
-          transaction.fillInput(
-            ourOutput,
-            scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature),
-          );
+          transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
         }
 
         const revealTransactionReciever = new TransacionReciever(
@@ -280,7 +260,7 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   async connectAndDo<T>(fn: () => Promise<T>): Promise<T> {
-    await this.retryOnError(async () => {
+    await this.utils.retryOnError(async () => {
       if (!this.rpcService.getRpc().isConnected) {
         await this.rpcService.getRpc().connect();
       }
@@ -294,31 +274,6 @@ export class KaspaNetworkTransactionsManagerService {
     return await fn();
   }
 
-  async retryOnError<T>(
-    fn: () => Promise<T>,
-    times: number = 5,
-    waitBeforeNextAttempt = 1000,
-  ): Promise<T> {
-    let attempt = 0;
-    while (attempt < times) {
-      try {
-        return await fn();
-      } catch (error) {
-        attempt++;
-        console.error(`retryOnError: Error on attempt ${attempt} of ${times}`);
-        console.error(error);
-
-        if (waitBeforeNextAttempt) {
-          await new Promise((resolve) => setTimeout(resolve, waitBeforeNextAttempt));
-        }
-
-        if (attempt === times) {
-          throw error;
-        }
-      }
-    }
-  }
-
   async isServerValid(): Promise<boolean> {
     const serverInfo = await this.rpcService.getRpc().getServerInfo();
     return serverInfo.isSynced && serverInfo.hasUtxoIndex;
@@ -327,15 +282,11 @@ export class KaspaNetworkTransactionsManagerService {
   async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
     const massAndFeeRate = BigInt(
-      Math.ceil(
-        Number(transactionData.summary.mass) * estimatedFees.estimate.priorityBucket.feerate,
-      ),
+      Math.ceil(Number(transactionData.summary.mass) * estimatedFees.estimate.priorityBucket.feerate),
     );
-    const maxFee =
-      transactionData.summary.fees > massAndFeeRate ? transactionData.summary.fees : massAndFeeRate;
+    const maxFee = transactionData.summary.fees > massAndFeeRate ? transactionData.summary.fees : massAndFeeRate;
 
-    const priorityFee =
-      maxFee - transactionData.summary.fees < 0 ? 0n : maxFee - transactionData.summary.fees;
+    const priorityFee = maxFee - transactionData.summary.fees < 0 ? 0n : maxFee - transactionData.summary.fees;
 
     return {
       originalFee: transactionData.summary.fees,

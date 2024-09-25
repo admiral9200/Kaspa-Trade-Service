@@ -24,6 +24,7 @@ import { AppConfigService } from 'src/modules/core/modules/config/app-config.ser
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
+import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -32,6 +33,7 @@ export class P2pController {
     private readonly p2pProvider: P2pProvider,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly config: AppConfigService,
+    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   @Post('getSellOrders')
@@ -189,6 +191,14 @@ export class P2pController {
     // const res = await this.kaspaNetworkActionsService.createAccount();
     // console.log('result', res);
     // return res;
+
+    // return this.kaspaNetworkActionsService.getWalletTotalBalance('kaspatest:qq357v269w74lcp4t803jvqhyxj6y2jmkf00n44unhpcz85tvgzzqkxj3pr84');
+    return await this.kasplexApiService.validateTransactionResult('d94425380674c3a71fe67ba74f4cf079647240fb1fe86ada65514ad7f8f547f3',
+      'GILADA',
+      1000000000n,
+      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
+      'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+    );
   }
 
   @Get('test4')
