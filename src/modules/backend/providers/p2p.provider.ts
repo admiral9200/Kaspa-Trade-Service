@@ -29,6 +29,7 @@ export class P2pProvider {
 
   public async listOrders(getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
     const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders(
+      getSellOrdersRequestDto.ticker,
       getSellOrdersRequestDto.walletAddress,
       getSellOrdersRequestDto.sort,
       getSellOrdersRequestDto.pagination,

@@ -24,8 +24,13 @@ export class P2pOrdersService {
     private readonly p2pTemporaryWalletsRepository: P2pTemporaryWalletsRepository,
   ) {}
 
-  public async getSellOrders(walletAddress?: string, sort?: SortDto, pagination?: PaginationDto): Promise<SellOrderDm[]> {
-    return await this.sellOrdersBookRepository.getListedSellOrders(walletAddress, sort, pagination);
+  public async getSellOrders(
+    ticker: string,
+    walletAddress?: string,
+    sort?: SortDto,
+    pagination?: PaginationDto,
+  ): Promise<SellOrderDm[]> {
+    return await this.sellOrdersBookRepository.getListedSellOrders(ticker, walletAddress, sort, pagination);
   }
 
   public async createSell(sellOrderDm: SellOrderDm, temporaryWallet: TemporaryWallet) {

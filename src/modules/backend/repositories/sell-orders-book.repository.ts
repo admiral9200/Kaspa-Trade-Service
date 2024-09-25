@@ -93,9 +93,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async getListedSellOrders(walletAddress?: string, sort?: SortDto, pagination?: PaginationDto): Promise<P2pOrder[]> {
+  async getListedSellOrders(
+    ticker: string,
+    walletAddress?: string,
+    sort?: SortDto,
+    pagination?: PaginationDto,
+  ): Promise<P2pOrder[]> {
     try {
-      const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE };
+      const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
 
       if (walletAddress) {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
