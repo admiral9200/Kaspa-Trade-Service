@@ -1,5 +1,4 @@
-export interface SwapTransactionsResult {
+export interface Krc20TransactionsResult {
   readonly commitTransactionId: string;
   readonly revealTransactionId: string;
-  readonly kaspaTransactionId: string;
 }

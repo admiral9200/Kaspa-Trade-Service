@@ -25,6 +25,7 @@ import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
 
+const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
 export class P2pController {
   constructor(
@@ -140,7 +141,7 @@ export class P2pController {
       [
         {
           address: 'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('25'),
+          amount: TEST_AMOUNT + kaspaToSompi('5'),
         },
       ],
       0n,
@@ -198,7 +199,7 @@ export class P2pController {
       'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
       'GILADA',
       kaspaToSompi('10'),
-      kaspaToSompi('20'),
+      TEST_AMOUNT,
     );
 
     console.log('result', res);
