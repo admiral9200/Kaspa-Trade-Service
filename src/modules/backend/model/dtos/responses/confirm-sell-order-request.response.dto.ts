@@ -1,3 +1,3 @@
 export interface ConfirmSellOrderRequestResponseDto {
-    confirmed: boolean;
+  confirmed: boolean;
 }

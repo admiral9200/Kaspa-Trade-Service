@@ -17,6 +17,7 @@ import { TemporaryWallet } from '../model/schemas/temporary-wallet.schema';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
+import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 @Injectable()
 export class P2pProvider {
@@ -25,6 +26,7 @@ export class P2pProvider {
     private readonly p2pOrderBookService: P2pOrdersService,
     private readonly temporaryWalletService: TemporaryWalletService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   public async listOrders(ticker: string, getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
@@ -41,7 +43,7 @@ export class P2pProvider {
     const sellOrderDm: SellOrderDm = P2pOrderBookTransformer.transformSellRequestDtoToOrderDm(dto);
 
     const walletSequenceId: number = await this.temporaryWalletService.generateSequenceId();
-    const temporaryWalletAddress: string = await this.kaspaFacade.createWalletAccount(walletSequenceId);
+    const temporaryWalletAddress: string = await this.kaspaFacade.getTempWalletAccountAddressAtIndex(walletSequenceId);
 
     const temporaryWallet: TemporaryWallet = await this.temporaryWalletService.create(walletSequenceId, temporaryWalletAddress);
 
@@ -68,11 +70,14 @@ export class P2pProvider {
 
     let confirmed: boolean = false;
 
-    // TODO VALIDATRE HERE
+    const tempWalletAddress = await this.kaspaFacade.getTempWalletAccountAddressAtIndex(order.walletSequenceId);
+    const walletTokensAmount = await this.kasplexApiService.fetchWalletBalance(tempWalletAddress, order.ticker);
 
-    confirmed = true;
+    if (walletTokensAmount >= order.quantity) {
+      confirmed = true;
 
-    await this.p2pOrderBookService.setReadyForSale(order._id);
+      await this.p2pOrderBookService.setReadyForSale(order._id);
+    }
 
     return {
       confirmed,
@@ -80,16 +85,27 @@ export class P2pProvider {
   }
 
   public async confirmBuy(sellOrderId: string, confirmBuyDto: ConfirmBuyRequestDto): Promise<ConfirmBuyOrderRequestResponseDto> {
-    // Validate that the buyer has sent the KAS to the temporary wallet TODO
+    const order: P2pOrder = await this.p2pOrderBookService.getOrderById(sellOrderId);
 
-    const order: P2pOrder = await this.p2pOrderBookService.confirmBuy(sellOrderId);
+    const tempWalletAddress = await this.kaspaFacade.getTempWalletAccountAddressAtIndex(order.walletSequenceId);
 
-    await this.kaspaFacade.doSellSwap(order);
+    const isVerified: boolean = await this.kaspaFacade.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
+      confirmBuyDto.transactionId,
+      order.buyerWalletAddress,
+      tempWalletAddress,
+      order.totalPrice,
+    );
 
-    await this.p2pOrderBookService.setOrderCompleted(sellOrderId);
+    if (isVerified) {
+      const order: P2pOrder = await this.p2pOrderBookService.confirmBuy(sellOrderId);
+
+      await this.kaspaFacade.doSellSwap(order);
+
+      await this.p2pOrderBookService.setOrderCompleted(sellOrderId);
+    }
 
     return {
-      confirmed: true,
+      confirmed: isVerified,
     };
   }
 
