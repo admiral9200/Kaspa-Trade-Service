@@ -17,7 +17,6 @@ import { TemporaryWallet } from '../model/schemas/temporary-wallet.schema';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
-import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 @Injectable()
 export class P2pProvider {
@@ -26,7 +25,6 @@ export class P2pProvider {
     private readonly p2pOrderBookService: P2pOrdersService,
     private readonly temporaryWalletService: TemporaryWalletService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
-    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   public async listOrders(ticker: string, getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
@@ -68,14 +66,11 @@ export class P2pProvider {
   public async confirmSell(sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
     const order: P2pOrder = await this.p2pOrderBookService.getOrderById(sellOrderId);
 
-    let confirmed: boolean = false;
-
     const tempWalletAddress = await this.kaspaFacade.getTempWalletAccountAddressAtIndex(order.walletSequenceId);
-    const walletTokensAmount = await this.kasplexApiService.fetchWalletBalance(tempWalletAddress, order.ticker);
 
-    if (walletTokensAmount >= order.quantity) {
-      confirmed = true;
+    const confirmed: boolean = await this.kaspaFacade.checkIfWalletHasKrc20Token(tempWalletAddress, order.ticker, order.quantity);
 
+    if (confirmed) {
       await this.p2pOrderBookService.setReadyForSale(order._id);
     }
 

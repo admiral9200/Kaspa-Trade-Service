@@ -3,14 +3,24 @@ import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-netw
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { SellOrderDm } from '../model/dms/sell-order.dm';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
+import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 @Injectable()
 export class KaspaFacade {
-  constructor(private readonly kaspaNetworkActionsService: KaspaNetworkActionsService) {}
+  constructor(
+    private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+    private readonly kasplexApiService: KasplexApiService,
+  ) {}
 
   async getTempWalletAccountAddressAtIndex(sequenceId: number): Promise<string> {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);
     return walletAccount.address;
+  }
+
+  async checkIfWalletHasKrc20Token(address: string, ticker: string, amount: number): Promise<boolean> {
+    const walletTokensAmount = await this.kasplexApiService.fetchWalletBalance(address, ticker);
+
+    return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
