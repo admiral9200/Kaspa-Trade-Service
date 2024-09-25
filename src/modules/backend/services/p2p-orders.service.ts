@@ -92,11 +92,16 @@ export class P2pOrdersService {
   }
 
   public async setReadyForSale(orderId: string) {
-    await this.sellOrdersBookRepository.transitionOrderStatus(
-      orderId,
-      SellOrderStatus.LISTED_FOR_SALE,
-      SellOrderStatus.WAITING_FOR_TOKENS,
-    );
+    try {
+      await this.sellOrdersBookRepository.transitionOrderStatus(
+        orderId,
+        SellOrderStatus.LISTED_FOR_SALE,
+        SellOrderStatus.WAITING_FOR_TOKENS,
+      );
+    } catch (error) {
+      console.log('Failed to set order status to ready for sale', error);
+      throw new HttpException('Failed to set order status to ready for sale', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   async confirmBuy(sellOrderId: string): Promise<P2pOrder> {
