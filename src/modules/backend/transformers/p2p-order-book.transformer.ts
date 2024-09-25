@@ -1,11 +1,24 @@
-import { SellRequestDto } from '../model/dtos/sell-request.dto';
-import { SellOrderDm } from '../model/dms/sell-order.dm';
-import { P2pOrder } from '../model/schemas/p2p-order.schema';
+import { SellOrderDto } from '../model/dtos/sell-order.dto';
+import { OrderDm } from '../model/dms/order.dm';
+import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
+import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 
 export class P2pOrderBookTransformer {
-  static transformSellOrderDmToSellOrderDto(sellOrderDm: SellOrderDm): SellOrderResponseDto {
+  static transformP2pOrderEntityToListedOrderDto(entity: P2pOrderEntity): ListedOrderDto {
+    return {
+      orderId: entity._id,
+      pricePerToken: entity.pricePerToken,
+      quantity: entity.quantity,
+      ticker: entity.ticker,
+      totalPrice: entity.totalPrice,
+      expiresAt: entity.expiresAt,
+      createdAt: entity.createdAt,
+    };
+  }
+
+  static transformSellOrderDmToSellOrderDto(sellOrderDm: OrderDm): SellOrderResponseDto {
     return {
       orderId: sellOrderDm.id,
       quantity: sellOrderDm.quantity,
@@ -18,39 +31,31 @@ export class P2pOrderBookTransformer {
     };
   }
 
-  static transformSellRequestDtoToOrderDm(dto: SellRequestDto, id?: string): SellOrderDm {
+  static createP2pOrderEntityFromSellOrderDto(sellOrderDto: SellOrderDto, walletSequenceId: number): P2pOrderEntity {
     return {
-      id,
-      quantity: dto.quantity,
-      ticker: dto.ticker,
-      totalPrice: dto.totalPrice,
-      pricePerToken: dto.pricePerToken,
-      sellerWalletAddress: dto.walletAddress,
-    };
-  }
-
-  static createSellOrder(sellOrderDm: SellOrderDm, walletSequenceId: number): P2pOrder {
-    return {
-      ticker: sellOrderDm.ticker,
-      quantity: sellOrderDm.quantity,
-      pricePerToken: sellOrderDm.pricePerToken,
-      totalPrice: sellOrderDm.totalPrice,
-      sellerWalletAddress: sellOrderDm.sellerWalletAddress,
+      ticker: sellOrderDto.ticker,
+      quantity: sellOrderDto.quantity,
+      pricePerToken: sellOrderDto.pricePerToken,
+      totalPrice: sellOrderDto.totalPrice,
+      sellerWalletAddress: sellOrderDto.walletAddress,
       walletSequenceId: walletSequenceId,
       status: SellOrderStatus.WAITING_FOR_TOKENS,
     };
   }
 
-  static transformSellOrderModelToDm(sellOrder: P2pOrder, temporaryWalletAddress: string): SellOrderDm {
+  static transformP2pOrderEntityToDm(sellOrder: P2pOrderEntity): OrderDm {
     return {
-      id: sellOrder._id.toString(),
+      id: sellOrder._id,
+      walletSequenceId: sellOrder.walletSequenceId,
       quantity: sellOrder.quantity,
       ticker: sellOrder.ticker,
       pricePerToken: sellOrder.pricePerToken,
       totalPrice: sellOrder.totalPrice,
       sellerWalletAddress: sellOrder.sellerWalletAddress,
-      temporaryWalletAddress: temporaryWalletAddress,
+      buyerWalletAddress: sellOrder.buyerWalletAddress,
       status: sellOrder.status,
+      expiresAt: sellOrder.expiresAt,
+      createdAt: sellOrder.createdAt,
     };
   }
 }

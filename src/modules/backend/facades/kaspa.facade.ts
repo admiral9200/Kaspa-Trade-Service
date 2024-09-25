@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
-import { P2pOrder } from '../model/schemas/p2p-order.schema';
+import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
+import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 
 @Injectable()
 export class KaspaFacade {
@@ -11,7 +12,7 @@ export class KaspaFacade {
     private readonly kasplexApiService: KasplexApiService,
   ) {}
 
-  async getTempWalletAccountAddressAtIndex(sequenceId: number): Promise<string> {
+  async getAccountWalletAddressAtIndex(sequenceId: number): Promise<string> {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);
     return walletAccount.address;
   }
@@ -36,7 +37,7 @@ export class KaspaFacade {
     );
   }
 
-  async doSellSwap(order: P2pOrder) {
+  async doSellSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
     try {
       const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
       const holderWalletPrivateKey = walletAccount.privateKey;
@@ -44,7 +45,7 @@ export class KaspaFacade {
       const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
       const totalPrice = KaspaNetworkActionsService.KaspaToSompi(`${order.totalPrice}`);
 
-      await this.kaspaNetworkActionsService.doSellSwap(
+      return await this.kaspaNetworkActionsService.doSellSwap(
         holderWalletPrivateKey,
         order.buyerWalletAddress,
         order.sellerWalletAddress,
