@@ -1,4 +1,16 @@
-import { Request, Body, Controller, Get, NotFoundException, Param, Post, Delete } from '@nestjs/common';
+import {
+  Request,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Delete,
+  Query,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellRequestDto } from '../model/dtos/sell-request.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
@@ -22,9 +34,12 @@ export class P2pController {
   ) {}
 
   @Post('getSellOrders')
-  async getSellOrders(@Body() body: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
+  async getSellOrders(@Body() body: GetSellOrdersRequestDto, @Query('ticker') ticker: string): Promise<SellOrderResponseDto[]> {
     try {
-      return await this.p2pProvider.listOrders(body);
+      if (!ticker) {
+        throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
+      }
+      return await this.p2pProvider.listOrders(ticker, body);
     } catch (error) {
       throw error;
     }
@@ -48,9 +63,7 @@ export class P2pController {
    * @param sellOrderId The order ID of the sell order
    */
   @Get('confirmSellOrder/:sellOrderId')
-  async confirmSellOrder(
-    @Param('sellOrderId') sellOrderId: string,
-  ): Promise<ConfirmSellOrderRequestResponseDto> {
+  async confirmSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
     try {
       return await this.p2pProvider.confirmSell(sellOrderId);
     } catch (error) {
@@ -73,10 +86,7 @@ export class P2pController {
    * @param body
    */
   @Post('buy/:sellOrderId')
-  async buyToken(
-    @Param('sellOrderId') sellOrderId: string,
-    @Body() body: BuyRequestDto,
-  ): Promise<BuyRequestResponseDto> {
+  async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
     try {
       return await this.p2pProvider.buy(sellOrderId, body);
     } catch (error) {

@@ -27,9 +27,9 @@ export class P2pProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-  public async listOrders(getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
+  public async listOrders(ticker: string, getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
     const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders(
-      getSellOrdersRequestDto.ticker,
+      ticker,
       getSellOrdersRequestDto.walletAddress,
       getSellOrdersRequestDto.sort,
       getSellOrdersRequestDto.pagination,

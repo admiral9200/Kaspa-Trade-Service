@@ -10,9 +10,6 @@ export class GetSellOrdersRequestDto {
   @IsOptional()
   walletAddress?: string;
 
-  @IsString()
-  ticker: string;
-
   @ValidateNested()
   @Type(() => SortDto)
   @IsOptional()
