@@ -63,6 +63,7 @@ export class KaspaNetworkTransactionsManagerService {
     privateKey: PrivateKey,
     outputs: IPaymentOutput[],
     priorityFee: bigint = 0n,
+    withoutRetry = false,
   ) {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -76,9 +77,13 @@ export class KaspaNetworkTransactionsManagerService {
       networkId: this.rpcService.getNetwork(),
     };
 
-    const transactions = await this.retryOnError(
-      async () => await createTransactions(transactionData),
-    );
+    let transactions = null;
+
+    if (withoutRetry) {
+      transactions = await createTransactions(transactionData);
+    } else {
+      transactions = await this.retryOnError(async () => await createTransactions(transactionData));
+    }
 
     return transactions;
   }
@@ -89,13 +94,14 @@ export class KaspaNetworkTransactionsManagerService {
     priorityFee: bigint = null,
     walletShouldBeEmpty = false,
   ): Promise<string> {
-    const transferFundsTransaction = await this.createTransaction(
-      privateKey,
-      payments,
-      priorityFee,
-    );
-
     return await this.retryOnError(async () => {
+      const transferFundsTransaction = await this.createTransaction(
+        privateKey,
+        payments,
+        priorityFee,
+        true,
+      );
+
       const transactionReciever = new TransacionReciever(
         this.rpcService.getRpc(),
         this.convertPrivateKeyToPublicKey(privateKey),
