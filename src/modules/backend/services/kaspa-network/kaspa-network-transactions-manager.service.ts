@@ -16,7 +16,7 @@ import {
 import { TransacionReciever } from './classes/TransacionReciever';
 import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
-import { Krc20TransactionsResult } from './interfaces/SwapTransactionsResult.interface';
+import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
@@ -93,12 +93,21 @@ export class KaspaNetworkTransactionsManagerService {
     payments: IPaymentOutput[],
     priorityFee: bigint = null,
     walletShouldBeEmpty = false,
+    calculatePriorityFee = false,
   ): Promise<string> {
+    let finalPriorityFee = priorityFee;
+
+    if (calculatePriorityFee) {
+      const transferFundsTransaction = await this.createTransaction(privateKey, payments, 0n);
+
+      finalPriorityFee = (await this.getTransactionFees(transferFundsTransaction)).priorityFee;
+    }
+
     return await this.retryOnError(async () => {
       const transferFundsTransaction = await this.createTransaction(
         privateKey,
         payments,
-        priorityFee,
+        finalPriorityFee,
         true,
       );
 
