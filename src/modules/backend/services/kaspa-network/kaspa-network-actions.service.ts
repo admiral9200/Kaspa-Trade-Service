@@ -8,7 +8,11 @@ import {
   XPrv,
 } from 'libs/kaspa/kaspa';
 import { KaspaNetworkTransactionsManagerService } from './kaspa-network-transactions-manager.service';
-import { getTransferData, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
+import {
+  getTransferData,
+  KRC20_BASE_TRANSACTION_AMOUNT,
+  KRC20_TRANSACTIONS_AMOUNTS,
+} from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { RpcService } from './rpc.service';
 import { EncryptionService } from '../encryption.service';
@@ -19,6 +23,7 @@ import { Krc20TransactionsResult } from './interfaces/SwapTransactionsResult.int
 import { SwapTransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
 
 const AMOUNT_FOR_TESTING_FEE = 5;
+const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 @Injectable()
 export class KaspaNetworkActionsService {
   constructor(
@@ -151,6 +156,56 @@ export class KaspaNetworkActionsService {
     });
   }
 
+  async cancelSellSwap(
+    holderWalletPrivateKey: PrivateKey,
+    sellerAddress: string,
+    krc20tokenTicker: string,
+    krc20TokenAmount: bigint,
+  ): Promise<SwapTransactionsResult> {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      const totalWalletAmountAtStart = await this.getWalletTotalBalance(
+        this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
+      );
+
+      const minimumForFees =
+        MINIMAL_AMOUNT_TO_SEND +
+        KRC20_TRANSACTIONS_AMOUNTS.TRANSFER +
+        KRC20_BASE_TRANSACTION_AMOUNT;
+
+      console.log('tt', totalWalletAmountAtStart, minimumForFees);
+      if (totalWalletAmountAtStart < minimumForFees) {
+        throw new NotEnoughBalanceError();
+      }
+
+      const maxPriorityFee = totalWalletAmountAtStart - minimumForFees;
+      console.log('transfering krc20...');
+
+      const krc20Transactions = await this.transferKrc20Token(
+        holderWalletPrivateKey,
+        krc20tokenTicker,
+        sellerAddress,
+        krc20TokenAmount,
+        maxPriorityFee,
+      );
+
+      console.log('transfered krc20');
+      console.log('transfering kaspa');
+
+      const kaspaTransactionId = await this.transferAllKaspaInWallet(
+        holderWalletPrivateKey,
+        sellerAddress,
+      );
+
+      console.log('transfered kaspa');
+
+      return {
+        commitTransactionId: krc20Transactions.commitTransactionId,
+        revealTransactionId: krc20Transactions.revealTransactionId,
+        kaspaTransactionId: kaspaTransactionId,
+      };
+    });
+  }
+
   async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
@@ -161,13 +216,16 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async transferAllKaspaInWallet(sourceWalletprivateKey: PrivateKey, targetAddress: string): Promise<string> {
+  async transferAllKaspaInWallet(
+    sourceWalletprivateKey: PrivateKey,
+    targetAddress: string,
+  ): Promise<string> {
     return await this.transactionsManagerService.connectAndDo(async () => {
       const totalWalletAmount = await this.getWalletTotalBalance(
         this.transactionsManagerService.convertPrivateKeyToPublicKey(sourceWalletprivateKey),
       );
 
-      if (totalWalletAmount <= kaspaToSompi('0.2')) {
+      if (totalWalletAmount <= MINIMAL_AMOUNT_TO_SEND) {
         throw new NotEnoughBalanceError();
       }
 
@@ -176,7 +234,7 @@ export class KaspaNetworkActionsService {
         [
           {
             address: this.config.commitionWalletAddress,
-            amount: totalWalletAmount - kaspaToSompi('0.2'),
+            amount: totalWalletAmount - MINIMAL_AMOUNT_TO_SEND,
           },
         ],
         0n,

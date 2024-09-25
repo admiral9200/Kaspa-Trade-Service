@@ -85,15 +85,15 @@ export class P2pController {
 
   @Get('test')
   async test() {
-    // const res = await this.kaspaNetworkActionsService.transferKrc20Token(
-    //   new PrivateKey(
-    //     '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
-    //   ),
-    //   'GILADA',
-    //   'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-    //   kaspaToSompi('10'),
-    //   0n,
-    // );
+    const res = await this.kaspaNetworkActionsService.transferKrc20Token(
+      new PrivateKey(
+        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
+      ),
+      'GILADA',
+      'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+      kaspaToSompi('10'),
+      0n,
+    );
 
     const res2 = await this.kaspaNetworkActionsService.transferKaspa(
       new PrivateKey('0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058'),
@@ -159,6 +159,20 @@ export class P2pController {
       'GILADA',
       kaspaToSompi('10'),
       kaspaToSompi('20'),
+    );
+
+    console.log('result', res);
+
+    return res;
+  }
+
+  @Get('test5')
+  async test5() {
+    const res = await this.kaspaNetworkActionsService.cancelSellSwap(
+      new PrivateKey('89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8'),
+      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
+      'GILADA',
+      kaspaToSompi('250'),
     );
 
     console.log('result', res);

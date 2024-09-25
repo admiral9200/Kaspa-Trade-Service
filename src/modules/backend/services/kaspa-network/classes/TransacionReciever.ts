@@ -38,8 +38,7 @@ export class TransacionReciever {
     }
 
     const addedEntry = event.data.added.find(
-      (entry: any) =>
-        entry.address.payload === this.publicAddress.toString().split(':')[1],
+      (entry: any) => entry.address.payload === this.publicAddress.toString().split(':')[1],
     );
 
     if (addedEntry) {
@@ -63,8 +62,7 @@ export class TransacionReciever {
 
     if (
       !TransacionReciever.addressesToMontior[this.publicAddress] ||
-      Object.keys(TransacionReciever.addressesToMontior[this.publicAddress])
-        .length == 0
+      Object.keys(TransacionReciever.addressesToMontior[this.publicAddress]).length == 0
     ) {
       TransacionReciever.addressesToMontior[this.publicAddress] = {
         [this.id]: 1,
@@ -77,16 +75,23 @@ export class TransacionReciever {
     this.rpc.addEventListener('utxos-changed', this.handlerWithBind);
   }
 
+  async dispose() {
+    await this.clearEventListener();
+  }
+
   private async clearEventListener() {
     this.rpc.removeEventListener('utxos-changed', this.handlerWithBind);
 
-    if (TransacionReciever.addressesToMontior[this.publicAddress][this.id]) {
+    if (
+      TransacionReciever.addressesToMontior[this.publicAddress] &&
+      TransacionReciever.addressesToMontior[this.publicAddress][this.id]
+    ) {
       delete TransacionReciever.addressesToMontior[this.publicAddress][this.id];
     }
 
     if (
-      Object.keys(TransacionReciever.addressesToMontior[this.publicAddress])
-        .length == 0
+      TransacionReciever.addressesToMontior[this.publicAddress] &&
+      Object.keys(TransacionReciever.addressesToMontior[this.publicAddress]).length == 0
     ) {
       delete TransacionReciever.addressesToMontior[this.publicAddress];
       await this.rpc.unsubscribeUtxosChanged([this.publicAddress]);
