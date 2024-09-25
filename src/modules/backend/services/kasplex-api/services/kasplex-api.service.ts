@@ -153,7 +153,7 @@ export class KasplexApiService {
     return response.data.result;
   }
 
-  async validateTransactionResult(
+  async verifyTransactionResult(
     revealTransactoinId: string,
     ticker: string,
     amount: bigint,
@@ -172,7 +172,7 @@ export class KasplexApiService {
         let transactionFound = false;
 
         for (const transaction of transactionsData) {
-          transactionFound = this.validateSingleTransactionResult(transaction, ticker, amount, from, to);
+          transactionFound = this.verifySingleTransactionResult(transaction, ticker, amount, from, to);
 
           if (transactionFound) {
             break;
@@ -191,12 +191,12 @@ export class KasplexApiService {
 
         return transactionFound;
       },
-      10,
-      3000,
+      3,
+      5000,
     );
   }
 
-  private validateSingleTransactionResult(
+  private verifySingleTransactionResult(
     transactionData: ITokenOperation,
     ticker: string,
     amount: bigint,

@@ -1,18 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import {
-  IPaymentOutput,
-  kaspaToSompi,
-  Mnemonic,
-  PrivateKey,
-  PrivateKeyGenerator,
-  XPrv,
-} from 'libs/kaspa/kaspa';
+import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator, XPrv } from 'libs/kaspa/kaspa';
 import { KaspaNetworkTransactionsManagerService } from './kaspa-network-transactions-manager.service';
-import {
-  getTransferData,
-  KRC20_BASE_TRANSACTION_AMOUNT,
-  KRC20_TRANSACTIONS_AMOUNTS,
-} from './classes/KRC20OperationData';
+import { getTransferData, KRC20_BASE_TRANSACTION_AMOUNT, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { RpcService } from './rpc.service';
 import { EncryptionService } from '../encryption.service';
@@ -22,8 +11,11 @@ import { WalletAccount } from './interfaces/wallet-account.interface';
 import { SwapTransactionsResult } from './interfaces/SwapTransactionsResult.interface';
 import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
 import { CancelSwapTransactionsResult } from './interfaces/CancelSwapTransactionsResult.interface';
+import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwap';
+import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 
-const AMOUNT_FOR_TESTING_FEE = 5;
+const AMOUNT_FOR_TESTING_FEE = kaspaToSompi('5');
+const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
@@ -33,9 +25,26 @@ export class KaspaNetworkActionsService {
   constructor(
     private readonly transactionsManagerService: KaspaNetworkTransactionsManagerService,
     private readonly config: AppConfigService,
-    private readonly rpcService: RpcService,
     private readonly encryptionService: EncryptionService,
+    private readonly kaspaApiService: KaspaApiService,
   ) {}
+
+  async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
+    transactionId: string,
+    from: string,
+    to: string,
+    amount: bigint,
+  ): Promise<boolean> {
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(amount));
+
+    if (!kaspaApiResult) {
+      return false;
+    }
+
+    const walletTotalBalance = await this.getWalletTotalBalance(to);
+
+    return walletTotalBalance >= amount;
+  }
 
   /**
    * Doing sell swp
@@ -59,8 +68,11 @@ export class KaspaNetworkActionsService {
         this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
       );
 
+      if (totalWalletAmountAtStart < AMOUNT_FOR_SWAP_FEES + kaspaAmount) {
+        throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, AMOUNT_FOR_SWAP_FEES + kaspaAmount);
+      }
+
       const maxPriorityFee = (totalWalletAmountAtStart - kaspaAmount) / 10n;
-      console.log('transfering krc20...');
 
       const krc20Transactions = await this.transferKrc20Token(
         holderWalletPrivateKey,
@@ -69,8 +81,6 @@ export class KaspaNetworkActionsService {
         krc20TokenAmount,
         maxPriorityFee,
       );
-
-      console.log('transfered krc20');
 
       const commission = this.config.swapCommissionPercentage;
       let commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
@@ -81,28 +91,24 @@ export class KaspaNetworkActionsService {
 
       const amountToTransferToSeller = kaspaAmount - commissionInKaspa;
 
-      const sellerTransactionId =
-        await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
-          holderWalletPrivateKey,
-          [
-            {
-              address: sellerAddress,
-              amount: amountToTransferToSeller,
-            },
-            {
-              address: this.config.commitionWalletAddress,
-              amount: commissionInKaspa,
-            },
-          ],
-          0n,
-          false,
-          true,
-        );
-
-      const buyerTransactionId = await this.transferAllKaspaInWallet(
+      const sellerTransactionId = await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
         holderWalletPrivateKey,
-        buyerAddress,
+        [
+          {
+            address: sellerAddress,
+            amount: amountToTransferToSeller,
+          },
+          {
+            address: this.config.commitionWalletAddress,
+            amount: commissionInKaspa,
+          },
+        ],
+        0n,
+        false,
+        true,
       );
+
+      const buyerTransactionId = await this.transferAllKaspaInWallet(holderWalletPrivateKey, buyerAddress);
 
       return {
         commitTransactionId: krc20Transactions.commitTransactionId,
@@ -266,17 +272,13 @@ export class KaspaNetworkActionsService {
         this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
       );
 
-      const minimumForFees =
-        MINIMAL_AMOUNT_TO_SEND +
-        KRC20_TRANSACTIONS_AMOUNTS.TRANSFER +
-        KRC20_BASE_TRANSACTION_AMOUNT;
+      const minimumForFees = MINIMAL_AMOUNT_TO_SEND + KRC20_TRANSACTIONS_AMOUNTS.TRANSFER + KRC20_BASE_TRANSACTION_AMOUNT;
 
       if (totalWalletAmountAtStart < minimumForFees) {
         throw new NotEnoughBalanceError();
       }
 
       const maxPriorityFee = totalWalletAmountAtStart - minimumForFees;
-      console.log('transfering krc20...');
 
       const krc20Transactions = await this.transferKrc20Token(
         holderWalletPrivateKey,
@@ -286,15 +288,7 @@ export class KaspaNetworkActionsService {
         maxPriorityFee,
       );
 
-      console.log('transfered krc20');
-      console.log('transfering kaspa');
-
-      const kaspaTransactionId = await this.transferAllKaspaInWallet(
-        holderWalletPrivateKey,
-        sellerAddress,
-      );
-
-      console.log('transfered kaspa');
+      const kaspaTransactionId = await this.transferAllKaspaInWallet(holderWalletPrivateKey, sellerAddress);
 
       return {
         commitTransactionId: krc20Transactions.commitTransactionId,
@@ -306,18 +300,11 @@ export class KaspaNetworkActionsService {
 
   async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
-        privateKey,
-        payments,
-        maxPriorityFee,
-      );
+      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(privateKey, payments, maxPriorityFee);
     });
   }
 
-  async transferAllKaspaInWallet(
-    sourceWalletprivateKey: PrivateKey,
-    targetAddress: string,
-  ): Promise<string> {
+  async transferAllKaspaInWallet(sourceWalletprivateKey: PrivateKey, targetAddress: string): Promise<string> {
     return await this.transactionsManagerService.connectAndDo(async () => {
       const totalWalletAmount = await this.getWalletTotalBalance(
         this.transactionsManagerService.convertPrivateKeyToPublicKey(sourceWalletprivateKey),
@@ -338,8 +325,7 @@ export class KaspaNetworkActionsService {
         0n,
       );
 
-      const transactionsFees =
-        await this.transactionsManagerService.getTransactionFees(tempTransaction);
+      const transactionsFees = await this.transactionsManagerService.getTransactionFees(tempTransaction);
 
       const amountToTransfer = totalWalletAmount - transactionsFees.maxFee;
 
@@ -388,10 +374,6 @@ export class KaspaNetworkActionsService {
 
     const encryptedKey = await this.encryptionService.encrypt(masterWalletKey);
 
-    console.log('xprv');
-    console.log('enc', encryptedKey);
-    console.log('dec', await this.encryptionService.decrypt(encryptedKey));
-
     return {
       encryptedXPrv: encryptedKey,
       walletForFeeCalc: (await this.getWalletAccountAtIndex(0, masterWalletKey)).address,
@@ -399,9 +381,7 @@ export class KaspaNetworkActionsService {
   }
 
   async getWalletAccountAtIndex(index: number, xprvString: string = null): Promise<WalletAccount> {
-    const xprv = XPrv.fromXPrv(
-      xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)),
-    );
+    const xprv = XPrv.fromXPrv(xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)));
 
     const account = new PrivateKeyGenerator(xprv, false, 0n);
 
@@ -426,7 +406,7 @@ export class KaspaNetworkActionsService {
         [
           {
             address: this.config.commitionWalletAddress,
-            amount: kaspaToSompi(String(AMOUNT_FOR_TESTING_FEE)),
+            amount: AMOUNT_FOR_TESTING_FEE,
           },
         ],
       );
@@ -437,22 +417,12 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async retry() {}
-
   async logMyWallets(title) {
     const data = {
-      w1: await this.getWalletTotalBalance(
-        'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
-      ),
-      w2: await this.getWalletTotalBalance(
-        'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-      ),
-      w3: await this.getWalletTotalBalance(
-        'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-      ),
-      w4: await this.getWalletTotalBalance(
-        'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-      ),
+      w1: await this.getWalletTotalBalance('kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2'),
+      w2: await this.getWalletTotalBalance('kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv'),
+      w3: await this.getWalletTotalBalance('kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn'),
+      w4: await this.getWalletTotalBalance('kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t'),
     };
 
     console.log(`--- LOG ${title} - ${new Date().toLocaleTimeString()}`);
