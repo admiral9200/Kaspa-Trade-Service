@@ -8,4 +8,5 @@ export interface SellOrderResponseDto {
   status: SellOrderStatus;
   expiresAt: Date;
   createdAt: Date;
+  totalPrice: number;
 }

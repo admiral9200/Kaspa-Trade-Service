@@ -16,6 +16,7 @@ export class P2pOrderBookTransformer {
       status: sellOrderDm.status,
       expiresAt: sellOrderDm.expiresAt,
       createdAt: sellOrderDm.createdAt,
+      totalPrice: sellOrderDm.totalPrice,
     };
   }
 
