@@ -2,9 +2,7 @@ import { SellRequestDto } from '../model/dtos/sell-request.dto';
 import { SellOrderDm } from '../model/dms/sell-order.dm';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
-import { TemporaryWallet } from '../model/schemas/temporary-wallet.schema';
 import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
-import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
 
 export class P2pOrderBookTransformer {
   static transformSellOrderDmToSellOrderDto(sellOrderDm: SellOrderDm): SellOrderResponseDto {
@@ -36,7 +34,7 @@ export class P2pOrderBookTransformer {
       ticker: sellOrderDm.ticker,
       quantity: sellOrderDm.quantity,
       pricePerToken: sellOrderDm.pricePerToken,
-      totalPrice: sellOrderDm.pricePerToken,
+      totalPrice: sellOrderDm.totalPrice,
       sellerWalletAddress: sellOrderDm.sellerWalletAddress,
       walletSequenceId: walletSequenceId,
       status: SellOrderStatus.WAITING_FOR_TOKENS,

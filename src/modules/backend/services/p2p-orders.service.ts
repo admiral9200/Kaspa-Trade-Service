@@ -118,7 +118,7 @@ export class P2pOrdersService {
   }
 
   async cancelExpiredOrders() {
-    const orders: P2pOrder[] = await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
+    await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
   async cancelSellOrder(sellOrderId: string) {

@@ -1,9 +1,7 @@
-import {FilterQuery, Model} from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 
 export abstract class BaseRepository<T> {
-  protected constructor(
-    private readonly model: Model<T>,
-  ) {}
+  protected constructor(private readonly model: Model<T>) {}
 
   private get modelName(): string {
     return this.constructor.name;
@@ -12,7 +10,7 @@ export abstract class BaseRepository<T> {
   async create(data: T): Promise<T> {
     return this.model.create(data);
   }
-  
+
   async count(): Promise<number> {
     return this.model.estimatedDocumentCount();
   }
@@ -21,21 +19,12 @@ export abstract class BaseRepository<T> {
     return await this.model.findOne({ [field]: value } as any).exec();
   }
 
-  async updateByOne(
-      field: keyof T,
-      value: any,
-      data: Partial<T>,
-      additionalCriteria: FilterQuery<T> = {}
-  ): Promise<T | null> {
+  async updateByOne(field: keyof T, value: any, data: Partial<T>, additionalCriteria: FilterQuery<T> = {}): Promise<T | null> {
     const filter: FilterQuery<T> = {
       [field]: value,
-      ...additionalCriteria
+      ...additionalCriteria,
     };
 
-    return await this.model.findOneAndUpdate(
-        filter,
-        { $set: data },
-        { new: true }
-    ).exec();
+    return await this.model.findOneAndUpdate(filter, { $set: data }, { new: true }).exec();
   }
 }

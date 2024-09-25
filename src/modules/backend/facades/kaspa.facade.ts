@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
-import { SellOrderDm } from '../model/dms/sell-order.dm';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
