@@ -10,12 +10,14 @@ export class ServiceCommunicationMiddleware implements NestMiddleware {
     const privateKey = this.configService.getServiceCommunicationSecretKey;
     const authHeader = req.headers['authorization'];
 
-    if (!authHeader) {
-      throw new UnauthorizedException('Missing authorization header');
-    }
+    if (this.configService.isProduction) {
+      if (!authHeader) {
+        throw new UnauthorizedException('Missing authorization header');
+      }
 
-    if (authHeader !== privateKey) {
-      throw new UnauthorizedException('Invalid service communication key');
+      if (authHeader !== privateKey) {
+        throw new UnauthorizedException('Invalid service communication key');
+      }
     }
 
     next();

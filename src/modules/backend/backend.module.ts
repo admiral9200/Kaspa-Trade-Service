@@ -20,6 +20,9 @@ import { TemporaryWalletsSequence, TemporaryWalletsSequenceSchema } from './mode
 import { P2pTemporaryWalletsSequenceRepository } from './repositories/p2p-temporary-wallets-sequence.repository';
 import { TemporaryWalletService } from './services/temporary-wallet.service';
 import { P2pOrderHelper } from './helpers/p2p-order.helper';
+import { KaspaApiModule } from './services/kaspa-api/kaspa-api.module';
+import { KasplexApiModule } from './services/kasplex-api/kasplex-api.module';
+import { UtilsHelper } from './helpers/utils.helper';
 
 @Module({
   controllers: [P2pController],
@@ -40,6 +43,7 @@ import { P2pOrderHelper } from './helpers/p2p-order.helper';
 
     // Helpers
     P2pOrderHelper,
+    UtilsHelper,
 
     // Repositories
     SellOrdersBookRepository,
@@ -65,6 +69,8 @@ import { P2pOrderHelper } from './helpers/p2p-order.helper';
       ],
       MONGO_DATABASE_CONNECTIONS.P2P,
     ),
+    KaspaApiModule,
+    KasplexApiModule,
   ],
   exports: [],
 })

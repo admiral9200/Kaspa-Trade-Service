@@ -24,6 +24,7 @@ import { AppConfigService } from 'src/modules/core/modules/config/app-config.ser
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
+import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -32,6 +33,7 @@ export class P2pController {
     private readonly p2pProvider: P2pProvider,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly config: AppConfigService,
+    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   @Post('getSellOrders')
@@ -189,6 +191,13 @@ export class P2pController {
     // const res = await this.kaspaNetworkActionsService.createAccount();
     // console.log('result', res);
     // return res;
+
+    // return this.kaspaNetworkActionsService.getWalletTotalBalance('kaspatest:qq357v269w74lcp4t803jvqhyxj6y2jmkf00n44unhpcz85tvgzzqkxj3pr84');
+    return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount('212831f997aec88ac1358549deb41436f213428ea08810566ea075be765865ff',
+      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
+      'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
+      2518180000n,
+    );
   }
 
   @Get('test4')

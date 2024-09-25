@@ -65,4 +65,12 @@ export class AppConfigService {
   get generateMasterSeedPassword(): string {
     return this.configService.get('GENERATE_MASTER_SEED_PASSWORD');
   }
+
+  get getKrc20ServiceUrl(): string {
+    return this.configService.get('KRC20_INFO_SERVICE_URL');
+  }
+
+  get getKaspaApiUrl(): string {
+    return this.configService.get('KASPA_API_URL');
+  }
 }
