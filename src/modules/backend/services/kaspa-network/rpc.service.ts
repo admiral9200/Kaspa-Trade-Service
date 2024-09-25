@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Resolver, RpcClient } from 'libs/kaspa-dev/kaspa';
-import { Encoding } from 'libs/kaspa-dev/kaspa';
+import { Resolver, RpcClient } from 'libs/kaspa/kaspa';
+import { Encoding } from 'libs/kaspa/kaspa';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 
 @Injectable()

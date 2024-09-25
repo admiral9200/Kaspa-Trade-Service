@@ -3,13 +3,12 @@ import { RpcService } from './rpc.service';
 import {
   ICreateTransactions,
   IPaymentOutput,
-  kaspaToSompi,
   createTransactions,
   PrivateKey,
   Opcodes,
   addressFromScriptPublicKey,
   ScriptBuilder,
-} from 'libs/kaspa-dev/kaspa';
+} from 'libs/kaspa/kaspa';
 import {
   KRC20_BASE_TRANSACTION_AMOUNT,
   KRC20OperationDataInterface,
@@ -17,6 +16,7 @@ import {
 import { TransacionReciever } from './classes/TransacionReciever';
 import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
+import { Krc20TransactionsResult } from './interfaces/SwapTransactionsResult.interface';
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
@@ -63,6 +63,7 @@ export class KaspaNetworkTransactionsManagerService {
     privateKey: PrivateKey,
     outputs: IPaymentOutput[],
     priorityFee: bigint = 0n,
+    withoutRetry = false,
   ) {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -76,7 +77,13 @@ export class KaspaNetworkTransactionsManagerService {
       networkId: this.rpcService.getNetwork(),
     };
 
-    const transactions = await createTransactions(transactionData);
+    let transactions = null;
+
+    if (withoutRetry) {
+      transactions = await createTransactions(transactionData);
+    } else {
+      transactions = await this.retryOnError(async () => await createTransactions(transactionData));
+    }
 
     return transactions;
   }
@@ -86,27 +93,36 @@ export class KaspaNetworkTransactionsManagerService {
     payments: IPaymentOutput[],
     priorityFee: bigint = null,
     walletShouldBeEmpty = false,
-  ) {
-    const transferFundsTransaction = await this.createTransaction(
-      privateKey,
-      payments,
-      priorityFee,
-    );
+  ): Promise<string> {
+    return await this.retryOnError(async () => {
+      const transferFundsTransaction = await this.createTransaction(
+        privateKey,
+        payments,
+        priorityFee,
+        true,
+      );
 
-    const transactionReciever = new TransacionReciever(
-      this.rpcService.getRpc(),
-      this.convertPrivateKeyToPublicKey(privateKey),
-      transferFundsTransaction.summary.finalTransactionId,
-      walletShouldBeEmpty,
-    );
+      const transactionReciever = new TransacionReciever(
+        this.rpcService.getRpc(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        transferFundsTransaction.summary.finalTransactionId,
+        walletShouldBeEmpty,
+      );
 
-    await transactionReciever.registerEventHandlers();
+      await transactionReciever.registerEventHandlers();
 
-    await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
+      try {
+        await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
 
-    await transactionReciever.waitForTransactionCompletion();
+        await transactionReciever.waitForTransactionCompletion();
+      } catch (error) {
+        throw error;
+      } finally {
+        await transactionReciever.dispose();
+      }
 
-    return transferFundsTransaction.summary.finalTransactionId;
+      return transferFundsTransaction.summary.finalTransactionId;
+    });
   }
 
   /**
@@ -122,7 +138,7 @@ export class KaspaNetworkTransactionsManagerService {
     krc20transactionData: KRC20OperationDataInterface,
     transactionFeeAmount: bigint,
     maxPriorityFee: bigint = 0n,
-  ) {
+  ): Promise<Krc20TransactionsResult> {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
@@ -137,7 +153,7 @@ export class KaspaNetworkTransactionsManagerService {
       outputs: [
         {
           address: scriptAndScriptAddress.p2shaAddress.toString(),
-          amount: kaspaToSompi(String(KRC20_BASE_TRANSACTION_AMOUNT)),
+          amount: KRC20_BASE_TRANSACTION_AMOUNT,
         },
       ],
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
@@ -146,35 +162,49 @@ export class KaspaNetworkTransactionsManagerService {
     };
 
     if (maxPriorityFee && maxPriorityFee > 0n) {
-      const checkTransaction = await createTransactions(baseTransactionData);
+      await this.retryOnError(async () => {
+        const currentTransaction = await createTransactions(baseTransactionData);
 
-      const fees = await this.getTransactionFees(checkTransaction);
+        const fees = await this.getTransactionFees(currentTransaction);
 
-      if (fees.priorityFee > 0n) {
-        if (fees.priorityFee > maxPriorityFee) {
-          throw new PriorityFeeTooHighError();
+        if (fees.priorityFee > 0n) {
+          if (fees.priorityFee > maxPriorityFee) {
+            throw new PriorityFeeTooHighError();
+          }
+
+          currentPriorityFee = fees.priorityFee;
+          baseTransactionData.priorityFee = fees.priorityFee;
+
+          console.log('priorityFee', currentPriorityFee, maxPriorityFee, fees);
         }
 
-        currentPriorityFee = fees.priorityFee;
-        baseTransactionData.priorityFee = fees.priorityFee;
-
-        console.log('priorityFee', currentPriorityFee, maxPriorityFee, fees);
-      }
+        return currentTransaction;
+      });
     }
 
-    const startingTransactions = await createTransactions(baseTransactionData);
+    const commitTransaction = await this.retryOnError(async () => {
+      const transaction = await createTransactions(baseTransactionData);
 
-    const transactionReciever = new TransacionReciever(
-      this.rpcService.getRpc(),
-      this.convertPrivateKeyToPublicKey(privateKey),
-      startingTransactions.summary.finalTransactionId,
-    );
+      const transactionReciever = new TransacionReciever(
+        this.rpcService.getRpc(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        transaction.summary.finalTransactionId,
+      );
 
-    await transactionReciever.registerEventHandlers();
+      await transactionReciever.registerEventHandlers();
 
-    await this.signAndSubmitTransactions(startingTransactions, privateKey);
+      try {
+        await this.signAndSubmitTransactions(transaction, privateKey);
 
-    await transactionReciever.waitForTransactionCompletion();
+        await transactionReciever.waitForTransactionCompletion();
+      } catch (error) {
+        throw error;
+      } finally {
+        await transactionReciever.dispose();
+      }
+
+      return transaction;
+    });
 
     const newWalletUtxos = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
@@ -183,44 +213,57 @@ export class KaspaNetworkTransactionsManagerService {
       addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
     });
 
-    const revealTransaction = await createTransactions({
-      priorityEntries: [revealUTXOs.entries[0]],
-      entries: newWalletUtxos.entries,
-      outputs: [],
-      changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-      priorityFee: transactionFeeAmount + currentPriorityFee,
-      networkId: this.rpcService.getNetwork(),
+    const revealTransaction = await this.retryOnError(async () => {
+      const currentRevealTransaction = await createTransactions({
+        priorityEntries: [revealUTXOs.entries[0]],
+        entries: newWalletUtxos.entries,
+        outputs: [],
+        changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+        priorityFee: transactionFeeAmount + currentPriorityFee,
+        networkId: this.rpcService.getNetwork(),
+      });
+
+      for (const transaction of currentRevealTransaction.transactions) {
+        transaction.sign([privateKey], false);
+        const ourOutput = transaction.transaction.inputs.findIndex(
+          (input) => input.signatureScript === '',
+        );
+
+        if (ourOutput !== -1) {
+          const signature = await transaction.createInputSignature(ourOutput, privateKey);
+
+          transaction.fillInput(
+            ourOutput,
+            scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature),
+          );
+        }
+
+        const revealTransactionReciever = new TransacionReciever(
+          this.rpcService.getRpc(),
+          this.convertPrivateKeyToPublicKey(privateKey),
+          currentRevealTransaction.summary.finalTransactionId,
+        );
+
+        await revealTransactionReciever.registerEventHandlers();
+
+        try {
+          await transaction.submit(this.rpcService.getRpc());
+
+          await revealTransactionReciever.waitForTransactionCompletion();
+        } catch (error) {
+          throw error;
+        } finally {
+          await revealTransactionReciever.dispose();
+        }
+
+        return currentRevealTransaction;
+      }
     });
 
-    for (const transaction of revealTransaction.transactions) {
-      transaction.sign([privateKey], false);
-      const ourOutput = transaction.transaction.inputs.findIndex(
-        (input) => input.signatureScript === '',
-      );
-
-      if (ourOutput !== -1) {
-        const signature = await transaction.createInputSignature(ourOutput, privateKey);
-
-        transaction.fillInput(
-          ourOutput,
-          scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature),
-        );
-      }
-
-      const revealTransactionReciever = new TransacionReciever(
-        this.rpcService.getRpc(),
-        this.convertPrivateKeyToPublicKey(privateKey),
-        revealTransaction.summary.finalTransactionId,
-      );
-
-      await revealTransactionReciever.registerEventHandlers();
-
-      const revealHash = await transaction.submit(this.rpcService.getRpc());
-
-      await revealTransactionReciever.waitForTransactionCompletion();
-
-      return revealHash;
-    }
+    return {
+      commitTransactionId: commitTransaction.summary.finalTransactionId,
+      revealTransactionId: revealTransaction.summary.finalTransactionId,
+    };
   }
 
   convertPrivateKeyToPublicKey(privateKey: PrivateKey): string {
@@ -228,15 +271,43 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   async connectAndDo<T>(fn: () => Promise<T>): Promise<T> {
-    if (!this.rpcService.getRpc().isConnected) {
-      await this.rpcService.getRpc().connect();
-    }
+    await this.retryOnError(async () => {
+      if (!this.rpcService.getRpc().isConnected) {
+        await this.rpcService.getRpc().connect();
+      }
 
-    if (!(await this.isServerValid())) {
-      throw new Error('Server is not synced');
-    }
+      if (!(await this.isServerValid())) {
+        this.rpcService.getRpc().disconnect();
+        throw new Error('Server is not synced');
+      }
+    });
 
     return await fn();
+  }
+
+  async retryOnError<T>(
+    fn: () => Promise<T>,
+    times: number = 5,
+    waitBeforeNextAttempt = 1000,
+  ): Promise<T> {
+    let attempt = 0;
+    while (attempt < times) {
+      try {
+        return await fn();
+      } catch (error) {
+        attempt++;
+        console.error(`retryOnError: Error on attempt ${attempt} of ${times}`);
+        console.error(error);
+
+        if (waitBeforeNextAttempt) {
+          await new Promise((resolve) => setTimeout(resolve, waitBeforeNextAttempt));
+        }
+
+        if (attempt === times) {
+          throw error;
+        }
+      }
+    }
   }
 
   async isServerValid(): Promise<boolean> {
