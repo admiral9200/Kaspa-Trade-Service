@@ -47,7 +47,9 @@ export class P2pController {
    * @param sellOrderId The order ID of the sell order
    */
   @Get('confirmSellOrder/:sellOrderId')
-  async confirmSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
+  async confirmSellOrder(
+    @Param('sellOrderId') sellOrderId: string,
+  ): Promise<ConfirmSellOrderRequestResponseDto> {
     try {
       return await this.p2pProvider.confirmSell(sellOrderId);
     } catch (error) {
@@ -61,7 +63,10 @@ export class P2pController {
    * @param body
    */
   @Post('buy/:sellOrderId')
-  async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
+  async buyToken(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: BuyRequestDto,
+  ): Promise<BuyRequestResponseDto> {
     try {
       return await this.p2pProvider.buy(sellOrderId, body);
     } catch (error) {
@@ -86,9 +91,7 @@ export class P2pController {
   @Get('test')
   async test() {
     const res = await this.kaspaNetworkActionsService.transferKrc20Token(
-      new PrivateKey(
-        '0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058',
-      ),
+      new PrivateKey('0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058'),
       'GILADA',
       'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
       kaspaToSompi('10'),
@@ -106,7 +109,7 @@ export class P2pController {
       0n,
     );
 
-    console.log('result', res2);
+    console.log('result', res, res2);
 
     return 'asd MF';
   }
@@ -116,19 +119,19 @@ export class P2pController {
     await this.kaspaNetworkActionsService.logMyWallets('before');
 
     const res = await this.kaspaNetworkActionsService.transferKaspa(
-      new PrivateKey('7a41d1df2b0e0a54384da99de1e0bfc76a95abc31bed90dfe8c427b0bef45a1c'),
+      new PrivateKey('acc0ca3018947d067cff6abefc453080706d408324e8728b2c63e8da46efed7d'),
       [
         {
           address: 'kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv',
-          amount: kaspaToSompi('1'),
+          amount: kaspaToSompi('0.21'),
         },
         {
           address: 'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
-          amount: kaspaToSompi('2'),
+          amount: kaspaToSompi('0.25'),
         },
         {
           address: 'kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t',
-          amount: kaspaToSompi('3'),
+          amount: kaspaToSompi('0.31'),
         },
       ],
       0n,
