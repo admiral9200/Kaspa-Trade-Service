@@ -193,7 +193,8 @@ export class P2pController {
     // return res;
 
     // return this.kaspaNetworkActionsService.getWalletTotalBalance('kaspatest:qq357v269w74lcp4t803jvqhyxj6y2jmkf00n44unhpcz85tvgzzqkxj3pr84');
-    return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount('212831f997aec88ac1358549deb41436f213428ea08810566ea075be765865ff',
+    return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
+      '212831f997aec88ac1358549deb41436f213428ea08810566ea075be765865ff',
       'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
       'kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn',
       2518180000n,

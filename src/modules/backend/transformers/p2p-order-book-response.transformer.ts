@@ -6,7 +6,7 @@ export class P2pOrderBookResponseTransformer {
   static transformDmToSellResponseDto(sellOrderDm: SellOrderDm): SellRequestResponseDto {
     return {
       id: sellOrderDm.id,
-      temporaryWalletAddress: sellOrderDm.sellerWalletAddress,
+      temporaryWalletAddress: sellOrderDm.temporaryWalletAddress,
       status: sellOrderDm.status,
     };
   }

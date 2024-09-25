@@ -15,7 +15,10 @@ export class TemporaryWalletService {
   }
 
   async create(walletSequenceId: number, temporaryWalletAddress: string): Promise<TemporaryWallet> {
-    const wallet: TemporaryWallet = await this.temporaryWalletRepository.createTemporaryWallet(walletSequenceId, temporaryWalletAddress);
+    const wallet: TemporaryWallet = await this.temporaryWalletRepository.createTemporaryWallet(
+      walletSequenceId,
+      temporaryWalletAddress,
+    );
     if (!wallet) {
       throw new HttpException('Failed to create a temporary wallet', HttpStatus.INTERNAL_SERVER_ERROR);
     }
