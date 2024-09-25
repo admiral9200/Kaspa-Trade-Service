@@ -3,7 +3,6 @@ import { RpcService } from './rpc.service';
 import {
   ICreateTransactions,
   IPaymentOutput,
-  kaspaToSompi,
   createTransactions,
   PrivateKey,
   Opcodes,
@@ -106,9 +105,15 @@ export class KaspaNetworkTransactionsManagerService {
 
       await transactionReciever.registerEventHandlers();
 
-      await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
+      try {
+        await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
 
-      await transactionReciever.waitForTransactionCompletion();
+        await transactionReciever.waitForTransactionCompletion();
+      } catch (error) {
+        throw error;
+      } finally {
+        await transactionReciever.dispose();
+      }
 
       return transferFundsTransaction.summary.finalTransactionId;
     });
@@ -142,7 +147,7 @@ export class KaspaNetworkTransactionsManagerService {
       outputs: [
         {
           address: scriptAndScriptAddress.p2shaAddress.toString(),
-          amount: kaspaToSompi(String(KRC20_BASE_TRANSACTION_AMOUNT)),
+          amount: KRC20_BASE_TRANSACTION_AMOUNT,
         },
       ],
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
@@ -182,9 +187,15 @@ export class KaspaNetworkTransactionsManagerService {
 
       await transactionReciever.registerEventHandlers();
 
-      await this.signAndSubmitTransactions(transaction, privateKey);
+      try {
+        await this.signAndSubmitTransactions(transaction, privateKey);
 
-      await transactionReciever.waitForTransactionCompletion();
+        await transactionReciever.waitForTransactionCompletion();
+      } catch (error) {
+        throw error;
+      } finally {
+        await transactionReciever.dispose();
+      }
 
       return transaction;
     });
@@ -229,9 +240,15 @@ export class KaspaNetworkTransactionsManagerService {
 
         await revealTransactionReciever.registerEventHandlers();
 
-        await transaction.submit(this.rpcService.getRpc());
+        try {
+          await transaction.submit(this.rpcService.getRpc());
 
-        await revealTransactionReciever.waitForTransactionCompletion();
+          await revealTransactionReciever.waitForTransactionCompletion();
+        } catch (error) {
+          throw error;
+        } finally {
+          await revealTransactionReciever.dispose();
+        }
 
         return currentRevealTransaction;
       }
