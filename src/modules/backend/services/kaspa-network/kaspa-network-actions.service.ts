@@ -34,13 +34,8 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(
-      transactionId,
-      from,
-      to,
-      Number(amount + AMOUNT_FOR_SWAP_FEES),
-    );
     const totalAmount = amount + AMOUNT_FOR_SWAP_FEES;
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(totalAmount));
     if (!kaspaApiResult) {
       return false;
     }
