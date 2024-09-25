@@ -1,30 +1,29 @@
 import {
-  Request,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
-  Delete,
   Query,
-  HttpException,
-  HttpStatus,
+  Request,
 } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
-import { SellRequestDto } from '../model/dtos/sell-request.dto';
+import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
 import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/responses/confirm-sell-order-request.response.dto';
 import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
 import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/responses/confirm-buy-order-request.response.dto';
-import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
 import { kaspaToSompi, PrivateKey } from 'libs/kaspa/kaspa';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
-import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
-import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
+import { GetOrdersDto } from '../model/dtos/get-orders.dto';
+import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -33,11 +32,10 @@ export class P2pController {
     private readonly p2pProvider: P2pProvider,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly config: AppConfigService,
-    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   @Post('getSellOrders')
-  async getSellOrders(@Body() body: GetSellOrdersRequestDto, @Query('ticker') ticker: string): Promise<SellOrderResponseDto[]> {
+  async getOrders(@Body() body: GetOrdersDto, @Query('ticker') ticker: string): Promise<ListedOrderDto[]> {
     try {
       if (!ticker) {
         throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
@@ -53,7 +51,7 @@ export class P2pController {
    * @param sellRequestDto  The Sell information
    */
   @Post('sell')
-  async sellToken(@Body() sellRequestDto: SellRequestDto): Promise<SellRequestResponseDto> {
+  async sellToken(@Body() sellRequestDto: SellOrderDto): Promise<SellRequestResponseDto> {
     try {
       return await this.p2pProvider.createOrder(sellRequestDto);
     } catch (error) {

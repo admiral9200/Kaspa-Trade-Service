@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
-import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { Model } from 'mongoose';
-import { TemporaryWallet } from '../model/schemas/temporary-wallet.schema';
 import { TemporaryWalletsSequence } from '../model/schemas/temporary-wallets-sequence.schema';
 
 @Injectable()
@@ -17,7 +15,9 @@ export class P2pTemporaryWalletsSequenceRepository extends BaseRepository<Tempor
   }
 
   async increment(): Promise<number> {
-    const result = await this.temporaryWalletModel.findOneAndUpdate({}, { $inc: { sequence: 1 } }, { new: true, upsert: true, setDefaultsOnInsert: true }).exec();
+    const result = await this.temporaryWalletModel
+      .findOneAndUpdate({}, { $inc: { sequence: 1 } }, { new: true, upsert: true, setDefaultsOnInsert: true })
+      .exec();
     return result.sequence;
   }
 

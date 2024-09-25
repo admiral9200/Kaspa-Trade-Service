@@ -1,6 +1,6 @@
 import { IsNumber, IsString, Min } from 'class-validator';
 
-export class SellRequestDto {
+export class SellOrderDto {
   @IsNumber()
   @Min(1)
   quantity: number;

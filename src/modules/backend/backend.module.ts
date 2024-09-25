@@ -7,18 +7,16 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppConfigService } from '../core/modules/config/app-config.service';
 import { MONGO_DATABASE_CONNECTIONS } from './constants';
 import { AppConfigModule } from '../core/modules/config/app-config.module';
-import { P2pOrder, P2pOrderSchema } from './model/schemas/p2p-order.schema';
+import { P2pOrderEntity, P2pOrderSchema } from './model/schemas/p2p-order.schema';
 import { SellOrdersBookRepository } from './repositories/sell-orders-book.repository';
 import { KaspaFacade } from './facades/kaspa.facade';
 import { KaspaNetworkActionsService } from './services/kaspa-network/kaspa-network-actions.service';
 import { KaspaNetworkTransactionsManagerService } from './services/kaspa-network/kaspa-network-transactions-manager.service';
 import { RpcService } from './services/kaspa-network/rpc.service';
 import { EncryptionService } from './services/encryption.service';
-import { TemporaryWallet, TemporaryWalletSchema } from './model/schemas/temporary-wallet.schema';
-import { P2pTemporaryWalletsRepository } from './repositories/p2p-temporary-wallets.repository';
 import { TemporaryWalletsSequence, TemporaryWalletsSequenceSchema } from './model/schemas/temporary-wallets-sequence.schema';
 import { P2pTemporaryWalletsSequenceRepository } from './repositories/p2p-temporary-wallets-sequence.repository';
-import { TemporaryWalletService } from './services/temporary-wallet.service';
+import { TemporaryWalletSequenceService } from './services/temporary-wallet-sequence.service';
 import { P2pOrderHelper } from './helpers/p2p-order.helper';
 import { KaspaApiModule } from './services/kaspa-api/kaspa-api.module';
 import { KasplexApiModule } from './services/kasplex-api/kasplex-api.module';
@@ -37,7 +35,7 @@ import { UtilsHelper } from './helpers/utils.helper';
     P2pOrdersService,
     KaspaNetworkActionsService,
     KaspaNetworkTransactionsManagerService,
-    TemporaryWalletService,
+    TemporaryWalletSequenceService,
     RpcService,
     EncryptionService,
 
@@ -47,7 +45,6 @@ import { UtilsHelper } from './helpers/utils.helper';
 
     // Repositories
     SellOrdersBookRepository,
-    P2pTemporaryWalletsRepository,
     P2pTemporaryWalletsSequenceRepository,
   ],
   imports: [
@@ -63,8 +60,7 @@ import { UtilsHelper } from './helpers/utils.helper';
 
     MongooseModule.forFeature(
       [
-        { name: P2pOrder.name, schema: P2pOrderSchema },
-        { name: TemporaryWallet.name, schema: TemporaryWalletSchema },
+        { name: P2pOrderEntity.name, schema: P2pOrderSchema },
         { name: TemporaryWalletsSequence.name, schema: TemporaryWalletsSequenceSchema },
       ],
       MONGO_DATABASE_CONNECTIONS.P2P,

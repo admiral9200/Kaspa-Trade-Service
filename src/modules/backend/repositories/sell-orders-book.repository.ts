@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
-import { P2pOrder } from '../model/schemas/p2p-order.schema';
+import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { Model, SortOrder } from 'mongoose';
@@ -10,15 +10,15 @@ import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
 
 @Injectable()
-export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
+export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   constructor(
-    @InjectModel(P2pOrder.name, MONGO_DATABASE_CONNECTIONS.P2P)
-    private readonly sellOrdersModel: Model<P2pOrder>,
+    @InjectModel(P2pOrderEntity.name, MONGO_DATABASE_CONNECTIONS.P2P)
+    private readonly sellOrdersModel: Model<P2pOrderEntity>,
   ) {
     super(sellOrdersModel);
   }
 
-  async setWaitingForKasStatus(orderId: string, expiresAt: Date): Promise<P2pOrder> {
+  async setWaitingForKasStatus(orderId: string, expiresAt: Date): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
@@ -32,7 +32,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async setCheckoutStatus(orderId: string): Promise<P2pOrder> {
+  async setCheckoutStatus(orderId: string): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
@@ -46,7 +46,11 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async transitionOrderStatus(orderId: string, newStatus: SellOrderStatus, requiredStatus: SellOrderStatus): Promise<P2pOrder> {
+  async transitionOrderStatus(
+    orderId: string,
+    newStatus: SellOrderStatus,
+    requiredStatus: SellOrderStatus,
+  ): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus });
     } catch (error) {
@@ -55,7 +59,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async setStatus(orderId: string, status: SellOrderStatus): Promise<P2pOrder> {
+  async setStatus(orderId: string, status: SellOrderStatus): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne('_id', orderId, { status });
     } catch (error) {
@@ -75,7 +79,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async getById(id: string): Promise<P2pOrder> {
+  async getById(id: string): Promise<P2pOrderEntity> {
     try {
       return await super.findOneBy('_id', id);
     } catch (error) {
@@ -84,7 +88,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async createSellOrder(sellOrder: P2pOrder): Promise<P2pOrder> {
+  async createSellOrder(sellOrder: P2pOrderEntity): Promise<P2pOrderEntity> {
     try {
       return await super.create(sellOrder);
     } catch (error) {
@@ -98,7 +102,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
-  ): Promise<P2pOrder[]> {
+  ): Promise<P2pOrderEntity[]> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
 
@@ -130,7 +134,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async updateAndGetExpiredOrders(): Promise<P2pOrder[]> {
+  async updateAndGetExpiredOrders(): Promise<P2pOrderEntity[]> {
     try {
       const currentDate = new Date();
       const updatedOrders = await this.sellOrdersModel

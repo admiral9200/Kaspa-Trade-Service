@@ -7,7 +7,7 @@ import { SellOrderStatus } from '../enums/sell-order-status.enum';
   collection: 'p2p_orders',
   timestamps: true,
 })
-export class P2pOrder {
+export class P2pOrderEntity {
   _id?: string;
 
   @Prop({ required: true })
@@ -44,5 +44,5 @@ export class P2pOrder {
   updatedAt?: Date;
 }
 
-export type OrderDocument = HydratedDocument<P2pOrder>;
-export const P2pOrderSchema = SchemaFactory.createForClass(P2pOrder);
+export type OrderDocument = HydratedDocument<P2pOrderEntity>;
+export const P2pOrderSchema = SchemaFactory.createForClass(P2pOrderEntity);
