@@ -6,7 +6,6 @@ import { firstValueFrom } from 'rxjs';
 // import { ITokenListResult } from '../model/token-list-result.interface';
 // import { ITokenDetailsWithHolders } from '../model/token-details-with-holders.interface';
 // import { ITokenOperation } from '../model/token-operation.interface';
-import { kaspaToSompi } from 'libs/kaspa/kaspa';
 import { ITokenOperation, ITokenOperationResponse, OperationAcceptResult } from '../model/token-operation.interface';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 
@@ -144,7 +143,7 @@ export class KasplexApiService {
   async fetchWalletBalance(address: string, ticker: string): Promise<bigint> {
     const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/token/${ticker}`));
 
-    return kaspaToSompi(response.data.result[0].balance);
+    return response.data.result[0].balance;
   }
 
   async fetchOperationResults(revealTransactoinId: string): Promise<ITokenOperation[]> {
