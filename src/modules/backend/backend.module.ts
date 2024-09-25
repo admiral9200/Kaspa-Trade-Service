@@ -19,6 +19,7 @@ import { P2pTemporaryWalletsRepository } from './repositories/p2p-temporary-wall
 import { TemporaryWalletsSequence, TemporaryWalletsSequenceSchema } from './model/schemas/temporary-wallets-sequence.schema';
 import { P2pTemporaryWalletsSequenceRepository } from './repositories/p2p-temporary-wallets-sequence.repository';
 import { TemporaryWalletService } from './services/temporary-wallet.service';
+import { P2pOrderHelper } from './helpers/p2p-order.helper';
 
 @Module({
   controllers: [P2pController],
@@ -36,6 +37,9 @@ import { TemporaryWalletService } from './services/temporary-wallet.service';
     TemporaryWalletService,
     RpcService,
     EncryptionService,
+
+    // Helpers
+    P2pOrderHelper,
 
     // Repositories
     SellOrdersBookRepository,
@@ -66,6 +70,7 @@ import { TemporaryWalletService } from './services/temporary-wallet.service';
 })
 export class BackendModule implements OnModuleInit {
   constructor(private readonly temporaryWalletsSequenceRepository: P2pTemporaryWalletsSequenceRepository) {}
+
   async onModuleInit() {
     await this.temporaryWalletsSequenceRepository.createSequenceIfNotExists();
   }

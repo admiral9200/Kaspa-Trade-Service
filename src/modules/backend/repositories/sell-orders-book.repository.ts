@@ -3,8 +3,11 @@ import { BaseRepository } from './base.repository';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model } from 'mongoose';
+import { Model, SortOrder } from 'mongoose';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { SortDirection } from '../model/enums/sort-direction.enum';
 
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
@@ -90,11 +93,34 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrder> {
     }
   }
 
-  async getListedSellOrders(): Promise<P2pOrder[]> {
+  async getListedSellOrders(walletAddress?: string, sort?: SortDto, pagination?: PaginationDto): Promise<P2pOrder[]> {
     try {
-      return await this.sellOrdersModel.find({ status: SellOrderStatus.LISTED_FOR_SALE }).exec();
+      const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE };
+
+      if (walletAddress) {
+        Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
+      }
+
+      let query = this.sellOrdersModel.find(baseQuery);
+
+      if (sort?.direction) {
+        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
+        const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
+        query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
+      }
+
+      if (pagination) {
+        if (typeof pagination.offset === 'number') {
+          query = query.skip(pagination.offset);
+        }
+        if (typeof pagination.limit === 'number') {
+          query = query.limit(pagination.limit);
+        }
+      }
+
+      return await query.exec();
     } catch (error) {
-      console.log('Error getting sell orders', error);
+      console.error('Error getting sell orders', error);
       throw error;
     }
   }

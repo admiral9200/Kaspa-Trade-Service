@@ -16,6 +16,8 @@ import { TemporaryWalletService } from '../services/temporary-wallet.service';
 import { TemporaryWallet } from '../model/schemas/temporary-wallet.schema';
 import { P2pOrder } from '../model/schemas/p2p-order.schema';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
+import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
+
 @Injectable()
 export class P2pProvider {
   constructor(
@@ -25,8 +27,12 @@ export class P2pProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-  public async listOrders(): Promise<SellOrderResponseDto[]> {
-    const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders();
+  public async listOrders(getSellOrdersRequestDto: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
+    const orders: SellOrderDm[] = await this.p2pOrderBookService.getSellOrders(
+      getSellOrdersRequestDto.walletAddress,
+      getSellOrdersRequestDto.sort,
+      getSellOrdersRequestDto.pagination,
+    );
     return orders.map((order) => P2pOrderBookTransformer.transformSellOrderDmToSellOrderDto(order));
   }
 
@@ -84,5 +90,9 @@ export class P2pProvider {
     return {
       confirmed: true,
     };
+  }
+
+  async cancelSell(sellOrderId: string) {
+    await this.p2pOrderBookService.cancelSellOrder(sellOrderId);
   }
 }

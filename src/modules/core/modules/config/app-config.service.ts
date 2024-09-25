@@ -7,6 +7,10 @@ export class AppConfigService {
     console.log('All Environment Variables:', JSON.stringify(process.env));
   }
 
+  get getServiceCommunicationSecretKey(): string {
+    return this.configService.get('SERVICE_COMMUNICATION_SECRET_KEY');
+  }
+
   get isProduction(): boolean {
     return this.configService.get('nodeEnv') === 'production';
   }

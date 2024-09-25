@@ -1,4 +1,4 @@
-import { Request, Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { Request, Body, Controller, Get, NotFoundException, Param, Post, Delete } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellRequestDto } from '../model/dtos/sell-request.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
@@ -11,6 +11,7 @@ import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-netw
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
+import { GetSellOrdersRequestDto } from '../model/dtos/get-sell-orders-request.dto';
 
 @Controller('p2p')
 export class P2pController {
@@ -20,10 +21,10 @@ export class P2pController {
     private readonly config: AppConfigService,
   ) {}
 
-  @Get('getSellOrders')
-  async getSellOrders(): Promise<SellOrderResponseDto[]> {
+  @Post('getSellOrders')
+  async getSellOrders(@Body() body: GetSellOrdersRequestDto): Promise<SellOrderResponseDto[]> {
     try {
-      return await this.p2pProvider.listOrders();
+      return await this.p2pProvider.listOrders(body);
     } catch (error) {
       throw error;
     }
@@ -55,6 +56,15 @@ export class P2pController {
     }
   }
 
+  @Delete('cancel/:sellOrderId')
+  async cancelSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+    try {
+      return await this.p2pProvider.cancelSell(sellOrderId);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   /**
    * Starts the buying flow
    * @param sellOrderId The order ID of the sell order
@@ -64,6 +74,23 @@ export class P2pController {
   async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
     try {
       return await this.p2pProvider.buy(sellOrderId, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Confirms that the buyer has sent the payment to the seller
+   * @param sellOrderId The order ID of the sell order
+   * @param body
+   */
+  @Post('confirmBuyOrder/:sellOrderId')
+  async confirmBuy(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: ConfirmBuyRequestDto,
+  ): Promise<ConfirmBuyOrderRequestResponseDto> {
+    try {
+      return await this.p2pProvider.confirmBuy(sellOrderId, body);
     } catch (error) {
       throw error;
     }
@@ -164,22 +191,5 @@ export class P2pController {
     console.log('result', res);
 
     return res;
-  }
-
-  /**
-   * Confirms that the buyer has sent the payment to the seller
-   * @param sellOrderId The order ID of the sell order
-   * @param body
-   */
-  @Post('confirmBuyOrder/:sellOrderId')
-  async confirmBuy(
-    @Param('sellOrderId') sellOrderId: string,
-    @Body() body: ConfirmBuyRequestDto,
-  ): Promise<ConfirmBuyOrderRequestResponseDto> {
-    try {
-      return await this.p2pProvider.confirmBuy(sellOrderId, body);
-    } catch (error) {
-      throw error;
-    }
   }
 }

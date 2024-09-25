@@ -11,6 +11,9 @@ import { ClientSession, Connection } from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.constants';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 
 @Injectable()
 export class P2pOrdersService {
@@ -21,8 +24,8 @@ export class P2pOrdersService {
     private readonly p2pTemporaryWalletsRepository: P2pTemporaryWalletsRepository,
   ) {}
 
-  public async getSellOrders(): Promise<SellOrderDm[]> {
-    return await this.sellOrdersBookRepository.getListedSellOrders();
+  public async getSellOrders(walletAddress?: string, sort?: SortDto, pagination?: PaginationDto): Promise<SellOrderDm[]> {
+    return await this.sellOrdersBookRepository.getListedSellOrders(walletAddress, sort, pagination);
   }
 
   public async createSell(sellOrderDm: SellOrderDm, temporaryWallet: TemporaryWallet) {
@@ -111,5 +114,15 @@ export class P2pOrdersService {
 
   async cancelExpiredOrders() {
     const orders: P2pOrder[] = await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
+  }
+
+  async cancelSellOrder(sellOrderId: string) {
+    const order: P2pOrder = await this.getOrderById(sellOrderId);
+
+    if (!P2pOrderHelper.isOrderCancelable(order.status)) {
+      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.CANCELED, order.status);
   }
 }
