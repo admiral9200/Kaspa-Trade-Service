@@ -23,12 +23,8 @@ export class KaspaFacade {
       transactionId,
       from,
       to,
-      this.kaspaToSompi(String(amount)),
+      KaspaNetworkActionsService.KaspaToSompi(String(amount)),
     );
-  }
-
-  kaspaToSompi(amount: string): bigint {
-    return KaspaNetworkActionsService.KaspaToSompi(String(amount));
   }
 
   async doSellSwap(order: P2pOrder) {
