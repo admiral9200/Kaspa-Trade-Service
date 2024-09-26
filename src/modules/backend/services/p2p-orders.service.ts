@@ -11,7 +11,6 @@ import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.consta
 import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
-import { InvalidStatusForOrderUpdateError } from './kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class P2pOrdersService {
@@ -20,7 +19,7 @@ export class P2pOrdersService {
     private readonly sellOrdersBookRepository: SellOrdersBookRepository,
   ) {}
 
-  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getListedSellOrders(
       ticker,
       getSellOrdersDto.walletAddress,

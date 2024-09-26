@@ -195,7 +195,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
-  ): Promise<P2pOrderEntity[]> {
+  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
 
@@ -219,8 +219,10 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           query = query.limit(pagination.limit);
         }
       }
+      const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
+      const orders = await query.exec();
 
-      return await query.exec();
+      return { orders, totalCount };
     } catch (error) {
       console.error('Error getting sell orders', error);
       throw error;
