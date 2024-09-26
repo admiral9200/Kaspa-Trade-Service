@@ -55,15 +55,19 @@ export class P2pOrdersService {
 
     try {
       const expiresAt: Date = new Date(new Date().getTime() + P2P_ORDER_EXPIRATION_TIME_MINUTES * 60000);
-      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt);
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt, session);
 
-      const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(orderId, buyerWalletAddress);
+      const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(
+        orderId,
+        buyerWalletAddress,
+        session,
+      );
+
       if (!buyerWalletAssigned) {
         console.log('Failed to assign buyer wallet address');
         throw new HttpException('Failed to assign buyer wallet address', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      throw new Error();
       await session.commitTransaction();
 
       return sellOrder;

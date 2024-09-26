@@ -222,7 +222,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         }
       }
       const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
-      const orders = await query.exec();
+      const orders: P2pOrderEntity[] = await query.exec();
 
       return { orders, totalCount };
     } catch (error) {
@@ -230,11 +230,13 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       throw error;
     }
   }
+
   async getUserListedSellOrders(
     walletAddress: string,
     statuses: SellOrderStatus[],
     sort?: SortDto,
     pagination?: PaginationDto,
+    session?: ClientSession,
   ): Promise<P2pOrderEntity[]> {
     try {
       const baseQuery = { status: { $in: statuses } };
