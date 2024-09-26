@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model, SortOrder } from 'mongoose';
+import { Model, SortOrder, ClientSession } from 'mongoose';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
@@ -18,13 +18,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     super(sellOrdersModel);
   }
 
-  async setWaitingForKasStatus(orderId: string, expiresAt: Date): Promise<P2pOrderEntity> {
+  async setWaitingForKasStatus(orderId: string, expiresAt: Date, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.WAITING_FOR_KAS, expiresAt: expiresAt },
         { status: SellOrderStatus.LISTED_FOR_SALE },
+        session,
       );
     } catch (error) {
       console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
@@ -32,13 +33,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setCheckoutStatus(orderId: string): Promise<P2pOrderEntity> {
+  async setCheckoutStatus(orderId: string, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.CHECKOUT },
         { status: SellOrderStatus.WAITING_FOR_KAS },
+        session,
       );
     } catch (error) {
       console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
@@ -50,28 +52,28 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     orderId: string,
     newStatus: SellOrderStatus,
     requiredStatus: SellOrderStatus,
+    session?: ClientSession,
   ): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus });
+      return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus }, session);
     } catch (error) {
       console.error(`Error transitioning to ${newStatus} status for order by ID(${orderId}):`, error);
       throw error;
     }
   }
 
-  async setStatus(orderId: string, status: SellOrderStatus): Promise<P2pOrderEntity> {
+  async setStatus(orderId: string, status: SellOrderStatus, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne('_id', orderId, { status });
+      return await super.updateByOne('_id', orderId, { status }, {}, session);
     } catch (error) {
       console.error(`Error updating sell order status by ID(${orderId}):`, error);
-
       throw error;
     }
   }
 
-  async setBuyerWalletAddress(orderId: string, buyerWalletAddress: string): Promise<boolean> {
+  async setBuyerWalletAddress(orderId: string, buyerWalletAddress: string, session?: ClientSession): Promise<boolean> {
     try {
-      const res = await super.updateByOne('_id', orderId, { buyerWalletAddress });
+      const res = await super.updateByOne('_id', orderId, { buyerWalletAddress }, {}, session);
       return res !== null;
     } catch (error) {
       console.error(`Error updating buyer wallet address for order by ID(${orderId}):`, error);
@@ -79,18 +81,18 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async getById(id: string): Promise<P2pOrderEntity> {
+  async getById(id: string, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.findOneBy('_id', id);
+      return await super.findOneBy('_id', id, session);
     } catch (error) {
       console.error('Error getting sell order by ID:', error);
       throw error;
     }
   }
 
-  async createSellOrder(sellOrder: P2pOrderEntity): Promise<P2pOrderEntity> {
+  async createSellOrder(sellOrder: P2pOrderEntity, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.create(sellOrder);
+      return await super.create(sellOrder, session);
     } catch (error) {
       console.error('Error creating sell order:', error);
       throw error;
@@ -102,6 +104,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
+    session?: ClientSession,
   ): Promise<P2pOrderEntity[]> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
@@ -110,10 +113,10 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
       }
 
-      let query = this.sellOrdersModel.find(baseQuery);
+      let query = this.sellOrdersModel.find(baseQuery).session(session);
 
       if (sort?.direction) {
-        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
+        const sortField = sort.field || '_id';
         const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
         query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
       }
@@ -134,7 +137,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async updateAndGetExpiredOrders(): Promise<P2pOrderEntity[]> {
+  async updateAndGetExpiredOrders(session?: ClientSession): Promise<P2pOrderEntity[]> {
     try {
       const currentDate = new Date();
       const updatedOrders = await this.sellOrdersModel
@@ -144,6 +147,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           },
           expiresAt: { $lt: currentDate },
         })
+        .session(session)
         .exec();
 
       const updatedOrderIds = updatedOrders.map((order) => order._id);
@@ -151,6 +155,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       await this.sellOrdersModel.updateMany(
         { _id: { $in: updatedOrderIds } },
         { $set: { status: SellOrderStatus.LISTED_FOR_SALE, buyerWalletAddress: undefined } },
+        { session },
       );
 
       return updatedOrders;

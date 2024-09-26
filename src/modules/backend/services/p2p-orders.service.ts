@@ -60,6 +60,7 @@ export class P2pOrdersService {
         throw new HttpException('Failed to assign buyer wallet address', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
+      throw new Error();
       await session.commitTransaction();
 
       return sellOrder;
