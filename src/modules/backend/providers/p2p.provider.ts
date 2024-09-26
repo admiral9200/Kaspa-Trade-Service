@@ -31,6 +31,10 @@ export class P2pProvider {
     const orders: OrderDm[] = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
     return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
   }
+  public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
+    const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
+    return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
+  }
 
   public async createOrder(sellOrderDto: SellOrderDto): Promise<SellRequestResponseDto> {
     const walletSequenceId: number = await this.temporaryWalletService.getNextSequenceId();

@@ -45,6 +45,14 @@ export class P2pController {
       throw error;
     }
   }
+  @Post('getUserListings')
+  async getListings(@Body() body: GetOrdersDto): Promise<ListedOrderDto[]> {
+    try {
+      return await this.p2pProvider.userListings(body);
+    } catch (error) {
+      throw error;
+    }
+  }
 
   /**
    * Starts the selling flow

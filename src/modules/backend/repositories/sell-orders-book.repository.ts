@@ -133,6 +133,37 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       throw error;
     }
   }
+  async getUserListedSellOrders(walletAddress: string, sort?: SortDto, pagination?: PaginationDto): Promise<P2pOrderEntity[]> {
+    try {
+      const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE };
+
+      if (walletAddress) {
+        Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
+      }
+
+      let query = this.sellOrdersModel.find(baseQuery);
+
+      if (sort?.direction) {
+        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
+        const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
+        query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
+      }
+
+      if (pagination) {
+        if (typeof pagination.offset === 'number') {
+          query = query.skip(pagination.offset);
+        }
+        if (typeof pagination.limit === 'number') {
+          query = query.limit(pagination.limit);
+        }
+      }
+
+      return await query.exec();
+    } catch (error) {
+      console.error('Error getting sell orders', error);
+      throw error;
+    }
+  }
 
   async updateAndGetExpiredOrders(): Promise<P2pOrderEntity[]> {
     try {

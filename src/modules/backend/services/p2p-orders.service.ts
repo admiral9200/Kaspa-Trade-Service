@@ -27,6 +27,13 @@ export class P2pOrdersService {
       getSellOrdersDto.pagination,
     );
   }
+  public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+    return await this.sellOrdersBookRepository.getUserListedSellOrders(
+      getSellOrdersDto.walletAddress,
+      getSellOrdersDto.sort,
+      getSellOrdersDto.pagination,
+    );
+  }
 
   public async createSell(sellOrderDto: SellOrderDto, walletSequenceId: number): Promise<P2pOrderEntity> {
     try {
