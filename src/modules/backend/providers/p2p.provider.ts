@@ -33,9 +33,15 @@ export class P2pProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-  public async listOrders(ticker: string, getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
-    const orders: OrderDm[] = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
-    return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
+  public async listOrders(
+    ticker: string,
+    getSellOrdersRequestDto: GetOrdersDto,
+  ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+    const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
+    return {
+      orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
+      totalCount,
+    };
   }
   public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
     const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);

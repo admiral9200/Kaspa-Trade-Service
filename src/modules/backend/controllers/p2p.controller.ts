@@ -1,16 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpException,
-  HttpStatus,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-  Request,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Query, Request } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
@@ -40,7 +28,10 @@ export class P2pController {
   ) {}
 
   @Post('getSellOrders')
-  async getOrders(@Body() body: GetOrdersDto, @Query('ticker') ticker: string): Promise<ListedOrderDto[]> {
+  async getOrders(
+    @Body() body: GetOrdersDto,
+    @Query('ticker') ticker: string,
+  ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     try {
       if (!ticker) {
         throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
