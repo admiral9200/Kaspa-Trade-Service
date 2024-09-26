@@ -14,11 +14,13 @@ import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwa
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
-const AMOUNT_FOR_TESTING_FEE = kaspaToSompi('5');
 const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
 const MIMINAL_COMMITION = kaspaToSompi('0.2');
+const KASPA_TRANSACTION_MASS = 3000;
+const KRC20_TRANSACTION_MASS = 50058;
+
 @Injectable()
 export class KaspaNetworkActionsService {
   constructor(
@@ -402,19 +404,12 @@ export class KaspaNetworkActionsService {
 
   async getCurrentFeeRate() {
     return await this.transactionsManagerService.connectAndDo(async () => {
-      const transaction = await this.transactionsManagerService.createTransaction(
-        (await this.getWalletAccountAtIndex(0)).privateKey,
-        [
-          {
-            address: this.config.commitionWalletAddress,
-            amount: AMOUNT_FOR_TESTING_FEE,
-          },
-        ],
-      );
-
-      const feeResults = await this.transactionsManagerService.getTransactionFees(transaction);
-
-      return feeResults.maxFee;
+      const estimatedFeeRate = await this.transactionsManagerService.getEstimatedPriorityFeeRate();
+      return {
+        kaspa: estimatedFeeRate * KASPA_TRANSACTION_MASS,
+        krc20: estimatedFeeRate * KRC20_TRANSACTION_MASS,
+        estimatedFeeRate: estimatedFeeRate,
+      };
     });
   }
 
