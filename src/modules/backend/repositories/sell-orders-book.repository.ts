@@ -8,6 +8,7 @@ import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
+import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
@@ -20,28 +21,48 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async setWaitingForKasStatus(orderId: string, expiresAt: Date): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne(
+      const order = await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.WAITING_FOR_KAS, expiresAt: expiresAt },
         { status: SellOrderStatus.LISTED_FOR_SALE },
       );
+
+      if (!order) {
+        console.log('Failed assigning buyer, already in progress');
+        throw new InvalidStatusForOrderUpdateError();
+      }
+
+      return order;
     } catch (error) {
-      console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      }
+
       throw error;
     }
   }
 
   async setDelistWaitingForKasStatus(orderId: string): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne(
+      const order = await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.OFF_MARKETPLACE },
         { status: SellOrderStatus.LISTED_FOR_SALE },
       );
+
+      if (!order) {
+        console.log('Failed assigning buyer, already in progress');
+        throw new InvalidStatusForOrderUpdateError();
+      }
+
+      return order;
     } catch (error) {
-      console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      }
+
       throw error;
     }
   }
@@ -76,13 +97,27 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setCheckoutStatus(orderId: string): Promise<P2pOrderEntity> {
+  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.CHECKOUT },
-        { status: SellOrderStatus.WAITING_FOR_KAS },
+        { status: fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS },
+      );
+    } catch (error) {
+      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setLowFeeStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne(
+        '_id',
+        orderId,
+        { status: SellOrderStatus.WAITING_FOR_LOW_FEE },
+        { status: SellOrderStatus.CHECKOUT },
       );
     } catch (error) {
       console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
@@ -191,9 +226,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       throw error;
     }
   }
-  async getUserListedSellOrders(walletAddress: string, sort?: SortDto, pagination?: PaginationDto): Promise<P2pOrderEntity[]> {
+  async getUserListedSellOrders(
+    walletAddress: string,
+    statuses: SellOrderStatus[],
+    sort?: SortDto,
+    pagination?: PaginationDto,
+  ): Promise<P2pOrderEntity[]> {
     try {
-      const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE };
+      const baseQuery = { status: { $in: statuses } };
 
       if (walletAddress) {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
