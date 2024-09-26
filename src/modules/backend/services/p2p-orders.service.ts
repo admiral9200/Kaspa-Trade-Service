@@ -130,7 +130,7 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
-  async delistSellOrder(sellOrderId: string): Promise<P2pOrderEntity> {
+  async removeSellOrderFromMarketplace(sellOrderId: string): Promise<P2pOrderEntity> {
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
@@ -138,8 +138,8 @@ export class P2pOrdersService {
       const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId);
 
       if (!sellOrder) {
-        console.log('Failed in delisting, already in progress');
-        throw new HttpException('Failed assigning deisting, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
+        console.log('Failed in removing from marketplace, already in progress');
+        throw new HttpException('Failed removing from marketplace, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       await session.commitTransaction();

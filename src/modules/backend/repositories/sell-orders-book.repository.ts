@@ -37,7 +37,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       return await super.updateByOne(
         '_id',
         orderId,
-        { status: SellOrderStatus.DELIST_WAITING_FOR_KAS },
+        { status: SellOrderStatus.OFF_MARKETPLACE },
         { status: SellOrderStatus.LISTED_FOR_SALE },
       );
     } catch (error) {
@@ -96,7 +96,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         '_id',
         orderId,
         { status: SellOrderStatus.DELISTING },
-        { status: SellOrderStatus.DELIST_WAITING_FOR_KAS },
+        { status: SellOrderStatus.OFF_MARKETPLACE },
       );
     } catch (error) {
       console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);

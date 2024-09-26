@@ -177,8 +177,8 @@ export class P2pProvider {
   async cancelSell(sellOrderId: string) {
     await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
   }
-  async delistSell(sellOrderId: string): Promise<DelistRequestResponseDto> {
-    const sellOrderDm: OrderDm = await this.p2pOrderBookService.delistSellOrder(sellOrderId);
+  async removeSellOrderFromMarketplace(sellOrderId: string): Promise<DelistRequestResponseDto> {
+    const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId);
     const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
       sellOrderDm.walletSequenceId,
     );
