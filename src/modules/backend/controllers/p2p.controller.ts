@@ -1,16 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpException,
-  HttpStatus,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-  Request,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Query, Request } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
@@ -24,6 +12,11 @@ import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { GetUserListingsDto } from '../model/dtos/user-listings.dto';
+import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
+import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
+import { RemoveFromMarketplaceRequestDto } from '../model/dtos/remove-from-marketplace-request.dto';
+import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -35,12 +28,23 @@ export class P2pController {
   ) {}
 
   @Post('getSellOrders')
-  async getOrders(@Body() body: GetOrdersDto, @Query('ticker') ticker: string): Promise<ListedOrderDto[]> {
+  async getOrders(
+    @Body() body: GetOrdersDto,
+    @Query('ticker') ticker: string,
+  ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     try {
       if (!ticker) {
         throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
       }
       return await this.p2pProvider.listOrders(ticker, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+  @Post('getUserListings')
+  async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
+    try {
+      return await this.p2pProvider.userListings(body);
     } catch (error) {
       throw error;
     }
@@ -72,10 +76,34 @@ export class P2pController {
     }
   }
 
-  @Delete('cancel/:sellOrderId')
-  async cancelSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+  @Post('removeFromMarketplace/:sellOrderId')
+  async removeSellOrderFromMarketplace(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: RemoveFromMarketplaceRequestDto,
+  ): Promise<OffMarketplaceRequestResponseDto> {
     try {
-      return await this.p2pProvider.cancelSell(sellOrderId);
+      return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId, body.walletAddress);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('confirmDelistOrder/:sellOrderId')
+  async confirmDelistOrder(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: ConfirmDelistRequestDto,
+  ): Promise<ConfirmDelistOrderRequestResponseDto> {
+    try {
+      return await this.p2pProvider.confirmDelistSale(sellOrderId, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('releaseBuyLock/:sellOrderId')
+  async releaseBuyLock(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+    try {
+      return await this.p2pProvider.releaseBuyLock(sellOrderId);
     } catch (error) {
       throw error;
     }
@@ -221,15 +249,43 @@ export class P2pController {
 
   @Get('test5')
   async test5() {
-    const res = await this.kaspaNetworkActionsService.cancelSellSwap(
-      new PrivateKey('89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8'),
-      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
-      'GILADA',
-      kaspaToSompi('250'),
-    );
+    for (let i = 0; i < 100; i++) {
+      try {
+        const p1 = this.kaspaNetworkActionsService.transferKaspa(
+          new PrivateKey('0b5d9532d0d8598cce39157129a97fbce8732a72cc2186eb1bcb9426435d3058'),
+          [
+            {
+              address: 'kaspatest:qztdljmsaf5uv69d3qld2u7gzt4t3xkz27m8uu5ta8v5pfuh30gtqc9l7a94u',
+              amount: kaspaToSompi('0.2'),
+            },
+            {
+              address: 'kaspatest:qrpycncg0dtghh8f0ueeumawzhvk4hzdlknsj83zclakgs0pyzzw5x4frldsv',
+              amount: kaspaToSompi('0.2'),
+            },
+          ],
+          0n,
+        );
 
-    console.log('result', res);
+        const p2 = this.kaspaNetworkActionsService.transferKaspa(
+          new PrivateKey('0e2a5d3334fb8ac81ce6ec1d07a303e9e1692849e27e58a1d45767ee3ee05cd9'),
+          [
+            {
+              address: 'kaspatest:qztdljmsaf5uv69d3qld2u7gzt4t3xkz27m8uu5ta8v5pfuh30gtqc9l7a94u',
+              amount: kaspaToSompi('0.2'),
+            },
+            {
+              address: 'kaspatest:qrpycncg0dtghh8f0ueeumawzhvk4hzdlknsj83zclakgs0pyzzw5x4frldsv',
+              amount: kaspaToSompi('0.2'),
+            },
+          ],
+          0n,
+        );
 
-    return res;
+        await Promise.all([p1, p2]);
+      } catch (e) {
+        console.log('error');
+      }
+      console.log('finished', i);
+    }
   }
 }

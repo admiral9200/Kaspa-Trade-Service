@@ -8,6 +8,7 @@ import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
+import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
@@ -20,27 +21,118 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async setWaitingForKasStatus(orderId: string, expiresAt: Date, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne(
+      const order = await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.WAITING_FOR_KAS, expiresAt: expiresAt },
         { status: SellOrderStatus.LISTED_FOR_SALE },
         session,
       );
+
+      if (!order) {
+        console.log('Failed assigning buyer, already in progress');
+        throw new InvalidStatusForOrderUpdateError();
+      }
+
+      return order;
     } catch (error) {
-      console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      }
+
       throw error;
     }
   }
 
-  async setCheckoutStatus(orderId: string, session?: ClientSession): Promise<P2pOrderEntity> {
+  async setDelistWaitingForKasStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      const order = await super.updateByOne(
+        '_id',
+        orderId,
+        { status: SellOrderStatus.OFF_MARKETPLACE },
+        { status: SellOrderStatus.LISTED_FOR_SALE },
+      );
+
+      if (!order) {
+        console.log('Failed assigning buyer, already in progress');
+        throw new InvalidStatusForOrderUpdateError();
+      }
+
+      return order;
+    } catch (error) {
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
+  async setSwapError(orderId: string, errorMessage: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne('_id', orderId, { status: SellOrderStatus.SWAP_ERROR, error: errorMessage });
+    } catch (error) {
+      console.error(`Error updating to SWAP_ERROR for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setDelistError(orderId: string, errorMessage: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne('_id', orderId, { status: SellOrderStatus.DELIST_ERROR, error: errorMessage });
+    } catch (error) {
+      console.error(`Error updating to DELIST_ERROR for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setOrderCompleted(orderId: string, isDelisting: boolean = false): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne('_id', orderId, {
+        status: isDelisting ? SellOrderStatus.COMPLETED_DELISTING : SellOrderStatus.COMPLETED,
+        fulfillmentTimestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error(`Error updating to SWAP_ERROR for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.CHECKOUT },
-        { status: SellOrderStatus.WAITING_FOR_KAS },
-        session,
+        { status: fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS },
+      );
+    } catch (error) {
+      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setLowFeeStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne(
+        '_id',
+        orderId,
+        { status: SellOrderStatus.WAITING_FOR_LOW_FEE },
+        { status: SellOrderStatus.CHECKOUT },
+      );
+    } catch (error) {
+      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
+  async setDelistStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne(
+        '_id',
+        orderId,
+        { status: SellOrderStatus.DELISTING },
+        { status: SellOrderStatus.OFF_MARKETPLACE },
       );
     } catch (error) {
       console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
@@ -105,9 +197,47 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     sort?: SortDto,
     pagination?: PaginationDto,
     session?: ClientSession,
-  ): Promise<P2pOrderEntity[]> {
+  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
+
+      if (walletAddress) {
+        Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
+      }
+
+      let query = this.sellOrdersModel.find(baseQuery);
+
+      if (sort?.direction) {
+        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
+        const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
+        query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
+      }
+
+      if (pagination) {
+        if (typeof pagination.offset === 'number') {
+          query = query.skip(pagination.offset);
+        }
+        if (typeof pagination.limit === 'number') {
+          query = query.limit(pagination.limit);
+        }
+      }
+      const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
+      const orders = await query.exec();
+
+      return { orders, totalCount };
+    } catch (error) {
+      console.error('Error getting sell orders', error);
+      throw error;
+    }
+  }
+  async getUserListedSellOrders(
+    walletAddress: string,
+    statuses: SellOrderStatus[],
+    sort?: SortDto,
+    pagination?: PaginationDto,
+  ): Promise<P2pOrderEntity[]> {
+    try {
+      const baseQuery = { status: { $in: statuses } };
 
       if (walletAddress) {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });

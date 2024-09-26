@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import { AMOUNT_FOR_SWAP_FEES, KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
+import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
 
 @Injectable()
 export class KaspaFacade {
@@ -23,17 +24,17 @@ export class KaspaFacade {
     return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
   }
 
-  async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
+  async verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(
     transactionId: string,
     from: string,
     to: string,
-    amount: number,
+    amount: number = 0,
   ): Promise<boolean> {
     return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
       transactionId,
       from,
       to,
-      KaspaNetworkActionsService.KaspaToSompi(String(amount)),
+      KaspaNetworkActionsService.KaspaToSompi(String(amount)) + AMOUNT_FOR_SWAP_FEES,
     );
   }
 
@@ -56,5 +57,19 @@ export class KaspaFacade {
     } catch (error) {
       throw error;
     }
+  }
+
+  async delistSellSwap(order: P2pOrderEntity): Promise<CancelSwapTransactionsResult> {
+    const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
+    const holderWalletPrivateKey = walletAccount.privateKey;
+
+    const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
+
+    return await this.kaspaNetworkActionsService.cancelSellSwap(
+      holderWalletPrivateKey,
+      order.sellerWalletAddress,
+      order.ticker,
+      quantity,
+    );
   }
 }

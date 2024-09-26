@@ -19,10 +19,18 @@ export class P2pOrdersService {
     private readonly sellOrdersBookRepository: SellOrdersBookRepository,
   ) {}
 
-  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getListedSellOrders(
       ticker,
       getSellOrdersDto.walletAddress,
+      getSellOrdersDto.sort,
+      getSellOrdersDto.pagination,
+    );
+  }
+  public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+    return await this.sellOrdersBookRepository.getUserListedSellOrders(
+      getSellOrdersDto.walletAddress,
+      [SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE],
       getSellOrdersDto.sort,
       getSellOrdersDto.pagination,
     );
@@ -48,11 +56,6 @@ export class P2pOrdersService {
     try {
       const expiresAt: Date = new Date(new Date().getTime() + P2P_ORDER_EXPIRATION_TIME_MINUTES * 60000);
       const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt);
-
-      if (!sellOrder) {
-        console.log('Failed assigning buyer, already in progress');
-        throw new HttpException('Failed assigning buyer, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
 
       const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(orderId, buyerWalletAddress);
       if (!buyerWalletAssigned) {
@@ -102,9 +105,19 @@ export class P2pOrdersService {
     return order;
   }
 
-  async setOrderCompleted(sellOrderId: string) {
+  async confirmDelist(sellOrderId: string): Promise<P2pOrderEntity> {
+    // FROM HERE, MEANS VALIDATION PASSED
+    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistStatus(sellOrderId);
+    if (!order) {
+      throw new HttpException('Sell order is not in the matching status, cannot delist.', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    return order;
+  }
+
+  async setOrderCompleted(sellOrderId: string, isDelisting: boolean = false) {
     try {
-      await this.sellOrdersBookRepository.setStatus(sellOrderId, SellOrderStatus.COMPLETED);
+      await this.sellOrdersBookRepository.setOrderCompleted(sellOrderId, isDelisting);
     } catch (error) {
       console.log('Failed to set order status completed, but swap was successful', error);
     }
@@ -114,13 +127,57 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
-  async cancelSellOrder(sellOrderId: string) {
+  async getOrderAndValidateWalletAddress(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
+    const order: P2pOrderEntity = await this.sellOrdersBookRepository.getById(sellOrderId);
+
+    if (!order) {
+      throw new HttpException('Sell order not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (order.sellerWalletAddress != walletAddress) {
+      throw new HttpException('Wallet address is not of seller', HttpStatus.BAD_REQUEST);
+    }
+
+    return order;
+  }
+
+  async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
+    await this.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+
+    const session: ClientSession = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId);
+
+      await session.commitTransaction();
+
+      return sellOrder;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    }
+  }
+
+  async releaseBuyLock(sellOrderId: string) {
     const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
 
-    if (!P2pOrderHelper.isOrderCancelable(order.status)) {
+    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
       throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
     }
 
-    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.CANCELED, order.status);
+    await this.sellOrdersBookRepository.transitionOrderStatus(
+      sellOrderId,
+      SellOrderStatus.LISTED_FOR_SALE,
+      SellOrderStatus.WAITING_FOR_KAS,
+    );
+  }
+
+  async setSwapError(sellOrderId: string, error: string) {
+    return await this.sellOrdersBookRepository.setSwapError(sellOrderId, error);
+  }
+
+  async setDelistError(sellOrderId: string, error: string) {
+    return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
   }
 }

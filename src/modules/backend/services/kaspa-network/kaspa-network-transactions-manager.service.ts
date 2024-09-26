@@ -54,7 +54,12 @@ export class KaspaNetworkTransactionsManagerService {
     };
   }
 
-  async createTransaction(privateKey: PrivateKey, outputs: IPaymentOutput[], priorityFee: bigint = 0n, withoutRetry = false) {
+  async createTransaction(
+    privateKey: PrivateKey,
+    outputs: IPaymentOutput[],
+    priorityFee: bigint = 0n,
+    withoutRetry = false,
+  ): Promise<ICreateTransactions> {
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
@@ -168,8 +173,6 @@ export class KaspaNetworkTransactionsManagerService {
 
           currentPriorityFee = fees.priorityFee;
           baseTransactionData.priorityFee = fees.priorityFee;
-
-          console.log('priorityFee', currentPriorityFee, maxPriorityFee, fees);
         }
 
         return currentTransaction;
@@ -184,6 +187,8 @@ export class KaspaNetworkTransactionsManagerService {
         this.convertPrivateKeyToPublicKey(privateKey),
         transaction.summary.finalTransactionId,
       );
+
+      console.log('commit transaction summry', transaction.summary);
 
       await transactionReciever.registerEventHandlers();
 
@@ -216,6 +221,8 @@ export class KaspaNetworkTransactionsManagerService {
         priorityFee: transactionFeeAmount + currentPriorityFee,
         networkId: this.rpcService.getNetwork(),
       });
+
+      console.log('reveal transaction summry', currentRevealTransaction.summary);
 
       for (const transaction of currentRevealTransaction.transactions) {
         transaction.sign([privateKey], false);
@@ -279,11 +286,15 @@ export class KaspaNetworkTransactionsManagerService {
     return serverInfo.isSynced && serverInfo.hasUtxoIndex;
   }
 
-  async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
+  async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
-    const massAndFeeRate = BigInt(
-      Math.ceil(Number(transactionData.summary.mass) * estimatedFees.estimate.priorityBucket.feerate),
-    );
+
+    return estimatedFees.estimate.priorityBucket.feerate;
+  }
+
+  async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
+    const estimatedFeeRate = await this.getEstimatedPriorityFeeRate();
+    const massAndFeeRate = BigInt(Math.ceil(Number(transactionData.summary.mass) * estimatedFeeRate));
     const maxFee = transactionData.summary.fees > massAndFeeRate ? transactionData.summary.fees : massAndFeeRate;
 
     const priorityFee = maxFee - transactionData.summary.fees < 0 ? 0n : maxFee - transactionData.summary.fees;
@@ -293,6 +304,7 @@ export class KaspaNetworkTransactionsManagerService {
       mass: transactionData.summary.mass,
       maxFee: maxFee,
       priorityFee: priorityFee,
+      estimatedNetworkFee: estimatedFeeRate,
     };
   }
 

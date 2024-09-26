@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, SchemaTypes } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { SellOrderStatus } from '../enums/sell-order-status.enum';
 
 @Schema({
@@ -33,6 +33,12 @@ export class P2pOrderEntity {
 
   @Prop()
   status?: SellOrderStatus;
+
+  @Prop()
+  fulfillmentTimestamp?: number;
+
+  @Prop()
+  error?: string;
 
   @Prop()
   expiresAt?: Date;
