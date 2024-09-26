@@ -3,6 +3,7 @@ import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.res
 import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 
 export class P2pOrderBookResponseTransformer {
   static createSellOrderCreatedResponseDto(entity: P2pOrderEntity, temporaryWalletAddress: string): SellRequestResponseDto {
@@ -51,13 +52,18 @@ export class P2pOrderBookResponseTransformer {
 
   static transformOrderDmToBuyResponseDto(orderDm: OrderDm, temporaryWalletAddress: string): BuyRequestResponseDto {
     return {
+      success: true,
       temporaryWalletAddress: temporaryWalletAddress,
       status: orderDm.status,
     };
   }
 
-  static transformOrderDmToDelistResponseDto(orderDm: OrderDm, temporaryWalletAddress: string): BuyRequestResponseDto {
+  static transformOrderDmToOffMerketplaceResponseDto(
+    orderDm: OrderDm,
+    temporaryWalletAddress: string,
+  ): OffMarketplaceRequestResponseDto {
     return {
+      success: true,
       temporaryWalletAddress: temporaryWalletAddress,
       status: orderDm.status,
     };

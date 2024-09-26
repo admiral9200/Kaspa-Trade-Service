@@ -1,9 +1,6 @@
 import { IsString } from 'class-validator';
 
-export class ConfirmDelistRequestDto {
-  @IsString()
-  transactionId: string;
-
+export class RemoveFromMarketplaceRequestDto {
   @IsString()
   walletAddress: string;
 }

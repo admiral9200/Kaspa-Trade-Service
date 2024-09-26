@@ -18,10 +18,11 @@ import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { PriorityFeeTooHighError } from '../services/kaspa-network/errors/PriorityFeeTooHighError';
-import { DelistRequestResponseDto } from '../model/dtos/responses/delist-request.response.dto';
 import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
 import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
 import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
+import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
+import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -59,12 +60,20 @@ export class P2pProvider {
   }
 
   public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
-    const sellOrderDm: OrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);
-    const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
-      sellOrderDm.walletSequenceId,
-    );
+    try {
+      const sellOrderDm: OrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);
+      const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
+        sellOrderDm.walletSequenceId,
+      );
 
-    return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
+      return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
+    } catch (error) {
+      if (error instanceof InvalidStatusForOrderUpdateError) {
+        return { success: false };
+      } else {
+        throw error;
+      }
+    }
   }
 
   public async confirmSell(sellOrderId: string): Promise<ConfirmSellOrderRequestResponseDto> {
@@ -133,7 +142,10 @@ export class P2pProvider {
     sellOrderId: string,
     confirmDelistRequestDto: ConfirmDelistRequestDto,
   ): Promise<ConfirmDelistOrderRequestResponseDto> {
-    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(
+      sellOrderId,
+      confirmDelistRequestDto.walletAddress,
+    );
 
     const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
 
@@ -174,15 +186,26 @@ export class P2pProvider {
     };
   }
 
-  async cancelSell(sellOrderId: string) {
+  async releaseBuyLock(sellOrderId: string) {
     await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
   }
-  async removeSellOrderFromMarketplace(sellOrderId: string): Promise<DelistRequestResponseDto> {
-    const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId);
-    const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
-      sellOrderDm.walletSequenceId,
-    );
+  async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<OffMarketplaceRequestResponseDto> {
+    try {
+      const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId, walletAddress);
+      const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
+        sellOrderDm.walletSequenceId,
+      );
 
-    return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
+      return P2pOrderBookResponseTransformer.transformOrderDmToOffMerketplaceResponseDto(
+        sellOrderDm,
+        temporaryWalletPublicAddress,
+      );
+    } catch (error) {
+      if (error instanceof InvalidStatusForOrderUpdateError) {
+        return {
+          success: false,
+        };
+      }
+    }
   }
 }

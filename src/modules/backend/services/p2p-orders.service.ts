@@ -11,6 +11,7 @@ import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.consta
 import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
+import { InvalidStatusForOrderUpdateError } from './kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class P2pOrdersService {
@@ -30,6 +31,7 @@ export class P2pOrdersService {
   public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
     return await this.sellOrdersBookRepository.getUserListedSellOrders(
       getSellOrdersDto.walletAddress,
+      [SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE],
       getSellOrdersDto.sort,
       getSellOrdersDto.pagination,
     );
@@ -55,11 +57,6 @@ export class P2pOrdersService {
     try {
       const expiresAt: Date = new Date(new Date().getTime() + P2P_ORDER_EXPIRATION_TIME_MINUTES * 60000);
       const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt);
-
-      if (!sellOrder) {
-        console.log('Failed assigning buyer, already in progress');
-        throw new HttpException('Failed assigning buyer, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
 
       const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(orderId, buyerWalletAddress);
       if (!buyerWalletAssigned) {
@@ -130,17 +127,28 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
-  async removeSellOrderFromMarketplace(sellOrderId: string): Promise<P2pOrderEntity> {
+  async getOrderAndValidateWalletAddress(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
+    const order: P2pOrderEntity = await this.sellOrdersBookRepository.getById(sellOrderId);
+
+    if (!order) {
+      throw new HttpException('Sell order not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (order.sellerWalletAddress != walletAddress) {
+      throw new HttpException('Wallet address is not of seller', HttpStatus.BAD_REQUEST);
+    }
+
+    return order;
+  }
+
+  async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
+    await this.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
     try {
       const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId);
-
-      if (!sellOrder) {
-        console.log('Failed in removing from marketplace, already in progress');
-        throw new HttpException('Failed removing from marketplace, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
 
       await session.commitTransaction();
 
