@@ -24,6 +24,7 @@ import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { GetUserListingsDto } from '../model/dtos/user-listings.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -46,7 +47,7 @@ export class P2pController {
     }
   }
   @Post('getUserListings')
-  async getListings(@Body() body: GetOrdersDto): Promise<ListedOrderDto[]> {
+  async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
     try {
       return await this.p2pProvider.userListings(body);
     } catch (error) {
