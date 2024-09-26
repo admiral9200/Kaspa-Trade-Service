@@ -2,5 +2,6 @@ import { SwapTransactionsResult } from '../../../services/kaspa-network/interfac
 
 export interface ConfirmBuyOrderRequestResponseDto {
   confirmed: boolean;
-  transactions: SwapTransactionsResult;
+  transactions?: SwapTransactionsResult;
+  priorityFeeTooHigh?: boolean;
 }

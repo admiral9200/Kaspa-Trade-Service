@@ -188,7 +188,7 @@ export class KaspaNetworkTransactionsManagerService {
         transaction.summary.finalTransactionId,
       );
 
-      console.log('commit transaction summry', commitTransaction.summary);
+      console.log('commit transaction summry', transaction.summary);
 
       await transactionReciever.registerEventHandlers();
 

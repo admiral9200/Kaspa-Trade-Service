@@ -55,4 +55,11 @@ export class P2pOrderBookResponseTransformer {
       status: orderDm.status,
     };
   }
+
+  static transformOrderDmToDelistResponseDto(orderDm: OrderDm, temporaryWalletAddress: string): BuyRequestResponseDto {
+    return {
+      temporaryWalletAddress: temporaryWalletAddress,
+      status: orderDm.status,
+    };
+  }
 }

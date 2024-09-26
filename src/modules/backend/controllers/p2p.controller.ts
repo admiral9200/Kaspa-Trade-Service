@@ -24,6 +24,10 @@ import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { GetUserListingsDto } from '../model/dtos/user-listings.dto';
+import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
+import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
+import { DelistRequestResponseDto } from '../model/dtos/responses/delist-request.response.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -41,6 +45,14 @@ export class P2pController {
         throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
       }
       return await this.p2pProvider.listOrders(ticker, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+  @Post('getUserListings')
+  async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
+    try {
+      return await this.p2pProvider.userListings(body);
     } catch (error) {
       throw error;
     }
@@ -72,8 +84,29 @@ export class P2pController {
     }
   }
 
-  @Delete('cancel/:sellOrderId')
-  async cancelSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+  @Delete('removeFromMarketplace/:sellOrderId')
+  async removeSellOrderFromMarketplace(@Param('sellOrderId') sellOrderId: string): Promise<DelistRequestResponseDto> {
+    try {
+      return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('confirmDelistOrder/:sellOrderId')
+  async confirmDelistOrder(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: ConfirmDelistRequestDto,
+  ): Promise<ConfirmDelistOrderRequestResponseDto> {
+    try {
+      return await this.p2pProvider.confirmDelistSale(sellOrderId, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('releaseBuyLock/:sellOrderId')
+  async releaseBuyLock(@Param('sellOrderId') sellOrderId: string): Promise<void> {
     try {
       return await this.p2pProvider.cancelSell(sellOrderId);
     } catch (error) {

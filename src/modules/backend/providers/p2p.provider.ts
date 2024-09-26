@@ -17,6 +17,11 @@ import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
+import { PriorityFeeTooHighError } from '../services/kaspa-network/errors/PriorityFeeTooHighError';
+import { DelistRequestResponseDto } from '../model/dtos/responses/delist-request.response.dto';
+import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
+import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
+import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
 
 @Injectable()
 export class P2pProvider {
@@ -29,6 +34,10 @@ export class P2pProvider {
 
   public async listOrders(ticker: string, getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
     const orders: OrderDm[] = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
+    return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
+  }
+  public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
+    const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
     return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
   }
 
@@ -83,7 +92,7 @@ export class P2pProvider {
 
     const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
 
-    const isVerified: boolean = await this.kaspaFacade.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
+    const isVerified: boolean = await this.kaspaFacade.verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(
       confirmBuyDto.transactionId,
       order.buyerWalletAddress,
       temporaryWalletPublicAddress,
@@ -95,8 +104,68 @@ export class P2pProvider {
     if (isVerified) {
       const order: P2pOrderEntity = await this.p2pOrderBookService.confirmBuy(sellOrderId);
 
-      transactionsResult = await this.kaspaFacade.doSellSwap(order);
-      await this.p2pOrderBookService.setOrderCompleted(sellOrderId);
+      try {
+        transactionsResult = await this.kaspaFacade.doSellSwap(order);
+        await this.p2pOrderBookService.setOrderCompleted(sellOrderId);
+      } catch (error) {
+        console.error('Failed to do sell swap', error);
+
+        if (error instanceof PriorityFeeTooHighError) {
+          return {
+            confirmed: false,
+            priorityFeeTooHigh: true,
+          };
+        } else {
+          await this.p2pOrderBookService.setSwapError(sellOrderId, error.toString());
+
+          throw error;
+        }
+      }
+    }
+
+    return {
+      confirmed: isVerified,
+      transactions: transactionsResult,
+    };
+  }
+
+  public async confirmDelistSale(
+    sellOrderId: string,
+    confirmDelistRequestDto: ConfirmDelistRequestDto,
+  ): Promise<ConfirmDelistOrderRequestResponseDto> {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
+
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    const isVerified: boolean = await this.kaspaFacade.verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(
+      confirmDelistRequestDto.transactionId,
+      order.sellerWalletAddress,
+      temporaryWalletPublicAddress,
+      0, // swap fee added in verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee
+    );
+
+    let transactionsResult: CancelSwapTransactionsResult;
+
+    if (isVerified) {
+      const order: P2pOrderEntity = await this.p2pOrderBookService.confirmDelist(sellOrderId);
+
+      try {
+        transactionsResult = await this.kaspaFacade.delistSellSwap(order);
+        await this.p2pOrderBookService.setOrderCompleted(sellOrderId, true);
+      } catch (error) {
+        console.error('Failed to delist sell order', error);
+
+        if (error instanceof PriorityFeeTooHighError) {
+          return {
+            confirmed: false,
+            priorityFeeTooHigh: true,
+          };
+        } else {
+          await this.p2pOrderBookService.setDelistError(sellOrderId, error.toString());
+
+          throw error;
+        }
+      }
     }
 
     return {
@@ -106,6 +175,14 @@ export class P2pProvider {
   }
 
   async cancelSell(sellOrderId: string) {
-    await this.p2pOrderBookService.cancelSellOrder(sellOrderId);
+    await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
+  }
+  async removeSellOrderFromMarketplace(sellOrderId: string): Promise<DelistRequestResponseDto> {
+    const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId);
+    const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
+      sellOrderDm.walletSequenceId,
+    );
+
+    return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
   }
 }

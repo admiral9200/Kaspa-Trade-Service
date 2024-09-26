@@ -35,6 +35,12 @@ export class P2pOrderEntity {
   status?: SellOrderStatus;
 
   @Prop()
+  fulfillmentTimestamp?: number;
+
+  @Prop()
+  error?: string;
+
+  @Prop()
   expiresAt?: Date;
 
   @Prop()
