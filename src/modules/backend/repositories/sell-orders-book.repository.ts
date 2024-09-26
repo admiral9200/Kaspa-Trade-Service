@@ -263,7 +263,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async updateAndGetExpiredOrders(): Promise<P2pOrderEntity[]> {
+  async getExpiredOrders(): Promise<P2pOrderEntity[]> {
     try {
       const currentDate = new Date();
       const updatedOrders = await this.sellOrdersModel
@@ -274,14 +274,6 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           expiresAt: { $lt: currentDate },
         })
         .exec();
-
-      const updatedOrderIds = updatedOrders.map((order) => order._id);
-
-      await this.sellOrdersModel.updateMany(
-        { _id: { $in: updatedOrderIds } },
-        { $set: { status: SellOrderStatus.LISTED_FOR_SALE, buyerWalletAddress: undefined } },
-      );
-
       return updatedOrders;
     } catch (error) {
       console.error('Error updating and getting expired orders:', error);

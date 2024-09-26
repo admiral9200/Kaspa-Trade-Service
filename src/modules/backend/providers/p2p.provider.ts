@@ -208,4 +208,16 @@ export class P2pProvider {
       }
     }
   }
+
+  async handleExpiredOrders() {
+    const orders = await this.p2pOrderBookService.getExpiredOrders();
+
+    for (const order of orders) {
+      try {
+        await this.p2pOrderBookService.handleExpiredOrder(order);
+      } catch (error) {
+        console.error('Failed in handling expired orders', error);
+      }
+    }
+  }
 }

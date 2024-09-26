@@ -123,8 +123,8 @@ export class P2pOrdersService {
     }
   }
 
-  async cancelExpiredOrders() {
-    await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
+  async getExpiredOrders() {
+    return await this.sellOrdersBookRepository.getExpiredOrders();
   }
 
   async getOrderAndValidateWalletAddress(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
@@ -180,4 +180,6 @@ export class P2pOrdersService {
   async setDelistError(sellOrderId: string, error: string) {
     return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
   }
+
+  async handleExpiredOrder(order: P2pOrderEntity) {}
 }
