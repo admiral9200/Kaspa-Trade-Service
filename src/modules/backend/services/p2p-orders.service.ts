@@ -108,9 +108,19 @@ export class P2pOrdersService {
     return order;
   }
 
-  async setOrderCompleted(sellOrderId: string) {
+  async confirmDelist(sellOrderId: string): Promise<P2pOrderEntity> {
+    // FROM HERE, MEANS VALIDATION PASSED
+    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistStatus(sellOrderId);
+    if (!order) {
+      throw new HttpException('Sell order is not in the matching status, cannot delist.', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    return order;
+  }
+
+  async setOrderCompleted(sellOrderId: string, isDelisting: boolean = false) {
     try {
-      await this.sellOrdersBookRepository.setStatus(sellOrderId, SellOrderStatus.COMPLETED);
+      await this.sellOrdersBookRepository.setOrderCompleted(sellOrderId, isDelisting);
     } catch (error) {
       console.log('Failed to set order status completed, but swap was successful', error);
     }
@@ -120,23 +130,46 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
-  async delistSellOrder(sellOrderId: string) {
-    const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
+  async delistSellOrder(sellOrderId: string): Promise<P2pOrderEntity> {
+    const session: ClientSession = await this.connection.startSession();
+    session.startTransaction();
 
-    if (!P2pOrderHelper.isOrderUnlistable(order.status)) {
-      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
+    try {
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId);
+
+      if (!sellOrder) {
+        console.log('Failed in delisting, already in progress');
+        throw new HttpException('Failed assigning deisting, already in progress', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      await session.commitTransaction();
+
+      return sellOrder;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
     }
-    //// Need to retrun tokens to seller
-    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.CANCELED, order.status);
   }
 
-  async cancelSellOrder(sellOrderId: string) {
+  async releaseBuyLock(sellOrderId: string) {
     const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
 
-    if (!P2pOrderHelper.isOrderCancelable(order.status)) {
+    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
       throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
     }
 
-    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, order.status);
+    await this.sellOrdersBookRepository.transitionOrderStatus(
+      sellOrderId,
+      SellOrderStatus.LISTED_FOR_SALE,
+      SellOrderStatus.WAITING_FOR_KAS,
+    );
+  }
+
+  async setSwapError(sellOrderId: string, error: string) {
+    return await this.sellOrdersBookRepository.setSwapError(sellOrderId, error);
+  }
+
+  async setDelistError(sellOrderId: string, error: string) {
+    return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
   }
 }

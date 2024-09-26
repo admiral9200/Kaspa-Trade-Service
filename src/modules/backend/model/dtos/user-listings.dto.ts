@@ -7,7 +7,6 @@ import { SortDirection } from '../enums/sort-direction.enum';
 
 export class GetUserListingsDto {
   @IsString()
-  @ValidateNested()
   walletAddress: string;
 
   @ValidateNested()

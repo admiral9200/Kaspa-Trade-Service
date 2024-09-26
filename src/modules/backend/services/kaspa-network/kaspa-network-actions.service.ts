@@ -13,8 +13,8 @@ import { CancelSwapTransactionsResult } from './interfaces/CancelSwapTransaction
 import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwap';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 
+export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 const AMOUNT_FOR_TESTING_FEE = kaspaToSompi('5');
-const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
@@ -34,8 +34,7 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const totalAmount = amount + AMOUNT_FOR_SWAP_FEES;
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(totalAmount));
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(amount));
     if (!kaspaApiResult) {
       return false;
     }
@@ -45,7 +44,7 @@ export class KaspaNetworkActionsService {
     // Must be == and not >=, Because if there is there extra money it belongs to someone else
     // And it will be sent to the buyer even though it's not his money
     // This is in case of an error
-    return walletTotalBalance === totalAmount;
+    return walletTotalBalance === amount;
   }
 
   /**

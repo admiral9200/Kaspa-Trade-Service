@@ -25,6 +25,9 @@ import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 import { GetUserListingsDto } from '../model/dtos/user-listings.dto';
+import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
+import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
+import { DelistRequestResponseDto } from '../model/dtos/responses/delist-request.response.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -82,15 +85,28 @@ export class P2pController {
   }
 
   @Delete('delist/:sellOrderId')
-  async delistSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+  async delistSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<DelistRequestResponseDto> {
     try {
       return await this.p2pProvider.delistSell(sellOrderId);
     } catch (error) {
       throw error;
     }
   }
-  @Delete('cancel/:sellOrderId')
-  async cancelSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+
+  @Post('confirmDelistOrder/:sellOrderId')
+  async confirmDelistOrder(
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: ConfirmDelistRequestDto,
+  ): Promise<ConfirmDelistOrderRequestResponseDto> {
+    try {
+      return await this.p2pProvider.confirmDelistSale(sellOrderId, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('releaseBuyLock/:sellOrderId')
+  async releaseBuyLock(@Param('sellOrderId') sellOrderId: string): Promise<void> {
     try {
       return await this.p2pProvider.cancelSell(sellOrderId);
     } catch (error) {

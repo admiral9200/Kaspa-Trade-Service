@@ -1,6 +1,6 @@
 import { SellOrderStatus } from '../../enums/sell-order-status.enum';
 
-export interface BuyRequestResponseDto {
+export interface DelistRequestResponseDto {
   temporaryWalletAddress: string;
   status: SellOrderStatus;
 }
