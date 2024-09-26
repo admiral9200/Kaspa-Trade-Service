@@ -21,6 +21,7 @@ import { P2pOrderHelper } from './helpers/p2p-order.helper';
 import { KaspaApiModule } from './services/kaspa-api/kaspa-api.module';
 import { KasplexApiModule } from './services/kasplex-api/kasplex-api.module';
 import { UtilsHelper } from './helpers/utils.helper';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   controllers: [P2pController],
@@ -67,6 +68,7 @@ import { UtilsHelper } from './helpers/utils.helper';
     ),
     KaspaApiModule,
     KasplexApiModule,
+    ScheduleModule.forRoot(),
   ],
   exports: [],
 })
