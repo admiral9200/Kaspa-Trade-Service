@@ -120,6 +120,16 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateAndGetExpiredOrders();
   }
 
+  async delistSellOrder(sellOrderId: string) {
+    const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
+
+    if (!P2pOrderHelper.isOrderUnlistable(order.status)) {
+      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
+    }
+    //// Need to retrun tokens to seller
+    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.CANCELED, order.status);
+  }
+
   async cancelSellOrder(sellOrderId: string) {
     const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
 
@@ -127,6 +137,6 @@ export class P2pOrdersService {
       throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
     }
 
-    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.CANCELED, order.status);
+    await this.sellOrdersBookRepository.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, order.status);
   }
 }

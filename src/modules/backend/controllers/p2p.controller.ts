@@ -81,6 +81,14 @@ export class P2pController {
     }
   }
 
+  @Delete('delist/:sellOrderId')
+  async delistSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+    try {
+      return await this.p2pProvider.delistSell(sellOrderId);
+    } catch (error) {
+      throw error;
+    }
+  }
   @Delete('cancel/:sellOrderId')
   async cancelSellOrder(@Param('sellOrderId') sellOrderId: string): Promise<void> {
     try {

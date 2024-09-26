@@ -112,4 +112,7 @@ export class P2pProvider {
   async cancelSell(sellOrderId: string) {
     await this.p2pOrderBookService.cancelSellOrder(sellOrderId);
   }
+  async delistSell(sellOrderId: string) {
+    await this.p2pOrderBookService.delistSellOrder(sellOrderId);
+  }
 }
