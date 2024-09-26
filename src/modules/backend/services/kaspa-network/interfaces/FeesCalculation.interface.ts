@@ -3,4 +3,5 @@ export interface FeesCalculation {
   mass: bigint;
   maxFee: bigint;
   priorityFee: bigint;
+  estimatedNetworkFee: number;
 }
