@@ -1,4 +1,4 @@
-name: Deploy Node.js Application to Elastic Beanstalk
+name: Deploy Prod ENV Node.js Application to Elastic Beanstalk
 
 on:
   push:
