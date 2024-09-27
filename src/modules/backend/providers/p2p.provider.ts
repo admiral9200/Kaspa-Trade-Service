@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { P2pOrdersService } from '../services/p2p-orders.service';
 import { P2pOrderBookTransformer } from '../transformers/p2p-order-book.transformer';
@@ -23,6 +23,9 @@ import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/co
 import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
+import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
+import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -43,6 +46,7 @@ export class P2pProvider {
       totalCount,
     };
   }
+
   public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
     const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
     return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
@@ -195,6 +199,7 @@ export class P2pProvider {
   async releaseBuyLock(sellOrderId: string) {
     await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
   }
+
   async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<OffMarketplaceRequestResponseDto> {
     try {
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId, walletAddress);
@@ -213,5 +218,31 @@ export class P2pProvider {
         };
       }
     }
+  }
+
+  async updateSellOrder(sellOrderId: string, updateSellOrderDto: UpdateSellOrderDto): Promise<void> {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(
+      sellOrderId,
+      updateSellOrderDto.walletAddress,
+    );
+
+    if (order.status !== SellOrderStatus.OFF_MARKETPLACE) {
+      throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.p2pOrderBookService.updateSellOrder(sellOrderId, updateSellOrderDto);
+  }
+
+  async relistSellOrder(sellOrderId: string, relistSellOrderDto: RelistSellOrderDto) {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(
+      sellOrderId,
+      relistSellOrderDto.walletAddress,
+    );
+
+    if (order.status !== SellOrderStatus.OFF_MARKETPLACE) {
+      throw new HttpException('Order is not off market', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.p2pOrderBookService.relistSellOrder(sellOrderId);
   }
 }

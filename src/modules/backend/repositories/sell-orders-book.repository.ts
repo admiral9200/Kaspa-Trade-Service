@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -293,6 +293,51 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       return updatedOrders;
     } catch (error) {
       console.error('Error updating and getting expired orders:', error);
+      throw error;
+    }
+  }
+
+  async updateSellOrderPrices(sellOrderId: string, totalPrice: number, pricePerToken: number): Promise<void> {
+    try {
+      const updatedOrder = await this.sellOrdersModel
+        .updateOne(
+          { _id: sellOrderId, status: SellOrderStatus.OFF_MARKETPLACE },
+          {
+            totalPrice,
+            pricePerToken,
+          },
+        )
+        .exec();
+
+      if (!updatedOrder) {
+        throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
+      }
+    } catch (error) {
+      if (!(error instanceof HttpException)) {
+        console.log('Error updating sell order prices:', error);
+      }
+      throw error;
+    }
+  }
+
+  async relistSellOrder(sellOrderId: string) {
+    try {
+      const updatedOrder = await this.sellOrdersModel
+        .updateOne(
+          { _id: sellOrderId, status: SellOrderStatus.OFF_MARKETPLACE },
+          {
+            status: SellOrderStatus.LISTED_FOR_SALE,
+          },
+        )
+        .exec();
+
+      if (!updatedOrder) {
+        throw new HttpException('Order is not in off market status', HttpStatus.BAD_REQUEST);
+      }
+    } catch (error) {
+      if (!(error instanceof HttpException)) {
+        console.log('Error relisting sell order prices:', error);
+      }
       throw error;
     }
   }
