@@ -49,13 +49,22 @@ export class P2pOrdersService {
     }
   }
 
+  public async setWaitingForKasStatus(
+    orderId: string,
+    expiresAt: Date,
+    session?: ClientSession,
+    fromExpired: boolean = false,
+  ): Promise<P2pOrderEntity> {
+    return await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt, session, fromExpired);
+  }
+
   public async assignBuyerToOrder(orderId: string, buyerWalletAddress: string): Promise<P2pOrderEntity> {
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
     try {
       const expiresAt: Date = new Date(new Date().getTime() + P2P_ORDER_EXPIRATION_TIME_MINUTES * 60000);
-      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt, session);
+      const sellOrder: P2pOrderEntity = await this.setWaitingForKasStatus(orderId, expiresAt, session);
 
       const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(
         orderId,
@@ -76,8 +85,26 @@ export class P2pOrdersService {
     }
   }
 
-  public async setOrderInCheckingExpired() {
-    
+  public async setOrderInCheckingExpired(order: P2pOrderEntity): Promise<P2pOrderEntity> {
+    const session: ClientSession = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.transitionOrderStatus(
+        order._id,
+        SellOrderStatus.CHECKING_EXPIRED,
+        SellOrderStatus.WAITING_FOR_KAS,
+        {},
+        session,
+      );
+
+      await session.commitTransaction();
+
+      return sellOrder;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    }
   }
 
   public async getOrderById(sellOrderId: string): Promise<P2pOrderEntity> {
@@ -89,12 +116,12 @@ export class P2pOrdersService {
     return order;
   }
 
-  public async setReadyForSale(orderId: string) {
+  public async setReadyForSale(orderId: string, fromExpired: boolean = false): Promise<void> {
     try {
       await this.sellOrdersBookRepository.transitionOrderStatus(
         orderId,
         SellOrderStatus.LISTED_FOR_SALE,
-        SellOrderStatus.WAITING_FOR_TOKENS,
+        fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.WAITING_FOR_TOKENS,
       );
     } catch (error) {
       console.log('Failed to set order status to ready for sale', error);
@@ -102,9 +129,9 @@ export class P2pOrdersService {
     }
   }
 
-  async confirmBuy(sellOrderId: string): Promise<P2pOrderEntity> {
+  async confirmBuy(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     // FROM HERE, MEANS VALIDATION PASSED
-    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setCheckoutStatus(sellOrderId);
+    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setCheckoutStatus(sellOrderId, fromLowFee);
     if (!order) {
       throw new HttpException('Sell order is not in the matching status, cannot confirm buy.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -132,6 +159,10 @@ export class P2pOrdersService {
 
   async getExpiredOrders() {
     return await this.sellOrdersBookRepository.getExpiredOrders();
+  }
+
+  async getWaitingForFeesOrders() {
+    return await this.sellOrdersBookRepository.getWaitingForFeesOrders();
   }
 
   async getOrderAndValidateWalletAddress(sellOrderId: string, walletAddress: string): Promise<P2pOrderEntity> {
@@ -184,12 +215,19 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.setSwapError(sellOrderId, error);
   }
 
+  async setLowFeeErrorStatus(sellOrderId: string) {
+    return await this.sellOrdersBookRepository.setLowFeeStatus(sellOrderId);
+  }
+
   async setDelistError(sellOrderId: string, error: string) {
     return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
+  }
+
+  async setExpiredUnknownMoneyErrorStatus(sellOrderId: string) {
+    return await this.sellOrdersBookRepository.setExpiredUnknownMoneyErrorStatus(sellOrderId);
   }
 
   isOrderInvalidStatusUpdateError(error: Error) {
     return this.sellOrdersBookRepository.isOrderInvalidStatusUpdateError(error);
   }
-
 }

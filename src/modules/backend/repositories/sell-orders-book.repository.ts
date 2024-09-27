@@ -19,11 +19,16 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     super(sellOrdersModel);
   }
 
-  async setWaitingForKasStatus(orderId: string, expiresAt: Date, session?: ClientSession): Promise<P2pOrderEntity> {
+  async setWaitingForKasStatus(
+    orderId: string,
+    expiresAt: Date,
+    session?: ClientSession,
+    fromExpired: boolean = false,
+  ): Promise<P2pOrderEntity> {
     return await this.transitionOrderStatus(
       orderId,
       SellOrderStatus.WAITING_FOR_KAS,
-      SellOrderStatus.LISTED_FOR_SALE,
+      fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.LISTED_FOR_SALE,
       { expiresAt: expiresAt },
       session,
     );
@@ -57,6 +62,17 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
+  async setExpiredUnknownMoneyErrorStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne('_id', orderId, {
+        status: SellOrderStatus.EXPIRED_UNKNOWN_MONEY_ERROR,
+      });
+    } catch (error) {
+      console.error(`Error updating to DELIST_ERROR for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
   async setOrderCompleted(orderId: string, isDelisting: boolean = false): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne('_id', orderId, {
@@ -69,13 +85,12 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false, session?: ClientSession): Promise<P2pOrderEntity> {
+  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     return await this.transitionOrderStatus(
       orderId,
       SellOrderStatus.CHECKOUT,
       fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS,
       {},
-      session,
     );
   }
 
@@ -245,6 +260,23 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         .exec();
 
       return updatedOrders;
+    } catch (error) {
+      console.error('Error getting expired orders', error);
+      return [];
+    }
+  }
+
+  async getWaitingForFeesOrders(): Promise<P2pOrderEntity[]> {
+    try {
+      const orders = await this.sellOrdersModel
+        .find({
+          status: {
+            $in: [SellOrderStatus.WAITING_FOR_LOW_FEE],
+          },
+        })
+        .exec();
+
+      return orders;
     } catch (error) {
       console.error('Error getting expired orders', error);
       return [];
