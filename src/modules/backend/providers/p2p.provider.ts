@@ -295,8 +295,10 @@ export class P2pProvider {
       await this.p2pOrderBookService.setReadyForSale(order._id, true);
     } else {
       const transactionId = null; // TODO: get transaction id from kaspa api
+
       if (!transactionId) {
         await this.p2pOrderBookService.setExpiredUnknownMoneyErrorStatus(order._id);
+        throw new Error('Unkonwn money');
       }
 
       await this.p2pOrderBookService.setWaitingForKasStatus(order._id, new Date(), null, true);
