@@ -11,7 +11,6 @@ import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.consta
 import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
-import { InvalidStatusForOrderUpdateError } from './kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class P2pOrdersService {
@@ -20,7 +19,7 @@ export class P2pOrdersService {
     private readonly sellOrdersBookRepository: SellOrdersBookRepository,
   ) {}
 
-  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getListedSellOrders(
       ticker,
       getSellOrdersDto.walletAddress,
@@ -56,14 +55,18 @@ export class P2pOrdersService {
 
     try {
       const expiresAt: Date = new Date(new Date().getTime() + P2P_ORDER_EXPIRATION_TIME_MINUTES * 60000);
-      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt);
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt, session);
 
-      const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(orderId, buyerWalletAddress);
+      const buyerWalletAssigned: boolean = await this.sellOrdersBookRepository.setBuyerWalletAddress(
+        orderId,
+        buyerWalletAddress,
+        session,
+      );
+
       if (!buyerWalletAssigned) {
         console.log('Failed to assign buyer wallet address');
         throw new HttpException('Failed to assign buyer wallet address', HttpStatus.INTERNAL_SERVER_ERROR);
       }
-
       await session.commitTransaction();
 
       return sellOrder;
@@ -181,5 +184,8 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
   }
 
-  async handleExpiredOrder(order: P2pOrderEntity) {}
+  isOrderInvalidStatusUpdateError(error: Error) {
+    return this.sellOrdersBookRepository.isOrderInvalidStatusUpdateError(error);
+  }
+
 }

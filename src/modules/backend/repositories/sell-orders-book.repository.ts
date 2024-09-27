@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model, SortOrder } from 'mongoose';
+import { Model, SortOrder, ClientSession } from 'mongoose';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
@@ -19,13 +19,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     super(sellOrdersModel);
   }
 
-  async setWaitingForKasStatus(orderId: string, expiresAt: Date): Promise<P2pOrderEntity> {
+  async setWaitingForKasStatus(orderId: string, expiresAt: Date, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       const order = await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.WAITING_FOR_KAS, expiresAt: expiresAt },
         { status: SellOrderStatus.LISTED_FOR_SALE },
+        session,
       );
 
       if (!order) {
@@ -35,7 +36,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
       return order;
     } catch (error) {
-      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+      if (!this.isOrderInvalidStatusUpdateError(error)) {
         console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
       }
 
@@ -43,13 +44,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setDelistWaitingForKasStatus(orderId: string): Promise<P2pOrderEntity> {
+  async setDelistWaitingForKasStatus(orderId: string, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       const order = await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.OFF_MARKETPLACE },
         { status: SellOrderStatus.LISTED_FOR_SALE },
+        session,
       );
 
       if (!order) {
@@ -59,7 +61,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
       return order;
     } catch (error) {
-      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+      if (!this.isOrderInvalidStatusUpdateError(error)) {
         console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
       }
 
@@ -97,13 +99,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne(
         '_id',
         orderId,
         { status: SellOrderStatus.CHECKOUT },
         { status: fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS },
+        session,
       );
     } catch (error) {
       console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
@@ -143,28 +146,28 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     orderId: string,
     newStatus: SellOrderStatus,
     requiredStatus: SellOrderStatus,
+    session?: ClientSession,
   ): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus });
+      return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus }, session);
     } catch (error) {
       console.error(`Error transitioning to ${newStatus} status for order by ID(${orderId}):`, error);
       throw error;
     }
   }
 
-  async setStatus(orderId: string, status: SellOrderStatus): Promise<P2pOrderEntity> {
+  async setStatus(orderId: string, status: SellOrderStatus, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne('_id', orderId, { status });
+      return await super.updateByOne('_id', orderId, { status }, {}, session);
     } catch (error) {
       console.error(`Error updating sell order status by ID(${orderId}):`, error);
-
       throw error;
     }
   }
 
-  async setBuyerWalletAddress(orderId: string, buyerWalletAddress: string): Promise<boolean> {
+  async setBuyerWalletAddress(orderId: string, buyerWalletAddress: string, session?: ClientSession): Promise<boolean> {
     try {
-      const res = await super.updateByOne('_id', orderId, { buyerWalletAddress });
+      const res = await super.updateByOne('_id', orderId, { buyerWalletAddress }, {}, session);
       return res !== null;
     } catch (error) {
       console.error(`Error updating buyer wallet address for order by ID(${orderId}):`, error);
@@ -172,18 +175,18 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async getById(id: string): Promise<P2pOrderEntity> {
+  async getById(id: string, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.findOneBy('_id', id);
+      return await super.findOneBy('_id', id, session);
     } catch (error) {
       console.error('Error getting sell order by ID:', error);
       throw error;
     }
   }
 
-  async createSellOrder(sellOrder: P2pOrderEntity): Promise<P2pOrderEntity> {
+  async createSellOrder(sellOrder: P2pOrderEntity, session?: ClientSession): Promise<P2pOrderEntity> {
     try {
-      return await super.create(sellOrder);
+      return await super.create(sellOrder, session);
     } catch (error) {
       console.error('Error creating sell order:', error);
       throw error;
@@ -195,7 +198,8 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
-  ): Promise<P2pOrderEntity[]> {
+    session?: ClientSession,
+  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
 
@@ -219,18 +223,22 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           query = query.limit(pagination.limit);
         }
       }
+      const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
+      const orders: P2pOrderEntity[] = await query.exec();
 
-      return await query.exec();
+      return { orders, totalCount };
     } catch (error) {
       console.error('Error getting sell orders', error);
       throw error;
     }
   }
+
   async getUserListedSellOrders(
     walletAddress: string,
     statuses: SellOrderStatus[],
     sort?: SortDto,
     pagination?: PaginationDto,
+    session?: ClientSession,
   ): Promise<P2pOrderEntity[]> {
     try {
       const baseQuery = { status: { $in: statuses } };
@@ -239,10 +247,10 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
       }
 
-      let query = this.sellOrdersModel.find(baseQuery);
+      let query = this.sellOrdersModel.find(baseQuery).session(session);
 
       if (sort?.direction) {
-        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
+        const sortField = sort.field || '_id';
         const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
         query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
       }
@@ -274,10 +282,15 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           expiresAt: { $lt: currentDate },
         })
         .exec();
+
       return updatedOrders;
     } catch (error) {
-      console.error('Error updating and getting expired orders:', error);
-      throw error;
+      console.error('Error getting expired orders', error);
+      return [];
     }
+  }
+
+  public isOrderInvalidStatusUpdateError(error) {
+    return error instanceof InvalidStatusForOrderUpdateError || this.isDocumentTransactionLockedError(error);
   }
 }

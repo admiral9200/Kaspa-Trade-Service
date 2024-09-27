@@ -33,9 +33,15 @@ export class P2pProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-  public async listOrders(ticker: string, getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
-    const orders: OrderDm[] = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
-    return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
+  public async listOrders(
+    ticker: string,
+    getSellOrdersRequestDto: GetOrdersDto,
+  ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+    const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
+    return {
+      orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
+      totalCount,
+    };
   }
   public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
     const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
@@ -68,9 +74,10 @@ export class P2pProvider {
 
       return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
     } catch (error) {
-      if (error instanceof InvalidStatusForOrderUpdateError) {
+      if (this.p2pOrderBookService.isOrderInvalidStatusUpdateError(error)) {
         return { success: false };
       } else {
+        console.log(JSON.stringify(error));
         throw error;
       }
     }
@@ -214,10 +221,23 @@ export class P2pProvider {
 
     for (const order of orders) {
       try {
-        await this.p2pOrderBookService.handleExpiredOrder(order);
+        await this.handleExpiredOrder(order);
       } catch (error) {
         console.error('Failed in handling expired orders', error);
       }
     }
+  }
+
+  async handleExpiredOrder(order: P2pOrderEntity) {
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+
+    if (walletTotalBalance === 0n) {
+
+    } else {
+
+    }
+
   }
 }
