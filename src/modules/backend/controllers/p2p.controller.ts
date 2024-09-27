@@ -17,6 +17,8 @@ import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dt
 import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
 import { RemoveFromMarketplaceRequestDto } from '../model/dtos/remove-from-marketplace-request.dto';
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
+import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -83,6 +85,24 @@ export class P2pController {
   ): Promise<OffMarketplaceRequestResponseDto> {
     try {
       return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId, body.walletAddress);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('updateSellOrder/:sellOrderId')
+  async updateSellOrder(@Param('sellOrderId') sellOrderId: string, @Body() body: UpdateSellOrderDto): Promise<void> {
+    try {
+      await this.p2pProvider.updateSellOrder(sellOrderId, body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('relistSellOrder/:sellOrderId')
+  async relistOrder(@Param('sellOrderId') sellOrderId: string, @Body() body: RelistSellOrderDto): Promise<void> {
+    try {
+      await this.p2pProvider.relistSellOrder(sellOrderId, body);
     } catch (error) {
       throw error;
     }
