@@ -81,7 +81,6 @@ export class P2pProvider {
       if (this.p2pOrderBookService.isOrderInvalidStatusUpdateError(error)) {
         return { success: false };
       } else {
-        console.log(JSON.stringify(error));
         throw error;
       }
     }
@@ -99,7 +98,7 @@ export class P2pProvider {
     );
 
     if (confirmed) {
-      // await this.p2pOrderBookService.setReadyForSaleFromWatingTokens(order._id);
+      await this.p2pOrderBookService.setReadyForSale(order._id);
     }
 
     return {
@@ -139,7 +138,7 @@ export class P2pProvider {
     let transactionsResult: SwapTransactionsResult;
 
     if (isVerified) {
-      const order: P2pOrderEntity = await this.p2pOrderBookService.confirmBuy(sellOrderId);
+      const order: P2pOrderEntity = await this.p2pOrderBookService.updateOrderStatusToCheckout(sellOrderId);
 
       try {
         transactionsResult = await this.completeSwap(order);
@@ -306,7 +305,7 @@ export class P2pProvider {
   }
 
   async handleWatingForFeeOrder(order: P2pOrderEntity) {
-    await this.p2pOrderBookService.confirmBuy(order._id);
+    await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id);
     await this.completeSwap(order);
   }
 }

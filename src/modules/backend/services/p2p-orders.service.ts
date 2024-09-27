@@ -130,7 +130,7 @@ export class P2pOrdersService {
     }
   }
 
-  async confirmBuy(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+  async updateOrderStatusToCheckout(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     // FROM HERE, MEANS VALIDATION PASSED
     const order: P2pOrderEntity = await this.sellOrdersBookRepository.setCheckoutStatus(sellOrderId, fromLowFee);
     if (!order) {

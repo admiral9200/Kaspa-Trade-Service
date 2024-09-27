@@ -68,7 +68,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         status: SellOrderStatus.EXPIRED_UNKNOWN_MONEY_ERROR,
       });
     } catch (error) {
-      console.error(`Error updating to DELIST_ERROR for order by ID(${orderId}):`, error);
+      console.error(`Error updating to EXPIRED_UNKNOWN_MONEY_ERROR for order by ID(${orderId}):`, error);
       throw error;
     }
   }
@@ -80,7 +80,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         fulfillmentTimestamp: Date.now(),
       });
     } catch (error) {
-      console.error(`Error updating to SWAP_ERROR for order by ID(${orderId}):`, error);
+      console.error(`Error updating to COMPLETED for order by ID(${orderId}):`, error);
       throw error;
     }
   }
@@ -119,7 +119,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       );
 
       if (!order) {
-        console.log('Failed assigning buyer, already in progress');
+        console.log('Failed assigning status, already in progress');
         throw new InvalidStatusForOrderUpdateError();
       }
 
@@ -248,39 +248,29 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   }
 
   async getExpiredOrders(): Promise<P2pOrderEntity[]> {
-    try {
-      const currentDate = new Date();
-      const updatedOrders = await this.sellOrdersModel
-        .find({
-          status: {
-            $in: [SellOrderStatus.WAITING_FOR_KAS],
-          },
-          expiresAt: { $lt: currentDate },
-        })
-        .exec();
+    const currentDate = new Date();
+    const updatedOrders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.WAITING_FOR_KAS],
+        },
+        expiresAt: { $lt: currentDate },
+      })
+      .exec();
 
-      return updatedOrders;
-    } catch (error) {
-      console.error('Error getting expired orders', error);
-      return [];
-    }
+    return updatedOrders;
   }
 
   async getWaitingForFeesOrders(): Promise<P2pOrderEntity[]> {
-    try {
-      const orders = await this.sellOrdersModel
-        .find({
-          status: {
-            $in: [SellOrderStatus.WAITING_FOR_LOW_FEE],
-          },
-        })
-        .exec();
+    const orders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.WAITING_FOR_LOW_FEE],
+        },
+      })
+      .exec();
 
-      return orders;
-    } catch (error) {
-      console.error('Error getting expired orders', error);
-      return [];
-    }
+    return orders;
   }
 
   public isOrderInvalidStatusUpdateError(error) {
