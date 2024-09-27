@@ -78,7 +78,7 @@ export class P2pProvider {
 
       return P2pOrderBookResponseTransformer.transformOrderDmToBuyResponseDto(sellOrderDm, temporaryWalletPublicAddress);
     } catch (error) {
-      if (error instanceof InvalidStatusForOrderUpdateError) {
+      if (this.p2pOrderBookService.isOrderInvalidStatusUpdateError(error)) {
         return { success: false };
       } else {
         throw error;
@@ -106,6 +106,23 @@ export class P2pProvider {
     };
   }
 
+  private async completeSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
+    try {
+      const transactionsResult = await this.kaspaFacade.doSellSwap(order);
+      await this.p2pOrderBookService.setOrderCompleted(order._id);
+
+      return transactionsResult;
+    } catch (error) {
+      if (error instanceof PriorityFeeTooHighError) {
+        await this.p2pOrderBookService.setLowFeeErrorStatus(order._id);
+      } else {
+        await this.p2pOrderBookService.setSwapError(order._id, error.toString());
+      }
+
+      throw error;
+    }
+  }
+
   public async confirmBuy(sellOrderId: string, confirmBuyDto: ConfirmBuyRequestDto): Promise<ConfirmBuyOrderRequestResponseDto> {
     const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
 
@@ -121,11 +138,10 @@ export class P2pProvider {
     let transactionsResult: SwapTransactionsResult;
 
     if (isVerified) {
-      const order: P2pOrderEntity = await this.p2pOrderBookService.confirmBuy(sellOrderId);
+      const order: P2pOrderEntity = await this.p2pOrderBookService.updateOrderStatusToCheckout(sellOrderId);
 
       try {
-        transactionsResult = await this.kaspaFacade.doSellSwap(order);
-        await this.p2pOrderBookService.setOrderCompleted(sellOrderId);
+        transactionsResult = await this.completeSwap(order);
       } catch (error) {
         console.error('Failed to do sell swap', error);
 
@@ -135,8 +151,6 @@ export class P2pProvider {
             priorityFeeTooHigh: true,
           };
         } else {
-          await this.p2pOrderBookService.setSwapError(sellOrderId, error.toString());
-
           throw error;
         }
       }
@@ -244,5 +258,56 @@ export class P2pProvider {
     }
 
     await this.p2pOrderBookService.relistSellOrder(sellOrderId);
+  }
+
+  async handleExpiredOrders() {
+    const orders = await this.p2pOrderBookService.getExpiredOrders();
+
+    for (const order of orders) {
+      try {
+        await this.handleExpiredOrder(order);
+      } catch (error) {
+        console.error('Failed in handling expired orders', error);
+      }
+    }
+  }
+
+  async handleWatingForFeeOrders() {
+    const orders = await this.p2pOrderBookService.getWaitingForFeesOrders();
+
+    for (const order of orders) {
+      try {
+        await this.handleWatingForFeeOrder(order);
+      } catch (error) {
+        console.error('Failed in handling wating for fee order', error);
+      }
+    }
+  }
+
+  async handleExpiredOrder(order: P2pOrderEntity) {
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    await this.p2pOrderBookService.setOrderInCheckingExpired(order);
+
+    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+
+    if (walletTotalBalance === 0n) {
+      await this.p2pOrderBookService.setReadyForSale(order._id, true);
+    } else {
+      const transactionId = null; // TODO: get transaction id from kaspa api
+
+      if (!transactionId) {
+        await this.p2pOrderBookService.setExpiredUnknownMoneyErrorStatus(order._id);
+        throw new Error('Unkonwn money');
+      }
+
+      await this.p2pOrderBookService.setWaitingForKasStatus(order._id, new Date(), null, true);
+      await this.confirmBuy(order._id, { transactionId });
+    }
+  }
+
+  async handleWatingForFeeOrder(order: P2pOrderEntity) {
+    await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id);
+    await this.completeSwap(order);
   }
 }

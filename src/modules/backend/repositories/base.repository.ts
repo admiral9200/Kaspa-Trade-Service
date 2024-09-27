@@ -1,5 +1,7 @@
 import { FilterQuery, Model, ClientSession } from 'mongoose';
 
+const CONFLICT_TRANSACTION_ERROR_CODE = 112;
+const CONFLICT_TRANSACTION_ERROR_NAME = 'WriteConflict';
 export abstract class BaseRepository<T> {
   protected constructor(private readonly model: Model<T>) {}
 
@@ -35,5 +37,9 @@ export abstract class BaseRepository<T> {
     };
 
     return await this.model.findOneAndUpdate(filter, { $set: data }, { new: true }).session(session).exec();
+  }
+
+  isDocumentTransactionLockedError(error): boolean {
+    return error?.code === CONFLICT_TRANSACTION_ERROR_CODE && error?.codeName === CONFLICT_TRANSACTION_ERROR_NAME;
   }
 }

@@ -22,6 +22,7 @@ import { KaspaApiModule } from './services/kaspa-api/kaspa-api.module';
 import { KasplexApiModule } from './services/kasplex-api/kasplex-api.module';
 import { UtilsHelper } from './helpers/utils.helper';
 import { ScheduleModule } from '@nestjs/schedule';
+import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
 
 @Module({
   controllers: [P2pController],
@@ -47,6 +48,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     // Repositories
     SellOrdersBookRepository,
     P2pTemporaryWalletsSequenceRepository,
+    P2pOrdersExpirationCronJob,
   ],
   imports: [
     HttpModule,
