@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
-import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class P2pOrderHelper {

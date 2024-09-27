@@ -76,6 +76,10 @@ export class P2pOrdersService {
     }
   }
 
+  public async setOrderInCheckingExpired() {
+    
+  }
+
   public async getOrderById(sellOrderId: string): Promise<P2pOrderEntity> {
     const order: P2pOrderEntity = await this.sellOrdersBookRepository.getById(sellOrderId);
     if (!order) {
@@ -151,7 +155,7 @@ export class P2pOrdersService {
     session.startTransaction();
 
     try {
-      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId);
+      const sellOrder: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistWaitingForKasStatus(sellOrderId, session);
 
       await session.commitTransaction();
 

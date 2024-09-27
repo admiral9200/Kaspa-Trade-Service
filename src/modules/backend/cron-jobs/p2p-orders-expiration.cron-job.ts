@@ -7,7 +7,7 @@ import { P2pProvider } from '../providers/p2p.provider';
 export class P2pOrdersExpirationCronJob {
   constructor(private readonly p2pProvider: P2pProvider) {}
   @Cron(CronExpression.EVERY_5_SECONDS)
-  handleCron() {
-    this.p2pProvider.handleExpiredOrders();
+  async handleCron() {
+    await this.p2pProvider.handleExpiredOrders();
   }
 }
