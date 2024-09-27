@@ -1,9 +1,9 @@
-name: Deploy Node.js Application to Elastic Beanstalk
+name: Deploy Dev ENV Node.js Application to Elastic Beanstalk
 
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   deploy:
@@ -75,12 +75,12 @@ jobs:
         VERSION_LABEL="v${{ github.run_number }}-${{ env.NEW_COUNTER }}-${{ github.sha }}"
         
         aws elasticbeanstalk create-application-version \
-            --application-name kaspiano \
+            --application-name kaspiano-p2p-trade-service \
             --version-label ${VERSION_LABEL} \
             --source-bundle S3Bucket=elasticbeanstalk-us-east-1-009160070963,S3Key=deploy-trade-server-${{ github.run_number }}-${{ env.NEW_COUNTER }}.zip \
             --region $AWS_REGION
         
         aws elasticbeanstalk update-environment \
-            --environment-name p2p-trade-service \
+            --environment-name kaspiano-p2p-trade-service-dev \
             --version-label ${VERSION_LABEL} \
             --region $AWS_REGION

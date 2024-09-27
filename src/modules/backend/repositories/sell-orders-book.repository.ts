@@ -286,4 +286,31 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   public isOrderInvalidStatusUpdateError(error) {
     return error instanceof InvalidStatusForOrderUpdateError || this.isDocumentTransactionLockedError(error);
   }
+
+  async updateSellOrderPrices(sellOrderId: string, totalPrice: number, pricePerToken: number): Promise<void> {
+    try {
+      const updatedOrder = await this.sellOrdersModel
+        .updateOne(
+          { _id: sellOrderId, status: SellOrderStatus.OFF_MARKETPLACE },
+          {
+            totalPrice,
+            pricePerToken,
+          },
+        )
+        .exec();
+
+      if (!updatedOrder) {
+        throw new InvalidStatusForOrderUpdateError();
+      }
+    } catch (error) {
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
+        console.log('Error updating sell order prices:', error);
+      }
+      throw error;
+    }
+  }
+
+  async relistSellOrder(sellOrderId: string) {
+    return await this.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE);
+  }
 }

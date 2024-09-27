@@ -11,6 +11,7 @@ import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.consta
 import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
+import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 
 @Injectable()
 export class P2pOrdersService {
@@ -229,5 +230,17 @@ export class P2pOrdersService {
 
   isOrderInvalidStatusUpdateError(error: Error) {
     return this.sellOrdersBookRepository.isOrderInvalidStatusUpdateError(error);
+  }
+
+  async updateSellOrder(sellOrderId: string, updateSellOrderDto: UpdateSellOrderDto): Promise<void> {
+    await this.sellOrdersBookRepository.updateSellOrderPrices(
+      sellOrderId,
+      updateSellOrderDto.totalPrice,
+      updateSellOrderDto.pricePerToken,
+    );
+  }
+
+  async relistSellOrder(sellOrderId: string): Promise<void> {
+    await this.sellOrdersBookRepository.relistSellOrder(sellOrderId);
   }
 }
