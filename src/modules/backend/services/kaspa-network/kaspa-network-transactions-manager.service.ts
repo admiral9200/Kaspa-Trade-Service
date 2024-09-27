@@ -8,6 +8,7 @@ import {
   Opcodes,
   addressFromScriptPublicKey,
   ScriptBuilder,
+  IGeneratorSettingsObject,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -146,7 +147,7 @@ export class KaspaNetworkTransactionsManagerService {
 
     let currentPriorityFee = 0n;
 
-    const baseTransactionData = {
+    const baseTransactionData: IGeneratorSettingsObject = {
       priorityEntries: [],
       entries,
       outputs: [
@@ -155,6 +156,7 @@ export class KaspaNetworkTransactionsManagerService {
           amount: KRC20_BASE_TRANSACTION_AMOUNT,
         },
       ],
+      feeRate: 1.0,
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
       priorityFee: currentPriorityFee,
       networkId: this.rpcService.getNetwork(),
