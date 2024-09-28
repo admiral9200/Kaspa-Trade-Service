@@ -9,6 +9,7 @@ import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
+import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
@@ -302,5 +303,23 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async relistSellOrder(sellOrderId: string) {
     return await this.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE);
+  }
+
+  async updateSwapTransactionsResult(sellOrderId: string, transactionsResult: Partial<SwapTransactionsResult>): Promise<void> {
+    try {
+      await this.sellOrdersModel
+        .updateOne(
+          { _id: sellOrderId },
+          {
+            $set: {
+              transactions: transactionsResult,
+            },
+          },
+        )
+        .exec();
+    } catch (error) {
+      console.log('Error updating sell order transactions result:', error);
+      throw error;
+    }
   }
 }

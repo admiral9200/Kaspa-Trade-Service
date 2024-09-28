@@ -110,7 +110,9 @@ export class P2pProvider {
 
   private async completeSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
     try {
-      const transactionsResult = await this.kaspaFacade.doSellSwap(order);
+      const transactionsResult = await this.kaspaFacade.doSellSwap(order, async (result) => {
+        await this.p2pOrderBookService.updateSwapTransactionsResult(order._id, result);
+      });
       await this.p2pOrderBookService.setOrderCompleted(order._id);
 
       return transactionsResult;

@@ -8,10 +8,10 @@ import { ClientSession, Connection } from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.constants';
-import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { SwapTransactionsResult } from './kaspa-network/interfaces/SwapTransactionsResult.interface';
 
 @Injectable()
 export class P2pOrdersService {
@@ -237,5 +237,9 @@ export class P2pOrdersService {
 
   async relistSellOrder(sellOrderId: string): Promise<void> {
     await this.sellOrdersBookRepository.relistSellOrder(sellOrderId);
+  }
+
+  async updateSwapTransactionsResult(sellOrderId: string, result: Partial<SwapTransactionsResult>): Promise<void> {
+    await this.sellOrdersBookRepository.updateSwapTransactionsResult(sellOrderId, result);
   }
 }

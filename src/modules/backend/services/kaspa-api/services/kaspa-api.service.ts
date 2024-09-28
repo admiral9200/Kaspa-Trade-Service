@@ -22,6 +22,7 @@ export class KaspaApiService {
       },
       5,
       5000,
+      true,
     );
   }
 

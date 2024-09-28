@@ -38,7 +38,10 @@ export class KaspaFacade {
     );
   }
 
-  async doSellSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
+  async doSellSwap(
+    order: P2pOrderEntity,
+    notifyUpdate: (result: Partial<SwapTransactionsResult>) => Promise<void>,
+  ): Promise<SwapTransactionsResult> {
     try {
       const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
       const holderWalletPrivateKey = walletAccount.privateKey;
@@ -53,6 +56,8 @@ export class KaspaFacade {
         order.ticker,
         quantity,
         totalPrice,
+        order.transactions || {},
+        notifyUpdate,
       );
     } catch (error) {
       throw error;
