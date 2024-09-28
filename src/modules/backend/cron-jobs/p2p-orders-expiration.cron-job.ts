@@ -5,7 +5,7 @@ import { P2pProvider } from '../providers/p2p.provider';
 @Injectable()
 export class P2pOrdersExpirationCronJob {
   constructor(private readonly p2pProvider: P2pProvider) {}
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     try {
       await this.p2pProvider.handleWatingForFeeOrders();
