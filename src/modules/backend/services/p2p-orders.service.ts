@@ -140,14 +140,9 @@ export class P2pOrdersService {
     return order;
   }
 
-  async confirmDelist(sellOrderId: string): Promise<P2pOrderEntity> {
+  async confirmDelist(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     // FROM HERE, MEANS VALIDATION PASSED
-    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistStatus(sellOrderId);
-    if (!order) {
-      throw new HttpException('Sell order is not in the matching status, cannot delist.', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    return order;
+    return await this.sellOrdersBookRepository.setDelistStatus(sellOrderId, fromLowFee);
   }
 
   async setOrderCompleted(sellOrderId: string, isDelisting: boolean = false) {

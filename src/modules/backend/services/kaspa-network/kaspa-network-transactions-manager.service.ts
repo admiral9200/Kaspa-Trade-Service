@@ -152,17 +152,19 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   async calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee): Promise<FeesCalculation> {
-    return await this.utils.retryOnError(async () => {
+    const finalFees = await this.utils.retryOnError(async () => {
       const currentTransaction = await createTransactions(transactionData);
 
       const fees = await this.getTransactionFees(currentTransaction);
 
-      if (fees.priorityFee > maxPriorityFee) {
-        throw new PriorityFeeTooHighError();
-      }
-
       return fees;
     });
+
+    if (finalFees.priorityFee > maxPriorityFee) {
+      throw new PriorityFeeTooHighError();
+    }
+
+    return finalFees;
   }
 
   async doKrc20CommitTransaction(
