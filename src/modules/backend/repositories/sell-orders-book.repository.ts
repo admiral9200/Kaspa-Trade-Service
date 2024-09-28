@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -19,53 +19,29 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     super(sellOrdersModel);
   }
 
-  async setWaitingForKasStatus(orderId: string, expiresAt: Date, session?: ClientSession): Promise<P2pOrderEntity> {
-    try {
-      const order = await super.updateByOne(
-        '_id',
-        orderId,
-        { status: SellOrderStatus.WAITING_FOR_KAS, expiresAt: expiresAt },
-        { status: SellOrderStatus.LISTED_FOR_SALE },
-        session,
-      );
-
-      if (!order) {
-        console.log('Failed assigning buyer, already in progress');
-        throw new InvalidStatusForOrderUpdateError();
-      }
-
-      return order;
-    } catch (error) {
-      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
-        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
-      }
-
-      throw error;
-    }
+  async setWaitingForKasStatus(
+    orderId: string,
+    expiresAt: Date,
+    session?: ClientSession,
+    fromExpired: boolean = false,
+  ): Promise<P2pOrderEntity> {
+    return await this.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.WAITING_FOR_KAS,
+      fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.LISTED_FOR_SALE,
+      { expiresAt: expiresAt },
+      session,
+    );
   }
 
-  async setDelistWaitingForKasStatus(orderId: string): Promise<P2pOrderEntity> {
-    try {
-      const order = await super.updateByOne(
-        '_id',
-        orderId,
-        { status: SellOrderStatus.OFF_MARKETPLACE },
-        { status: SellOrderStatus.LISTED_FOR_SALE },
-      );
-
-      if (!order) {
-        console.log('Failed assigning buyer, already in progress');
-        throw new InvalidStatusForOrderUpdateError();
-      }
-
-      return order;
-    } catch (error) {
-      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
-        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
-      }
-
-      throw error;
-    }
+  async setDelistWaitingForKasStatus(orderId: string, session?: ClientSession): Promise<P2pOrderEntity> {
+    return await this.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.OFF_MARKETPLACE,
+      SellOrderStatus.LISTED_FOR_SALE,
+      {},
+      session,
+    );
   }
 
   async setSwapError(orderId: string, errorMessage: string): Promise<P2pOrderEntity> {
@@ -86,6 +62,17 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
+  async setExpiredUnknownMoneyErrorStatus(orderId: string): Promise<P2pOrderEntity> {
+    try {
+      return await super.updateByOne('_id', orderId, {
+        status: SellOrderStatus.EXPIRED_UNKNOWN_MONEY_ERROR,
+      });
+    } catch (error) {
+      console.error(`Error updating to EXPIRED_UNKNOWN_MONEY_ERROR for order by ID(${orderId}):`, error);
+      throw error;
+    }
+  }
+
   async setOrderCompleted(orderId: string, isDelisting: boolean = false): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne('_id', orderId, {
@@ -93,63 +80,55 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         fulfillmentTimestamp: Date.now(),
       });
     } catch (error) {
-      console.error(`Error updating to SWAP_ERROR for order by ID(${orderId}):`, error);
+      console.error(`Error updating to COMPLETED for order by ID(${orderId}):`, error);
       throw error;
     }
   }
 
-  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false, session?: ClientSession): Promise<P2pOrderEntity> {
-    try {
-      return await super.updateByOne(
-        '_id',
-        orderId,
-        { status: SellOrderStatus.CHECKOUT },
-        { status: fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS },
-      );
-    } catch (error) {
-      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
-      throw error;
-    }
+  async setCheckoutStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+    return await this.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.CHECKOUT,
+      fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.WAITING_FOR_KAS,
+      {},
+    );
   }
 
   async setLowFeeStatus(orderId: string): Promise<P2pOrderEntity> {
-    try {
-      return await super.updateByOne(
-        '_id',
-        orderId,
-        { status: SellOrderStatus.WAITING_FOR_LOW_FEE },
-        { status: SellOrderStatus.CHECKOUT },
-      );
-    } catch (error) {
-      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
-      throw error;
-    }
+    return await this.transitionOrderStatus(orderId, SellOrderStatus.WAITING_FOR_LOW_FEE, SellOrderStatus.CHECKOUT);
   }
 
   async setDelistStatus(orderId: string): Promise<P2pOrderEntity> {
-    try {
-      return await super.updateByOne(
-        '_id',
-        orderId,
-        { status: SellOrderStatus.DELISTING },
-        { status: SellOrderStatus.OFF_MARKETPLACE },
-      );
-    } catch (error) {
-      console.error(`Error updating to CHECKOUT status for order by ID(${orderId}):`, error);
-      throw error;
-    }
+    return await this.transitionOrderStatus(orderId, SellOrderStatus.DELISTING, SellOrderStatus.OFF_MARKETPLACE);
   }
 
   async transitionOrderStatus(
     orderId: string,
     newStatus: SellOrderStatus,
     requiredStatus: SellOrderStatus,
+    additionalData: Partial<P2pOrderEntity> = {},
     session?: ClientSession,
   ): Promise<P2pOrderEntity> {
     try {
-      return await super.updateByOne('_id', orderId, { status: newStatus }, { status: requiredStatus }, session);
+      const order = await super.updateByOne(
+        '_id',
+        orderId,
+        { status: newStatus, ...additionalData },
+        { status: requiredStatus },
+        session,
+      );
+
+      if (!order) {
+        console.log('Failed assigning status, already in progress');
+        throw new InvalidStatusForOrderUpdateError();
+      }
+
+      return order;
     } catch (error) {
-      console.error(`Error transitioning to ${newStatus} status for order by ID(${orderId}):`, error);
+      if (!this.isOrderInvalidStatusUpdateError(error)) {
+        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+      }
+
       throw error;
     }
   }
@@ -196,7 +175,6 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
-    session?: ClientSession,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
@@ -269,32 +247,34 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async updateAndGetExpiredOrders(session?: ClientSession): Promise<P2pOrderEntity[]> {
-    try {
-      const currentDate = new Date();
-      const updatedOrders = await this.sellOrdersModel
-        .find({
-          status: {
-            $in: [SellOrderStatus.WAITING_FOR_KAS],
-          },
-          expiresAt: { $lt: currentDate },
-        })
-        .session(session)
-        .exec();
+  async getExpiredOrders(): Promise<P2pOrderEntity[]> {
+    const currentDate = new Date();
+    const updatedOrders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.WAITING_FOR_KAS],
+        },
+        expiresAt: { $lt: currentDate },
+      })
+      .exec();
 
-      const updatedOrderIds = updatedOrders.map((order) => order._id);
+    return updatedOrders;
+  }
 
-      await this.sellOrdersModel.updateMany(
-        { _id: { $in: updatedOrderIds } },
-        { $set: { status: SellOrderStatus.LISTED_FOR_SALE, buyerWalletAddress: undefined } },
-        { session },
-      );
+  async getWaitingForFeesOrders(): Promise<P2pOrderEntity[]> {
+    const orders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.WAITING_FOR_LOW_FEE],
+        },
+      })
+      .exec();
 
-      return updatedOrders;
-    } catch (error) {
-      console.error('Error updating and getting expired orders:', error);
-      throw error;
-    }
+    return orders;
+  }
+
+  public isOrderInvalidStatusUpdateError(error) {
+    return error instanceof InvalidStatusForOrderUpdateError || this.isDocumentTransactionLockedError(error);
   }
 
   async updateSellOrderPrices(sellOrderId: string, totalPrice: number, pricePerToken: number): Promise<void> {
@@ -310,10 +290,10 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         .exec();
 
       if (!updatedOrder) {
-        throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
+        throw new InvalidStatusForOrderUpdateError();
       }
     } catch (error) {
-      if (!(error instanceof HttpException)) {
+      if (!(error instanceof InvalidStatusForOrderUpdateError)) {
         console.log('Error updating sell order prices:', error);
       }
       throw error;
@@ -321,24 +301,6 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   }
 
   async relistSellOrder(sellOrderId: string) {
-    try {
-      const updatedOrder = await this.sellOrdersModel
-        .updateOne(
-          { _id: sellOrderId, status: SellOrderStatus.OFF_MARKETPLACE },
-          {
-            status: SellOrderStatus.LISTED_FOR_SALE,
-          },
-        )
-        .exec();
-
-      if (!updatedOrder) {
-        throw new HttpException('Order is not in off market status', HttpStatus.BAD_REQUEST);
-      }
-    } catch (error) {
-      if (!(error instanceof HttpException)) {
-        console.log('Error relisting sell order prices:', error);
-      }
-      throw error;
-    }
+    return await this.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE);
   }
 }

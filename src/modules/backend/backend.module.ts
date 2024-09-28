@@ -24,6 +24,7 @@ import { UtilsHelper } from './helpers/utils.helper';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TelegramNotifierModule } from '../shared/telegram-notifier/telegram-notifier.module';
 import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram-notifier.service';
+import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
 
 @Module({
   controllers: [P2pController],
@@ -50,6 +51,7 @@ import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram
     // Repositories
     SellOrdersBookRepository,
     P2pTemporaryWalletsSequenceRepository,
+    P2pOrdersExpirationCronJob,
   ],
   imports: [
     TelegramNotifierModule,

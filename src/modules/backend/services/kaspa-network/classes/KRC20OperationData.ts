@@ -12,18 +12,14 @@ export interface KRC20OperationDataInterface {
   pre?: string;
 }
 
-export const KRC20_BASE_TRANSACTION_AMOUNT = kaspaToSompi('0.2');
+export const KRC20_BASE_TRANSACTION_AMOUNT = kaspaToSompi('3');
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: kaspaToSompi('1000'),
   MINT: kaspaToSompi('1'),
   TRANSFER: kaspaToSompi(String(1817 / 1e8)),
 };
 
-export function getTransferData(
-  ticker: string,
-  amount: bigint,
-  to: string,
-): KRC20OperationDataInterface {
+export function getTransferData(ticker: string, amount: bigint, to: string): KRC20OperationDataInterface {
   return {
     p: 'krc-20',
     op: 'transfer',
