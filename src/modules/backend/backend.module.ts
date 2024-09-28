@@ -22,6 +22,8 @@ import { KaspaApiModule } from './services/kaspa-api/kaspa-api.module';
 import { KasplexApiModule } from './services/kasplex-api/kasplex-api.module';
 import { UtilsHelper } from './helpers/utils.helper';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TelegramNotifierModule } from '../shared/telegram-notifier/telegram-notifier.module';
+import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram-notifier.service';
 import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
 
 @Module({
@@ -40,6 +42,7 @@ import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cr
     TemporaryWalletSequenceService,
     RpcService,
     EncryptionService,
+    P2pTelegramNotifierService,
 
     // Helpers
     P2pOrderHelper,
@@ -51,6 +54,7 @@ import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cr
     P2pOrdersExpirationCronJob,
   ],
   imports: [
+    TelegramNotifierModule,
     HttpModule,
     MongooseModule.forRootAsync({
       imports: [AppConfigModule],
