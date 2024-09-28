@@ -9,6 +9,7 @@ import {
   addressFromScriptPublicKey,
   ScriptBuilder,
   IGeneratorSettingsObject,
+  UtxoEntryReference,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -16,6 +17,7 @@ import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
 import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
 import { UtilsHelper } from '../../helpers/utils.helper';
+import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
@@ -311,10 +313,23 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   async getWalletTotalBalance(address: string): Promise<bigint> {
+    const result = await this.getWalletTotalBalanceAndUtxos(address);
+    return result.totalBalance;
+  }
+
+  async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
+    const utxoEntries = await this.getWalletUtxos(address);
+    return {
+      totalBalance: utxoEntries.reduce((acc, curr) => acc + curr.amount, 0n),
+      utxoEntries: utxoEntries,
+    };
+  }
+
+  async getWalletUtxos(address: string): Promise<UtxoEntryReference[]> {
     const utxos = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [address],
     });
 
-    return utxos.entries.reduce((acc, curr) => acc + curr.amount, 0n);
+    return utxos.entries;
   }
 }

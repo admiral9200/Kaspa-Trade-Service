@@ -245,10 +245,24 @@ export class P2pController {
     //   2518180000n,
     // );
 
+    // return this.kaspaNetworkActionsService.getWalletTotalBalance(id);
+
+    // const wallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(Number(id));
+    // return {
+    //   private: wallet.privateKey.toString(),
+    //   public: wallet.address,
+    // };
+
     const wallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(Number(id));
+
     return {
-      private: wallet.privateKey.toString(),
-      public: wallet.address,
+      wallet: wallet.address,
+      utxos: JSON.parse(
+        JSON.stringify(await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(wallet.address), (key, value) =>
+          typeof value === 'bigint' ? value.toString() : value,
+        ),
+      ),
+      utxosCount: (await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(wallet.address)).utxoEntries.length,
     };
   }
   @Get('test4')

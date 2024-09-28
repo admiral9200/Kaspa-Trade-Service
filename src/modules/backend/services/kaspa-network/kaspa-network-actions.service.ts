@@ -12,6 +12,7 @@ import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.in
 import { CancelSwapTransactionsResult } from './interfaces/CancelSwapTransactionsResult.interface';
 import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwap';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
+import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
@@ -399,6 +400,12 @@ export class KaspaNetworkActionsService {
   async getWalletTotalBalance(address: string): Promise<bigint> {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return this.transactionsManagerService.getWalletTotalBalance(address);
+    });
+  }
+
+  async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      return this.transactionsManagerService.getWalletTotalBalanceAndUtxos(address);
     });
   }
 

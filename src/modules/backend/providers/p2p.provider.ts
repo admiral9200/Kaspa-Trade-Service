@@ -26,6 +26,8 @@ import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-ma
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
+import { P2pOrderHelper } from '../helpers/p2p-order.helper';
+import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
 
 @Injectable()
 export class P2pProvider {
@@ -211,6 +213,20 @@ export class P2pProvider {
   }
 
   async releaseBuyLock(sellOrderId: string) {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
+
+    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
+      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
+    }
+
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+
+    if (walletTotalBalance > 0n) {
+      throw new Error('Wallet has money in it, cannot release buy lock');
+    }
+
     await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
   }
 
@@ -289,17 +305,18 @@ export class P2pProvider {
 
     await this.p2pOrderBookService.setOrderInCheckingExpired(order);
 
-    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+    const walletTotalBalanceAndUtxos: TotalBalanceWithUtxosInterface =
+      await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(temporaryWalletPublicAddress);
 
-    if (walletTotalBalance === 0n) {
-      await this.p2pOrderBookService.setReadyForSale(order._id, true);
+    if (walletTotalBalanceAndUtxos.totalBalance === 0n) {
+      await this.p2pOrderBookService.releaseBuyLock(order._id, true);
     } else {
-      const transactionId = null; // TODO: get transaction id from kaspa api
-
-      if (!transactionId) {
+      if (walletTotalBalanceAndUtxos.utxoEntries.length !== 1) {
         await this.p2pOrderBookService.setExpiredUnknownMoneyErrorStatus(order._id);
         throw new Error('Unkonwn money');
       }
+
+      const transactionId = walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId;
 
       await this.p2pOrderBookService.setWaitingForKasStatus(order._id, new Date(), null, true);
       await this.confirmBuy(order._id, { transactionId });

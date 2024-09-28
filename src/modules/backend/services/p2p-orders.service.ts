@@ -117,12 +117,12 @@ export class P2pOrdersService {
     return order;
   }
 
-  public async setReadyForSale(orderId: string, fromExpired: boolean = false): Promise<void> {
+  public async setReadyForSale(orderId: string): Promise<void> {
     try {
       await this.sellOrdersBookRepository.transitionOrderStatus(
         orderId,
         SellOrderStatus.LISTED_FOR_SALE,
-        fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.WAITING_FOR_TOKENS,
+        SellOrderStatus.WAITING_FOR_TOKENS,
       );
     } catch (error) {
       console.log('Failed to set order status to ready for sale', error);
@@ -198,17 +198,12 @@ export class P2pOrdersService {
     }
   }
 
-  async releaseBuyLock(sellOrderId: string) {
-    const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
-
-    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
-      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
-    }
-
+  async releaseBuyLock(sellOrderId: string, fromExpired: boolean = false) {
     await this.sellOrdersBookRepository.transitionOrderStatus(
       sellOrderId,
       SellOrderStatus.LISTED_FOR_SALE,
-      SellOrderStatus.WAITING_FOR_KAS,
+      fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.WAITING_FOR_KAS,
+      { buyerWalletAddress: null },
     );
   }
 
