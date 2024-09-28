@@ -324,7 +324,7 @@ export class P2pProvider {
   }
 
   async handleWatingForFeeOrder(order: P2pOrderEntity) {
-    await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id);
+    await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id, true);
     await this.completeSwap(order);
   }
 }

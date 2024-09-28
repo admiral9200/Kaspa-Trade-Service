@@ -5,7 +5,6 @@ import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
-import { KaspaApiService } from '../services/kaspa-api/services/kaspa-api.service';
 
 @Injectable()
 export class KaspaFacade {

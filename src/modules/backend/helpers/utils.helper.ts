@@ -9,8 +9,8 @@ export class UtilsHelper {
         return await fn();
       } catch (error) {
         attempt++;
-        console.error(`retryOnError: Error on attempt ${attempt} of ${times}`);
-        console.error(error);
+        console.log(`retryOnError: Error on attempt ${attempt} of ${times}`);
+        console.log(error);
 
         if (waitBeforeNextAttempt) {
           await new Promise((resolve) => setTimeout(resolve, waitBeforeNextAttempt));

@@ -257,6 +257,7 @@ export class P2pController {
 
     return {
       wallet: wallet.address,
+      pk: wallet.privateKey.toString(),
       utxos: JSON.parse(
         JSON.stringify(await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(wallet.address), (key, value) =>
           typeof value === 'bigint' ? value.toString() : value,
