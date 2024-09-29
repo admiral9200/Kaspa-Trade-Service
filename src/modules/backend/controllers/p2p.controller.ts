@@ -46,7 +46,7 @@ export class P2pController {
   }
 
   @Post('getUserListings')
-  async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
+  async getListings(@Body() body: GetUserListingsDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     try {
       return await this.p2pProvider.userListings(body);
     } catch (error) {

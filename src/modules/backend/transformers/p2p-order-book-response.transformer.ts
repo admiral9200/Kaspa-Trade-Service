@@ -59,13 +59,9 @@ export class P2pOrderBookResponseTransformer {
     };
   }
 
-  static transformOrderDmToOffMerketplaceResponseDto(
-    orderDm: OrderDm,
-    temporaryWalletAddress: string,
-  ): OffMarketplaceRequestResponseDto {
+  static transformOrderDmToOffMerketplaceResponseDto(orderDm: OrderDm): OffMarketplaceRequestResponseDto {
     return {
       success: true,
-      temporaryWalletAddress: temporaryWalletAddress,
       status: orderDm.status,
     };
   }

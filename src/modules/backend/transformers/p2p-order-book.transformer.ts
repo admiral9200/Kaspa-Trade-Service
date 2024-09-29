@@ -15,6 +15,7 @@ export class P2pOrderBookTransformer {
       totalPrice: entity.totalPrice,
       expiresAt: entity.expiresAt,
       createdAt: entity.createdAt,
+      status: entity.status,
     };
   }
 
