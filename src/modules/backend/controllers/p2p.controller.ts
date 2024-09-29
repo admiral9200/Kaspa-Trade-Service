@@ -21,6 +21,7 @@ import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
+import { AppLoggerService } from '../../core/modules/logger/app-logger.service';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -29,6 +30,7 @@ export class P2pController {
     private readonly p2pProvider: P2pProvider,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly config: AppConfigService,
+    private readonly logger: AppLoggerService,
   ) {}
 
   @Post('getSellOrders')
@@ -42,14 +44,17 @@ export class P2pController {
       }
       return await this.p2pProvider.listOrders(ticker, body);
     } catch (error) {
+      this.logger.error('Error getting sell orders', error);
       throw error;
     }
   }
+
   @Post('getUserListings')
   async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
     try {
       return await this.p2pProvider.userListings(body);
     } catch (error) {
+      this.logger.error('Error getting user listings', error);
       throw error;
     }
   }
@@ -59,6 +64,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.getOrdersHistory(GetOrdersHistoryDto);
     } catch (error) {
+      this.logger.error('Error getting orders history', error);
       throw error;
     }
   }
@@ -72,6 +78,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.createOrder(sellRequestDto);
     } catch (error) {
+      this.logger.error('Error creating sell order', error);
       throw error;
     }
   }
@@ -85,6 +92,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.confirmSell(sellOrderId);
     } catch (error) {
+      this.logger.error('Error confirming sell order', error);
       throw error;
     }
   }
@@ -97,6 +105,17 @@ export class P2pController {
     try {
       return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId, body.walletAddress);
     } catch (error) {
+      this.logger.error('Error removing sell order from marketplace', error);
+      throw error;
+    }
+  }
+
+  @Get('getOrderStatus/:sellOrderId')
+  async getOrderStatus(sellOrderId: string) {
+    try {
+      return await this.p2pProvider.getOrderStatus(sellOrderId);
+    } catch (error) {
+      this.logger.error('Error getting order status', error);
       throw error;
     }
   }
@@ -106,6 +125,7 @@ export class P2pController {
     try {
       await this.p2pProvider.updateSellOrder(sellOrderId, body);
     } catch (error) {
+      this.logger.error('Error updating sell order', error);
       throw error;
     }
   }
@@ -115,6 +135,7 @@ export class P2pController {
     try {
       await this.p2pProvider.relistSellOrder(sellOrderId, body);
     } catch (error) {
+      this.logger.error('Error relisting sell order', error);
       throw error;
     }
   }
@@ -127,6 +148,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.confirmDelistSale(sellOrderId, body);
     } catch (error) {
+      this.logger.error('Error confirming delist order', error);
       throw error;
     }
   }
@@ -136,6 +158,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.releaseBuyLock(sellOrderId);
     } catch (error) {
+      this.logger.error('Error releasing buy lock', error);
       throw error;
     }
   }
@@ -150,6 +173,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.buy(sellOrderId, body);
     } catch (error) {
+      this.logger.error('Error buying token', error);
       throw error;
     }
   }
@@ -167,6 +191,7 @@ export class P2pController {
     try {
       return await this.p2pProvider.confirmBuy(sellOrderId, body);
     } catch (error) {
+      this.logger.error('Error confirming buy order', error);
       throw error;
     }
   }
