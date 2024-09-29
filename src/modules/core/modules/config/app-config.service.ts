@@ -19,6 +19,14 @@ export class AppConfigService {
     return this.configService.get('name') || 'default-service';
   }
 
+  get getTelegramBotApiKey(): string {
+    return this.configService.get('TELEGRAM_BOT_API_KEY');
+  }
+
+  getTelegramErrorsChannelId(): string {
+    return this.configService.get('TELEGRAM_P2P_ERRORS_CHANNEL_ID');
+  }
+
   get getEnv(): string {
     return this.configService.get('env');
   }
