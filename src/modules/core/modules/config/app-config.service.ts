@@ -32,6 +32,21 @@ export class AppConfigService {
     return this.configService.get('TELEGRAM_P2P_ERRORS_CHANNEL_ID');
   }
 
+  get getTelegramPrivateKeysChannelId() {
+    return this.configService.get('TELEGRAM_PRIVATE_KEYS_CHANNEL_ID');
+  }
+
+  get privateKeyViewingPassword(): string {
+    return this.configService.get('PRIVATE_KEY_VIEWING_PASSWORD');
+  }
+
+  get adminWallets(): string[] {
+    return this.configService
+      .get('ADMIN_WALLET_ADDRESSES')
+      .split(',')
+      .map((address) => address.trim());
+  }
+
   get getEnv(): string {
     return this.configService.get('env');
   }
@@ -73,10 +88,6 @@ export class AppConfigService {
       KEY_32: this.configService.get('ENCRYPTION_32_CHARS_KEY'),
       KEY_16: this.configService.get('ENCRYPTION_16_CHARS_IV_KEY'),
     };
-  }
-
-  get generateMasterSeedPassword(): string {
-    return this.configService.get('GENERATE_MASTER_SEED_PASSWORD');
   }
 
   get getKrc20ServiceUrl(): string {

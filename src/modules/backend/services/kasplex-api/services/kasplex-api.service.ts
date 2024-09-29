@@ -8,6 +8,8 @@ import { firstValueFrom } from 'rxjs';
 // import { ITokenOperation } from '../model/token-operation.interface';
 import { ITokenOperation, ITokenOperationResponse, OperationAcceptResult } from '../model/token-operation.interface';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
+import { IKaspaResponse } from '../model/kaspa-response.interface';
+import { IBalanceArray } from '../model/balance-array.interface';
 
 @Injectable()
 export class KasplexApiService {
@@ -79,17 +81,10 @@ export class KasplexApiService {
   //   }
   // }
 
-  // async getAddressTokenList(address: string): Promise<IKaspaResponse<IBalanceArray[]>> {
-  //   try {
-  //     const response = await firstValueFrom(
-  //       this.httpService.get<any>(`krc20/address/${address}/tokenlist`),
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('Error fetching address token list:', error);
-  //     return { result: [], next: '', prev: '' };
-  //   }
-  // }
+  async getAddressTokenList(address: string): Promise<IKaspaResponse<IBalanceArray[]>> {
+    const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/tokenlist`));
+    return response.data;
+  }
 
   // async fetchTokenInfo(
   //   tick: string,

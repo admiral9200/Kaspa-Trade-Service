@@ -6,7 +6,7 @@ import { AppConfigService } from 'src/modules/core/modules/config/app-config.ser
 import { EncryptionService } from '../encryption.service';
 import { WalletAccount } from './interfaces/wallet-account.interface';
 import { SwapTransactionsResult } from './interfaces/SwapTransactionsResult.interface';
-import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
+import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface';
 import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwap';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
@@ -256,7 +256,8 @@ export class KaspaNetworkActionsService {
 
     return {
       encryptedXPrv: encryptedKey,
-      walletForFeeCalc: (await this.getWalletAccountAtIndex(0, masterWalletKey)).address,
+      mnemonic,
+      seed,
     };
   }
 

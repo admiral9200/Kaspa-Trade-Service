@@ -23,7 +23,7 @@ export class TelegramBotService {
     const envTag = `[${this.configService.isProduction ? 'PROD' : 'DEV'}]`;
     const data = {
       chat_id: channelId,
-      text: `${envTag} - ${message}`,
+      text: `${envTag} \\- ${message}`,
       parse_mode: 'MarkdownV2',
     };
 

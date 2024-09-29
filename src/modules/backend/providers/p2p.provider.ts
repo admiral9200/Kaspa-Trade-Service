@@ -69,10 +69,6 @@ export class P2pProvider {
     return await this.kaspaNetworkActionsService.getCurrentFeeRate();
   }
 
-  async generateMasterWallet() {
-    return await this.kaspaNetworkActionsService.generateMasterWallet();
-  }
-
   public async buy(orderId: string, buyRequestDto: BuyRequestDto): Promise<BuyRequestResponseDto> {
     try {
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyRequestDto.walletAddress);

@@ -15,6 +15,8 @@ import { SwapTransactionsResult } from './kaspa-network/interfaces/SwapTransacti
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
+import { isEmptyString } from '../utils/object.utils';
 
 @Injectable()
 export class P2pOrdersService {
@@ -247,5 +249,27 @@ export class P2pOrdersService {
     } catch (error) {
       throw new HttpException('Failed to get orders history', HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  async updateOrderFromOrdersManagement(
+    orderId: string,
+    updateSellOrderDto: OrdersManagementUpdateSellOrderDto,
+  ): Promise<P2pOrderEntity> {
+    const dataToUpdate: OrdersManagementUpdateSellOrderDto = {
+      status: updateSellOrderDto.status,
+      transactions: updateSellOrderDto.transactions,
+    };
+
+    Object.keys(dataToUpdate.transactions).forEach((key) => {
+      if (isEmptyString(dataToUpdate.transactions[key])) {
+        dataToUpdate.transactions[key] = null;
+      }
+    });
+
+    return this.sellOrdersBookRepository.updateOrderFromOrdersManagement(orderId, dataToUpdate);
+  }
+
+  async setWalletKeyExposedBy(order: P2pOrderEntity, viewerWallet: string) {
+    await this.sellOrdersBookRepository.setWalletKeyExposedBy(order, viewerWallet);
   }
 }
