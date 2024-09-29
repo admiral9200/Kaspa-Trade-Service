@@ -12,6 +12,9 @@ import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
 
 @Injectable()
 export class P2pOrdersService {
@@ -242,5 +245,13 @@ export class P2pOrdersService {
 
   async relistSellOrder(sellOrderId: string): Promise<void> {
     await this.sellOrdersBookRepository.relistSellOrder(sellOrderId);
+  }
+
+  async getOrdersHistory(filters: GetOrdersHistoryFiltersDto, sort: SortDto, pagination: PaginationDto) {
+    try {
+      return await this.sellOrdersBookRepository.getOrdersHistory(filters, sort, pagination);
+    } catch (error) {
+      throw new HttpException('Failed to get orders history', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }
