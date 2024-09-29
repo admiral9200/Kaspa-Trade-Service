@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ServiceTypeEnum } from '../../enums/service-type.enum';
 
 @Injectable()
 export class AppConfigService {
-  constructor(private readonly configService: ConfigService) {
+  constructor(readonly configService: ConfigService) {
     console.log('All Environment Variables:', JSON.stringify(process.env));
+  }
+
+  get getServiceType(): ServiceTypeEnum {
+    return this.configService.get('SERVICE_TYPE') as ServiceTypeEnum;
   }
 
   get getServiceCommunicationSecretKey(): string {
@@ -23,7 +28,7 @@ export class AppConfigService {
     return this.configService.get('TELEGRAM_BOT_API_KEY');
   }
 
-  getTelegramErrorsChannelId(): string {
+  get getTelegramErrorsChannelId(): string {
     return this.configService.get('TELEGRAM_P2P_ERRORS_CHANNEL_ID');
   }
 

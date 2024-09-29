@@ -25,34 +25,17 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TelegramNotifierModule } from '../shared/telegram-notifier/telegram-notifier.module';
 import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram-notifier.service';
 import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
+import { ServiceTypeEnum } from '../core/enums/service-type.enum';
+import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
+import { Controller } from '@nestjs/common/interfaces';
+import { Type } from '@nestjs/common/interfaces/type.interface';
+
+const serviceType: ServiceTypeEnum = (process.env.SERVICE_TYPE as ServiceTypeEnum) || ServiceTypeEnum.API;
+console.log('Backend module loaded - service running on mode:', serviceType);
 
 @Module({
-  controllers: [P2pController],
-  providers: [
-    // Providers
-    P2pProvider,
-
-    // Facades
-    KaspaFacade,
-
-    // Services
-    P2pOrdersService,
-    KaspaNetworkActionsService,
-    KaspaNetworkTransactionsManagerService,
-    TemporaryWalletSequenceService,
-    RpcService,
-    EncryptionService,
-    P2pTelegramNotifierService,
-
-    // Helpers
-    P2pOrderHelper,
-    UtilsHelper,
-
-    // Repositories
-    SellOrdersBookRepository,
-    P2pTemporaryWalletsSequenceRepository,
-    P2pOrdersExpirationCronJob,
-  ],
+  controllers: BackendModule.buildControllersList(),
+  providers: BackendModule.buildProviders(),
   imports: [
     TelegramNotifierModule,
     HttpModule,
@@ -83,5 +66,48 @@ export class BackendModule implements OnModuleInit {
 
   async onModuleInit() {
     await this.temporaryWalletsSequenceRepository.createSequenceIfNotExists();
+  }
+
+  static buildControllersList(): Type<any>[] {
+    const controllers: any[] = [];
+
+    if (serviceType === ServiceTypeEnum.API) {
+      controllers.push(P2pController);
+    }
+
+    return controllers;
+  }
+
+  static buildProviders(): Provider[] {
+    const providers: Provider[] = [
+      // Providers
+      P2pProvider,
+
+      // Facades
+      KaspaFacade,
+
+      // Services
+      P2pOrdersService,
+      KaspaNetworkActionsService,
+      KaspaNetworkTransactionsManagerService,
+      TemporaryWalletSequenceService,
+      RpcService,
+      EncryptionService,
+      P2pTelegramNotifierService,
+
+      // Helpers
+      P2pOrderHelper,
+      UtilsHelper,
+
+      // Repositories
+      SellOrdersBookRepository,
+      P2pTemporaryWalletsSequenceRepository,
+    ];
+
+    if (serviceType === ServiceTypeEnum.CRON) {
+      providers.push(P2pOrdersExpirationCronJob);
+    }
+
+    return providers;
   }
 }

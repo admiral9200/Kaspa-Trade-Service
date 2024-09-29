@@ -19,7 +19,7 @@ export class P2pTelegramNotifierService {
       return;
     }
 
-    const channelId: string = this.configService.getTelegramErrorsChannelId();
+    const channelId: string = this.configService.getTelegramErrorsChannelId;
 
     const icon = this.getIconForType(type);
     const messageHeader = `${icon} [${this.SERVICE_NAME}] ${icon}\n`;

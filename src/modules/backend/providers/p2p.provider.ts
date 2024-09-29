@@ -29,6 +29,7 @@ import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
+import { GetOrderStatusResponseDto } from '../model/dtos/get-order-status-response.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -164,6 +165,15 @@ export class P2pProvider {
     return {
       confirmed: isVerified,
       transactions: transactionsResult,
+    };
+  }
+
+  public async getOrderStatus(sellOrderId: string): Promise<GetOrderStatusResponseDto> {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
+
+    return {
+      status: order.status,
+      transactionsData: order.transactions,
     };
   }
 
