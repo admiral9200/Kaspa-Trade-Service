@@ -8,6 +8,8 @@ import * as WebSocket from 'websocket';
 // Needed for Wasm
 globalThis.WebSocket = WebSocket.w3cwebsocket;
 
+let isShuttingDown = false;
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -30,6 +32,37 @@ async function bootstrap() {
 
   console.log(`app running on port:::`, port);
   await app.listen(port);
+
+  ['SIGINT', 'SIGTERM'].forEach((signal) => {
+    process.on(signal, async () => {
+      isShuttingDown = true;
+
+      console.log(`${signal} received. Starting graceful shutdown.`);
+
+      // Set a timeout for the graceful shutdown
+      const shutdownTimeout = setTimeout(() => {
+        console.log('Graceful shutdown timed out. Forcing exit.');
+        process.exit(1);
+      }, 10000); // 10 seconds timeout
+
+      try {
+        // Attempt to close the NestJS app
+        await app.close();
+
+        console.log('Graceful shutdown completed.');
+        clearTimeout(shutdownTimeout);
+        process.exit(0);
+      } catch (error) {
+        console.error('Error during shutdown:', error);
+        clearTimeout(shutdownTimeout);
+        process.exit(1);
+      }
+    });
+  });
+}
+
+export function isServerShuttingDown() {
+  return isShuttingDown;
 }
 
 bootstrap();

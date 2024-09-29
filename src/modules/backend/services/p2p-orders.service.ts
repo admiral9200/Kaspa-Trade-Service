@@ -15,6 +15,7 @@ import { SwapTransactionsResult } from './kaspa-network/interfaces/SwapTransacti
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
+import { isServerShuttingDown } from '../../../main';
 
 @Injectable()
 export class P2pOrdersService {
@@ -47,6 +48,10 @@ export class P2pOrdersService {
         walletSequenceId,
       );
 
+      if (isServerShuttingDown()) {
+        throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+      }
+
       return await this.sellOrdersBookRepository.createSellOrder(sellOrder);
     } catch (err) {
       throw new HttpException('Failed to create a new sell order', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -59,10 +64,16 @@ export class P2pOrdersService {
     session?: ClientSession,
     fromExpired: boolean = false,
   ): Promise<P2pOrderEntity> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     return await this.sellOrdersBookRepository.setWaitingForKasStatus(orderId, expiresAt, session, fromExpired);
   }
 
   public async assignBuyerToOrder(orderId: string, buyerWalletAddress: string): Promise<P2pOrderEntity> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
@@ -90,6 +101,10 @@ export class P2pOrdersService {
   }
 
   public async setOrderInCheckingExpired(order: P2pOrderEntity): Promise<P2pOrderEntity> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     const session: ClientSession = await this.connection.startSession();
     session.startTransaction();
 
@@ -121,6 +136,9 @@ export class P2pOrdersService {
   }
 
   public async setReadyForSale(orderId: string): Promise<void> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     try {
       await this.sellOrdersBookRepository.transitionOrderStatus(
         orderId,
@@ -134,6 +152,10 @@ export class P2pOrdersService {
   }
 
   async updateOrderStatusToCheckout(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     // FROM HERE, MEANS VALIDATION PASSED
     const order: P2pOrderEntity = await this.sellOrdersBookRepository.setCheckoutStatus(sellOrderId, fromLowFee);
     if (!order) {
@@ -144,11 +166,17 @@ export class P2pOrdersService {
   }
 
   async confirmDelist(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     // FROM HERE, MEANS VALIDATION PASSED
     return await this.sellOrdersBookRepository.setDelistStatus(sellOrderId, fromLowFee);
   }
 
   async setOrderCompleted(sellOrderId: string, isDelisting: boolean = false) {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     try {
       await this.sellOrdersBookRepository.setOrderCompleted(sellOrderId, isDelisting);
     } catch (error) {
@@ -197,6 +225,10 @@ export class P2pOrdersService {
   }
 
   async releaseBuyLock(sellOrderId: string, fromExpired: boolean = false) {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     await this.sellOrdersBookRepository.transitionOrderStatus(
       sellOrderId,
       SellOrderStatus.LISTED_FOR_SALE,
@@ -226,6 +258,9 @@ export class P2pOrdersService {
   }
 
   async updateSellOrder(sellOrderId: string, updateSellOrderDto: UpdateSellOrderDto): Promise<void> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     await this.sellOrdersBookRepository.updateSellOrderPrices(
       sellOrderId,
       updateSellOrderDto.totalPrice,
@@ -234,6 +269,9 @@ export class P2pOrdersService {
   }
 
   async relistSellOrder(sellOrderId: string): Promise<void> {
+    if (isServerShuttingDown()) {
+      throw new HttpException('Server is in maintenance', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     await this.sellOrdersBookRepository.relistSellOrder(sellOrderId);
   }
 
