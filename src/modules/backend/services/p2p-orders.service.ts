@@ -8,10 +8,10 @@ import { ClientSession, Connection } from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.constants';
-import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { SwapTransactionsResult } from './kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
@@ -120,12 +120,12 @@ export class P2pOrdersService {
     return order;
   }
 
-  public async setReadyForSale(orderId: string, fromExpired: boolean = false): Promise<void> {
+  public async setReadyForSale(orderId: string): Promise<void> {
     try {
       await this.sellOrdersBookRepository.transitionOrderStatus(
         orderId,
         SellOrderStatus.LISTED_FOR_SALE,
-        fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.WAITING_FOR_TOKENS,
+        SellOrderStatus.WAITING_FOR_TOKENS,
       );
     } catch (error) {
       console.log('Failed to set order status to ready for sale', error);
@@ -143,14 +143,9 @@ export class P2pOrdersService {
     return order;
   }
 
-  async confirmDelist(sellOrderId: string): Promise<P2pOrderEntity> {
+  async confirmDelist(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     // FROM HERE, MEANS VALIDATION PASSED
-    const order: P2pOrderEntity = await this.sellOrdersBookRepository.setDelistStatus(sellOrderId);
-    if (!order) {
-      throw new HttpException('Sell order is not in the matching status, cannot delist.', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    return order;
+    return await this.sellOrdersBookRepository.setDelistStatus(sellOrderId, fromLowFee);
   }
 
   async setOrderCompleted(sellOrderId: string, isDelisting: boolean = false) {
@@ -201,17 +196,12 @@ export class P2pOrdersService {
     }
   }
 
-  async releaseBuyLock(sellOrderId: string) {
-    const order: P2pOrderEntity = await this.getOrderById(sellOrderId);
-
-    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
-      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
-    }
-
+  async releaseBuyLock(sellOrderId: string, fromExpired: boolean = false) {
     await this.sellOrdersBookRepository.transitionOrderStatus(
       sellOrderId,
       SellOrderStatus.LISTED_FOR_SALE,
-      SellOrderStatus.WAITING_FOR_KAS,
+      fromExpired ? SellOrderStatus.CHECKING_EXPIRED : SellOrderStatus.WAITING_FOR_KAS,
+      { buyerWalletAddress: null },
     );
   }
 
@@ -245,6 +235,10 @@ export class P2pOrdersService {
 
   async relistSellOrder(sellOrderId: string): Promise<void> {
     await this.sellOrdersBookRepository.relistSellOrder(sellOrderId);
+  }
+
+  async updateSwapTransactionsResult(sellOrderId: string, result: Partial<SwapTransactionsResult>): Promise<void> {
+    await this.sellOrdersBookRepository.updateSwapTransactionsResult(sellOrderId, result);
   }
 
   async getOrdersHistory(filters: GetOrdersHistoryFiltersDto, sort: SortDto, pagination: PaginationDto) {

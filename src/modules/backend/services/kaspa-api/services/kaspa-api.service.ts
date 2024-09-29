@@ -22,6 +22,7 @@ export class KaspaApiService {
       },
       5,
       5000,
+      true,
     );
   }
 
@@ -50,5 +51,17 @@ export class KaspaApiService {
     }
 
     return true;
+  }
+
+  async getWalletLastTransactions(walletAddress: string = null, limit: number = 10, offset: number = 0): Promise<any> {
+    return await this.utils.retryOnError(async () => {
+      const response = await firstValueFrom(
+        this.httpService.get<any>(
+          `addresses/${walletAddress}/full-transactions?limit=${limit}&offset=${offset}&resolve_previous_outpoints=no`,
+        ),
+      );
+
+      return response.data;
+    });
   }
 }

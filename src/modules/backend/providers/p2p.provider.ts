@@ -20,12 +20,13 @@ import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/Swa
 import { PriorityFeeTooHighError } from '../services/kaspa-network/errors/PriorityFeeTooHighError';
 import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
 import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
-import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
+import { P2pOrderHelper } from '../helpers/p2p-order.helper';
+import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
 
@@ -110,7 +111,9 @@ export class P2pProvider {
 
   private async completeSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
     try {
-      const transactionsResult = await this.kaspaFacade.doSellSwap(order);
+      const transactionsResult = await this.kaspaFacade.doSellSwap(order, async (result) => {
+        await this.p2pOrderBookService.updateSwapTransactionsResult(order._id, result);
+      });
       await this.p2pOrderBookService.setOrderCompleted(order._id);
 
       return transactionsResult;
@@ -182,25 +185,20 @@ export class P2pProvider {
       0, // swap fee added in verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee
     );
 
-    let transactionsResult: CancelSwapTransactionsResult;
+    let transactionsResult: Partial<SwapTransactionsResult>;
 
     if (isVerified) {
       const order: P2pOrderEntity = await this.p2pOrderBookService.confirmDelist(sellOrderId);
 
       try {
-        transactionsResult = await this.kaspaFacade.delistSellSwap(order);
-        await this.p2pOrderBookService.setOrderCompleted(sellOrderId, true);
+        transactionsResult = await this.delistSellOrder(order);
       } catch (error) {
-        console.error('Failed to delist sell order', error);
-
         if (error instanceof PriorityFeeTooHighError) {
           return {
             confirmed: false,
             priorityFeeTooHigh: true,
           };
         } else {
-          await this.p2pOrderBookService.setDelistError(sellOrderId, error.toString());
-
           throw error;
         }
       }
@@ -212,7 +210,40 @@ export class P2pProvider {
     };
   }
 
+  public async delistSellOrder(order: P2pOrderEntity) {
+    try {
+      const transactionsResult = await this.kaspaFacade.delistSellSwap(order, async (result) => {
+        await this.p2pOrderBookService.updateSwapTransactionsResult(order._id, result);
+      });
+      await this.p2pOrderBookService.setOrderCompleted(order._id, true);
+
+      return transactionsResult;
+    } catch (error) {
+      if (error instanceof PriorityFeeTooHighError) {
+        await this.p2pOrderBookService.setLowFeeErrorStatus(order._id);
+      } else {
+        await this.p2pOrderBookService.setSwapError(order._id, error.toString());
+      }
+
+      throw error;
+    }
+  }
+
   async releaseBuyLock(sellOrderId: string) {
+    const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderById(sellOrderId);
+
+    if (!P2pOrderHelper.isOrderInBuyLock(order.status)) {
+      throw new HttpException('Order is not in a cancelable status', HttpStatus.BAD_REQUEST);
+    }
+
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+
+    if (walletTotalBalance > 0n) {
+      throw new Error('Wallet has money in it, cannot release buy lock');
+    }
+
     await this.p2pOrderBookService.releaseBuyLock(sellOrderId);
   }
 
@@ -291,17 +322,18 @@ export class P2pProvider {
 
     await this.p2pOrderBookService.setOrderInCheckingExpired(order);
 
-    const walletTotalBalance: bigint = await this.kaspaNetworkActionsService.getWalletTotalBalance(temporaryWalletPublicAddress);
+    const walletTotalBalanceAndUtxos: TotalBalanceWithUtxosInterface =
+      await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(temporaryWalletPublicAddress);
 
-    if (walletTotalBalance === 0n) {
-      await this.p2pOrderBookService.setReadyForSale(order._id, true);
+    if (walletTotalBalanceAndUtxos.totalBalance === 0n) {
+      await this.p2pOrderBookService.releaseBuyLock(order._id, true);
     } else {
-      const transactionId = null; // TODO: get transaction id from kaspa api
-
-      if (!transactionId) {
+      if (walletTotalBalanceAndUtxos.utxoEntries.length !== 1) {
         await this.p2pOrderBookService.setExpiredUnknownMoneyErrorStatus(order._id);
         throw new Error('Unkonwn money');
       }
+
+      const transactionId = walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId;
 
       await this.p2pOrderBookService.setWaitingForKasStatus(order._id, new Date(), null, true);
       await this.confirmBuy(order._id, { transactionId });
@@ -309,8 +341,12 @@ export class P2pProvider {
   }
 
   async handleWatingForFeeOrder(order: P2pOrderEntity) {
-    await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id);
-    await this.completeSwap(order);
+    if (order.isDelist) {
+      await this.p2pOrderBookService.confirmDelist(order._id, true);
+    } else {
+      await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id, true);
+      await this.completeSwap(order);
+    }
   }
 
   async getOrdersHistory(getOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {

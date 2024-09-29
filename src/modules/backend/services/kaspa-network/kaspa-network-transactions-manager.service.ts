@@ -9,6 +9,8 @@ import {
   addressFromScriptPublicKey,
   ScriptBuilder,
   IGeneratorSettingsObject,
+  UtxoEntryReference,
+  kaspaToSompi,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -16,6 +18,10 @@ import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
 import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
 import { UtilsHelper } from '../../helpers/utils.helper';
+import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
+import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
+
+export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
@@ -71,6 +77,7 @@ export class KaspaNetworkTransactionsManagerService {
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
       priorityFee: priorityFee,
       networkId: this.rpcService.getNetwork(),
+      feeRate: 1.0,
     };
 
     let transactions = null;
@@ -87,29 +94,48 @@ export class KaspaNetworkTransactionsManagerService {
   async createKaspaTransferTransactionAndDo(
     privateKey: PrivateKey,
     payments: IPaymentOutput[],
-    priorityFee: bigint = null,
-    walletShouldBeEmpty = false,
-    calculatePriorityFee = false,
-  ): Promise<string> {
-    let finalPriorityFee = priorityFee;
+    maxPriorityFee: bigint,
+    sendAll = false,
+  ): Promise<ICreateTransactions> {
+    const walletUtxoInfo = await this.getWalletTotalBalanceAndUtxos(this.convertPrivateKeyToPublicKey(privateKey));
 
-    if (calculatePriorityFee) {
-      const transferFundsTransaction = await this.createTransaction(privateKey, payments, 0n);
+    if (sendAll) {
+      if (walletUtxoInfo.totalBalance <= MINIMAL_AMOUNT_TO_SEND) {
+        throw new NotEnoughBalanceError();
+      }
 
-      finalPriorityFee = (await this.getTransactionFees(transferFundsTransaction)).priorityFee;
+      payments[0].amount = walletUtxoInfo.totalBalance - MINIMAL_AMOUNT_TO_SEND;
+    }
+
+    const transactionData: IGeneratorSettingsObject = {
+      entries: walletUtxoInfo.utxoEntries,
+      outputs: payments,
+      changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+      priorityFee: 0n,
+      networkId: this.rpcService.getNetwork(),
+      feeRate: 1.0,
+    };
+
+    const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee);
+    transactionData.priorityFee = transactionsFees.priorityFee;
+
+    if (sendAll) {
+      payments[0].amount = walletUtxoInfo.totalBalance - transactionsFees.maxFee;
     }
 
     return await this.utils.retryOnError(async () => {
-      const transferFundsTransaction = await this.createTransaction(privateKey, payments, finalPriorityFee, true);
+      const transferFundsTransaction = await createTransactions(transactionData);
 
       const transactionReciever = new TransacionReciever(
         this.rpcService.getRpc(),
         this.convertPrivateKeyToPublicKey(privateKey),
         transferFundsTransaction.summary.finalTransactionId,
-        walletShouldBeEmpty,
+        sendAll,
       );
 
       await transactionReciever.registerEventHandlers();
+
+      console.log('trans sum', transferFundsTransaction.summary);
 
       try {
         await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
@@ -121,31 +147,36 @@ export class KaspaNetworkTransactionsManagerService {
         await transactionReciever.dispose();
       }
 
-      return transferFundsTransaction.summary.finalTransactionId;
+      return transferFundsTransaction;
     });
   }
 
-  /**
-   *
-   * @param privateKey To Send From
-   * @param priorityFee Will Aplly twice for both transactions
-   * @param transactionData Krc20 Command Data
-   * @param transactionFeeAmount transfer - minimal, mint - 1kas, deploy - 1000kas
-   * @returns reveal transaction id
-   */
-  async createKrc20TransactionAndDoReveal(
+  async calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee): Promise<FeesCalculation> {
+    const finalFees = await this.utils.retryOnError(async () => {
+      const currentTransaction = await createTransactions(transactionData);
+
+      const fees = await this.getTransactionFees(currentTransaction);
+
+      return fees;
+    });
+
+    if (finalFees.priorityFee > maxPriorityFee) {
+      throw new PriorityFeeTooHighError();
+    }
+
+    return finalFees;
+  }
+
+  async doKrc20CommitTransaction(
     privateKey: PrivateKey,
     krc20transactionData: KRC20OperationDataInterface,
-    transactionFeeAmount: bigint,
     maxPriorityFee: bigint = 0n,
-  ): Promise<Krc20TransactionsResult> {
+  ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
     const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
-
-    let currentPriorityFee = 0n;
 
     const baseTransactionData: IGeneratorSettingsObject = {
       priorityEntries: [],
@@ -158,28 +189,12 @@ export class KaspaNetworkTransactionsManagerService {
       ],
       feeRate: 1.0,
       changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-      priorityFee: currentPriorityFee,
+      priorityFee: 0n,
       networkId: this.rpcService.getNetwork(),
     };
 
-    if (maxPriorityFee && maxPriorityFee > 0n) {
-      await this.utils.retryOnError(async () => {
-        const currentTransaction = await createTransactions(baseTransactionData);
-
-        const fees = await this.getTransactionFees(currentTransaction);
-
-        if (fees.priorityFee > 0n) {
-          if (fees.priorityFee > maxPriorityFee) {
-            throw new PriorityFeeTooHighError();
-          }
-
-          currentPriorityFee = fees.priorityFee;
-          baseTransactionData.priorityFee = fees.priorityFee;
-        }
-
-        return currentTransaction;
-      });
-    }
+    const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
+    baseTransactionData.priorityFee = priorityFee;
 
     const commitTransaction = await this.utils.retryOnError(async () => {
       const transaction = await createTransactions(baseTransactionData);
@@ -207,26 +222,42 @@ export class KaspaNetworkTransactionsManagerService {
       return transaction;
     });
 
-    const newWalletUtxos = await this.rpcService.getRpc().getUtxosByAddresses({
+    return commitTransaction;
+  }
+
+  async doKrc20RevealTransaction(
+    privateKey: PrivateKey,
+    krc20transactionData: KRC20OperationDataInterface,
+    transactionFeeAmount: bigint,
+    maxPriorityFee: bigint = 0n,
+  ) {
+    const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
+
+    const { entries } = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [this.convertPrivateKeyToPublicKey(privateKey)],
     });
+
     const revealUTXOs = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
     });
 
-    const revealTransaction = await this.utils.retryOnError(async () => {
-      const currentRevealTransaction = await createTransactions({
-        priorityEntries: [revealUTXOs.entries[0]],
-        entries: newWalletUtxos.entries,
-        outputs: [],
-        changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-        priorityFee: transactionFeeAmount + currentPriorityFee,
-        networkId: this.rpcService.getNetwork(),
-      });
+    const baseTransactionData: IGeneratorSettingsObject = {
+      priorityEntries: [revealUTXOs.entries[0]],
+      entries,
+      outputs: [],
+      feeRate: 1.0,
+      changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+      priorityFee: transactionFeeAmount,
+      networkId: this.rpcService.getNetwork(),
+    };
 
-      console.log('reveal transaction summry', currentRevealTransaction.summary);
+    const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
+    baseTransactionData.priorityFee = transactionFeeAmount + priorityFee;
 
-      for (const transaction of currentRevealTransaction.transactions) {
+    const revealTransactions = await this.utils.retryOnError(async () => {
+      const currentTransactions = await createTransactions(baseTransactionData);
+
+      for (const transaction of currentTransactions.transactions) {
         transaction.sign([privateKey], false);
         const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
 
@@ -239,8 +270,10 @@ export class KaspaNetworkTransactionsManagerService {
         const revealTransactionReciever = new TransacionReciever(
           this.rpcService.getRpc(),
           this.convertPrivateKeyToPublicKey(privateKey),
-          currentRevealTransaction.summary.finalTransactionId,
+          currentTransactions.summary.finalTransactionId,
         );
+
+        console.log('reveal transaction summry', currentTransactions.summary);
 
         await revealTransactionReciever.registerEventHandlers();
 
@@ -253,10 +286,36 @@ export class KaspaNetworkTransactionsManagerService {
         } finally {
           await revealTransactionReciever.dispose();
         }
-
-        return currentRevealTransaction;
       }
+
+      return currentTransactions;
     });
+
+    return revealTransactions;
+  }
+
+  /**
+   *
+   * @param privateKey To Send From
+   * @param priorityFee Will Aplly twice for both transactions
+   * @param transactionData Krc20 Command Data
+   * @param transactionFeeAmount transfer - minimal, mint - 1kas, deploy - 1000kas
+   * @returns reveal transaction id
+   */
+  async createKrc20TransactionAndDoReveal(
+    privateKey: PrivateKey,
+    krc20transactionData: KRC20OperationDataInterface,
+    transactionFeeAmount: bigint,
+    maxPriorityFee: bigint = 0n,
+  ): Promise<Krc20TransactionsResult> {
+    const commitTransaction = await this.doKrc20CommitTransaction(privateKey, krc20transactionData, maxPriorityFee);
+
+    const revealTransaction = await this.doKrc20RevealTransaction(
+      privateKey,
+      krc20transactionData,
+      transactionFeeAmount,
+      maxPriorityFee,
+    );
 
     return {
       commitTransactionId: commitTransaction.summary.finalTransactionId,
@@ -311,10 +370,23 @@ export class KaspaNetworkTransactionsManagerService {
   }
 
   async getWalletTotalBalance(address: string): Promise<bigint> {
+    const result = await this.getWalletTotalBalanceAndUtxos(address);
+    return result.totalBalance;
+  }
+
+  async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
+    const utxoEntries = await this.getWalletUtxos(address);
+    return {
+      totalBalance: utxoEntries.reduce((acc, curr) => acc + curr.amount, 0n),
+      utxoEntries: utxoEntries,
+    };
+  }
+
+  async getWalletUtxos(address: string): Promise<UtxoEntryReference[]> {
     const utxos = await this.rpcService.getRpc().getUtxosByAddresses({
       addresses: [address],
     });
 
-    return utxos.entries.reduce((acc, curr) => acc + curr.amount, 0n);
+    return utxos.entries;
   }
 }

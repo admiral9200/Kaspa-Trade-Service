@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { SellOrderStatus } from '../enums/sell-order-status.enum';
+import { SwapTransactionsResult } from '../../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 
+export const MIN_TOTAL_PRICE = 25;
+export const MIN_TOKEN_AMOUNT = 1;
 @Schema({
   versionKey: false,
   collection: 'p2p_orders',
@@ -36,6 +39,12 @@ export class P2pOrderEntity {
 
   @Prop()
   fulfillmentTimestamp?: number;
+
+  @Prop({ type: Object })
+  transactions?: Partial<SwapTransactionsResult>;
+
+  @Prop({ type: Boolean, default: false })
+  isDelist?: boolean;
 
   @Prop()
   error?: string;

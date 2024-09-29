@@ -4,7 +4,6 @@ import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-accou
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
-import { CancelSwapTransactionsResult } from '../services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
 
 @Injectable()
 export class KaspaFacade {
@@ -38,7 +37,10 @@ export class KaspaFacade {
     );
   }
 
-  async doSellSwap(order: P2pOrderEntity): Promise<SwapTransactionsResult> {
+  async doSellSwap(
+    order: P2pOrderEntity,
+    notifyUpdate: (result: Partial<SwapTransactionsResult>) => Promise<void>,
+  ): Promise<SwapTransactionsResult> {
     try {
       const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
       const holderWalletPrivateKey = walletAccount.privateKey;
@@ -53,13 +55,18 @@ export class KaspaFacade {
         order.ticker,
         quantity,
         totalPrice,
+        order.transactions || {},
+        notifyUpdate,
       );
     } catch (error) {
       throw error;
     }
   }
 
-  async delistSellSwap(order: P2pOrderEntity): Promise<CancelSwapTransactionsResult> {
+  async delistSellSwap(
+    order: P2pOrderEntity,
+    notifyUpdate: (result: Partial<SwapTransactionsResult>) => Promise<void>,
+  ): Promise<Partial<SwapTransactionsResult>> {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
     const holderWalletPrivateKey = walletAccount.privateKey;
 
@@ -70,6 +77,8 @@ export class KaspaFacade {
       order.sellerWalletAddress,
       order.ticker,
       quantity,
+      order.transactions || {},
+      notifyUpdate,
     );
   }
 }

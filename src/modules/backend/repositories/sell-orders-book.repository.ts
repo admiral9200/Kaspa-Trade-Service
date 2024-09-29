@@ -9,8 +9,10 @@ import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
+import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
 import { isEmpty } from '../utils/object.utils';
+
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   constructor(
@@ -99,8 +101,15 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     return await this.transitionOrderStatus(orderId, SellOrderStatus.WAITING_FOR_LOW_FEE, SellOrderStatus.CHECKOUT);
   }
 
-  async setDelistStatus(orderId: string): Promise<P2pOrderEntity> {
-    return await this.transitionOrderStatus(orderId, SellOrderStatus.DELISTING, SellOrderStatus.OFF_MARKETPLACE);
+  async setDelistStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
+    return await this.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.DELISTING,
+      fromLowFee ? SellOrderStatus.WAITING_FOR_LOW_FEE : SellOrderStatus.OFF_MARKETPLACE,
+      {
+        isDelist: true,
+      },
+    );
   }
 
   async transitionOrderStatus(
@@ -299,13 +308,31 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     return await this.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE);
   }
 
+  async updateSwapTransactionsResult(sellOrderId: string, transactionsResult: Partial<SwapTransactionsResult>): Promise<void> {
+    try {
+      await this.sellOrdersModel
+        .updateOne(
+          { _id: sellOrderId },
+          {
+            $set: {
+              transactions: transactionsResult,
+            },
+          },
+        )
+        .exec();
+    } catch (error) {
+      console.log('Error updating sell order transactions result:', error);
+      throw error;
+    }
+  }
+
   async getOrdersHistory(
     filters: GetOrdersHistoryFiltersDto,
     sort: SortDto,
     pagination: PaginationDto,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
-      let filterQuery: any = {};
+      const filterQuery: any = {};
 
       // Filters
       if (filters) {
