@@ -35,14 +35,12 @@ async function bootstrap() {
     process.on(signal, async () => {
       console.log(`${signal} received. Starting graceful shutdown.`);
 
-      // Set a timeout for the graceful shutdown
       const shutdownTimeout = setTimeout(() => {
         console.log('Graceful shutdown timed out. Forcing exit.');
         process.exit(1);
       }, 300_000); // 5 minutes timeout
 
       try {
-        // Attempt to close the NestJS app
         await app.close();
 
         console.log('Graceful shutdown completed.');
