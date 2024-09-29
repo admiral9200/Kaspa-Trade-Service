@@ -30,6 +30,28 @@ async function bootstrap() {
 
   console.log(`app running on port:::`, port);
   await app.listen(port);
+
+  ['SIGINT', 'SIGTERM'].forEach((signal) => {
+    process.on(signal, async () => {
+      console.log(`${signal} received. Starting graceful shutdown.`);
+
+      const shutdownTimeout = setTimeout(() => {
+        console.log('Graceful shutdown timed out. Forcing exit.');
+        process.exit(1);
+      }, 300_000); // 5 minutes timeout
+
+      try {
+        await app.close();
+
+        console.log('Graceful shutdown completed.');
+        clearTimeout(shutdownTimeout);
+        process.exit(0);
+      } catch (error) {
+        console.error('Error during shutdown:', error);
+        clearTimeout(shutdownTimeout);
+      }
+    });
+  });
 }
 
 bootstrap();
