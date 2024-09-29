@@ -16,7 +16,7 @@ import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './cl
 import { TransacionReciever } from './classes/TransacionReciever';
 import { FeesCalculation } from './interfaces/FeesCalculation.interface';
 import { PriorityFeeTooHighError } from './errors/PriorityFeeTooHighError';
-import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface copy';
+import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.interface';
 import { UtilsHelper } from '../../helpers/utils.helper';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';

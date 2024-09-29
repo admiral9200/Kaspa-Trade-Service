@@ -27,8 +27,11 @@ import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram
 import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
 import { ServiceTypeEnum } from '../core/enums/service-type.enum';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
-import { Controller } from '@nestjs/common/interfaces';
 import { Type } from '@nestjs/common/interfaces/type.interface';
+import { OrdersManagementProvider } from './providers/orders-management.provider';
+import { OrdersManagementController } from './controllers/orders-management.controller';
+import { WalletGuard } from './guards/wallet.guard';
+import { AdminWalletGuard } from './guards/adminWallet.guard';
 
 const serviceType: ServiceTypeEnum = (process.env.SERVICE_TYPE as ServiceTypeEnum) || ServiceTypeEnum.API;
 console.log('Backend module loaded - service running on mode:', serviceType);
@@ -73,6 +76,7 @@ export class BackendModule implements OnModuleInit {
 
     if (serviceType === ServiceTypeEnum.API) {
       controllers.push(P2pController);
+      controllers.push(OrdersManagementController);
     }
 
     return controllers;
@@ -102,10 +106,18 @@ export class BackendModule implements OnModuleInit {
       // Repositories
       SellOrdersBookRepository,
       P2pTemporaryWalletsSequenceRepository,
+
+      // Guards
+      WalletGuard,
+      AdminWalletGuard,
     ];
 
     if (serviceType === ServiceTypeEnum.CRON) {
       providers.push(P2pOrdersExpirationCronJob);
+    }
+
+    if (serviceType === ServiceTypeEnum.API) {
+      providers.push(OrdersManagementProvider);
     }
 
     return providers;

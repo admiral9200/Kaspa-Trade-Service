@@ -12,6 +12,7 @@ import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/erro
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
 import { isEmpty } from '../utils/object.utils';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
 
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
@@ -411,5 +412,23 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     query = query.skip(pagination.offset);
     query = query.limit(pagination.limit);
     return query;
+  }
+
+  async updateOrderFromOrdersManagement(
+    orderId: string,
+    updateSellOrderDto: OrdersManagementUpdateSellOrderDto,
+  ): Promise<P2pOrderEntity> {
+    return await this.updateByOne('_id', orderId, updateSellOrderDto);
+  }
+
+  async setWalletKeyExposedBy(order: P2pOrderEntity, viewerWallet: string) {
+    return await this.updateByOne('_id', order._id, {
+      walletKeyExposedBy: (order.walletKeyExposedBy || []).concat([
+        {
+          wallet: viewerWallet,
+          timestamp: Date.now(),
+        },
+      ]),
+    });
   }
 }

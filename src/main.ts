@@ -28,6 +28,16 @@ async function bootstrap() {
 
   const port = appConfigService.getServicePort || 3000;
 
+  process.on('uncaughtException', (error) => {
+    console.error('!!!!! Uncaught Exception:', error);
+    // Application specific logging, throwing an error, or other logic here
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('!!!!! Unhandled Rejection at:', promise, 'reason:', reason);
+    // Application specific logging, throwing an error, or other logic here
+  });
+
   console.log(`app running on port:::`, port);
   await app.listen(port);
 }
