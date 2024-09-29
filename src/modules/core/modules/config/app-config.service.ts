@@ -90,10 +90,6 @@ export class AppConfigService {
     };
   }
 
-  get sendKaspaFromTempWalletPassword(): string {
-    return this.configService.get('SEND_KASPA_FROM_TEMP_WALLET_PASSWORD');
-  }
-
   get getKrc20ServiceUrl(): string {
     return this.configService.get('KRC20_INFO_SERVICE_URL');
   }
