@@ -332,7 +332,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     pagination: PaginationDto,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
-      let filterQuery: any = {};
+      const filterQuery: any = {};
 
       // Filters
       if (filters) {
