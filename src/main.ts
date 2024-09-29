@@ -43,7 +43,7 @@ async function bootstrap() {
       const shutdownTimeout = setTimeout(() => {
         console.log('Graceful shutdown timed out. Forcing exit.');
         process.exit(1);
-      }, 10000); // 10 seconds timeout
+      }, 60_000); // 10 seconds timeout
 
       try {
         // Attempt to close the NestJS app
