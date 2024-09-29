@@ -248,6 +248,10 @@ export class P2pOrdersService {
   }
 
   async getOrdersHistory(filters: GetOrdersHistoryFiltersDto, sort: SortDto, pagination: PaginationDto) {
-    return await this.sellOrdersBookRepository.getOrdersHistory(filters, sort, pagination);
+    try {
+      return await this.sellOrdersBookRepository.getOrdersHistory(filters, sort, pagination);
+    } catch (error) {
+      throw new HttpException('Failed to get orders history', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

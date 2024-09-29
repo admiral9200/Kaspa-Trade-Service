@@ -20,7 +20,6 @@ import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-ma
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
-import { OrderHistoryDm } from '../model/dms/order-history.dm';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
