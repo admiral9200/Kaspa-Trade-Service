@@ -3,13 +3,14 @@ import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model, SortOrder, ClientSession } from 'mongoose';
+import { Model, SortOrder, ClientSession, Query } from 'mongoose';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
-
+import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
+import { isEmpty } from '../utils/object.utils';
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   constructor(
@@ -183,26 +184,20 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
       }
 
-      let query = this.sellOrdersModel.find(baseQuery);
+      let query: any = this.sellOrdersModel.find(baseQuery);
 
-      if (sort?.direction) {
-        const sortField = sort.field || '_id'; // Default to '_id' if no field is specified
-        const sortOrder: SortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
-        query = query.sort({ [sortField]: sortOrder } as { [key: string]: SortOrder });
+      if (sort) {
+        query = this.applySort(query, sort);
       }
 
       if (pagination) {
-        if (typeof pagination.offset === 'number') {
-          query = query.skip(pagination.offset);
-        }
-        if (typeof pagination.limit === 'number') {
-          query = query.limit(pagination.limit);
-        }
+        query = this.applyPagination(query, pagination);
       }
+
       const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
       const orders: P2pOrderEntity[] = await query.exec();
 
-      return { orders, totalCount };
+      return { orders, totalCount } as any;
     } catch (error) {
       console.error('Error getting sell orders', error);
       throw error;
@@ -302,5 +297,92 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async relistSellOrder(sellOrderId: string) {
     return await this.transitionOrderStatus(sellOrderId, SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE);
+  }
+
+  async getOrdersHistory(
+    filters: GetOrdersHistoryFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
+    try {
+      let filterQuery: any = {};
+
+      // Filters
+      if (filters) {
+        if (filters.statuses && filters.statuses.length > 0) {
+          filterQuery.status = { $in: filters.statuses };
+        }
+        if (filters.tickers && filters.tickers.length > 0) {
+          filterQuery.ticker = { $in: filters.tickers };
+        }
+        if (filters.sellerWalletAddresses && filters.sellerWalletAddresses.length > 0) {
+          filterQuery.sellerWalletAddress = { $in: filters.sellerWalletAddresses };
+        }
+        if (filters.buyerWalletAddresses && filters.buyerWalletAddresses.length > 0) {
+          filterQuery.buyerWalletAddress = { $in: filters.buyerWalletAddresses };
+        }
+        if (filters.totalPrice) {
+          filterQuery.totalPrice = {
+            $gte: filters.totalPrice.min,
+            $lte: filters.totalPrice.max,
+          };
+        }
+        if (filters.startDateTimestamp || filters.endDateTimestamp) {
+          filterQuery.createdAt = {};
+          if (filters.startDateTimestamp) {
+            filterQuery.createdAt.$gte = new Date(parseInt(filters.startDateTimestamp));
+          }
+          if (filters.endDateTimestamp) {
+            filterQuery.createdAt.$lte = new Date(parseInt(filters.endDateTimestamp));
+          }
+        }
+      }
+
+      // Create the base query
+      let query: any = this.sellOrdersModel.find(filterQuery);
+
+      // Apply sorting
+      query = this.applySort(query, sort);
+
+      // Get total count before pagination
+      const totalCount = await this.sellOrdersModel.countDocuments(filterQuery);
+
+      // Apply pagination
+      query = this.applyPagination(query, pagination);
+
+      // Execute the query
+      const orders = await query.exec();
+
+      return { orders, totalCount } as any;
+    } catch (error) {
+      console.error('Error getting orders history:', error);
+      throw error;
+    }
+  }
+
+  private applySort(
+    query: Query<P2pOrderEntity[], P2pOrderEntity>,
+    sort: SortDto = { direction: SortDirection.DESC },
+    defaultSortField: string = 'createdAt',
+  ): Query<P2pOrderEntity[], P2pOrderEntity> {
+    if (!sort || isEmpty(sort)) {
+      sort = { direction: SortDirection.DESC };
+    }
+    const sortField = sort.field || defaultSortField;
+    const sortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
+    return query.sort({ [sortField]: sortOrder } as any);
+  }
+
+  private applyPagination(
+    query: Query<P2pOrderEntity[], P2pOrderEntity>,
+    pagination?: PaginationDto,
+  ): Query<P2pOrderEntity[], P2pOrderEntity> {
+    if (!pagination || isEmpty(pagination)) {
+      pagination = { limit: 10, offset: 0 };
+    }
+
+    query = query.skip(pagination.offset);
+    query = query.limit(pagination.limit);
+    return query;
   }
 }

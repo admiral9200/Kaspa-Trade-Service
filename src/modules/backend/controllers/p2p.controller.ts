@@ -19,6 +19,9 @@ import { RemoveFromMarketplaceRequestDto } from '../model/dtos/remove-from-marke
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
+import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
+import { OrderHistoryDm } from '../model/dms/order-history.dm';
+import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
 
 const TEST_AMOUNT = kaspaToSompi('20.1818');
 @Controller('p2p')
@@ -47,6 +50,15 @@ export class P2pController {
   async getListings(@Body() body: GetUserListingsDto): Promise<ListedOrderDto[]> {
     try {
       return await this.p2pProvider.userListings(body);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('getOrdersHistory')
+  async getOrdersHistory(@Body() GetOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {
+    try {
+      return await this.p2pProvider.getOrdersHistory(GetOrdersHistoryDto);
     } catch (error) {
       throw error;
     }

@@ -26,6 +26,8 @@ import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-ma
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
+import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
+import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -309,5 +311,18 @@ export class P2pProvider {
   async handleWatingForFeeOrder(order: P2pOrderEntity) {
     await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id);
     await this.completeSwap(order);
+  }
+
+  async getOrdersHistory(getOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {
+    const ordersResponse = await this.p2pOrderBookService.getOrdersHistory(
+      getOrdersHistoryDto.filters,
+      getOrdersHistoryDto.sort,
+      getOrdersHistoryDto.pagination,
+    );
+
+    return {
+      orders: ordersResponse.orders.map((order) => P2pOrderBookResponseTransformer.transformToOrderHistoryOrder(order)),
+      totalCount: ordersResponse.totalCount,
+    };
   }
 }
