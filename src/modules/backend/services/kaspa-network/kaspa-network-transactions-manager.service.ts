@@ -11,6 +11,8 @@ import {
   IGeneratorSettingsObject,
   UtxoEntryReference,
   kaspaToSompi,
+  PublicKey,
+  verifyMessage,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -388,5 +390,19 @@ export class KaspaNetworkTransactionsManagerService {
     });
 
     return utxos.entries;
+  }
+
+  getPublicKeyAddress(publicKey: string): string {
+    return new PublicKey(publicKey).toAddress(this.rpcService.getNetwork()).toString();
+  }
+
+  async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKeyStr: string): Promise<string | null> {
+    const publicKey = new PublicKey(publicKeyStr);
+
+    if (await verifyMessage({ message, signature, publicKey })) {
+      return publicKey.toAddress(this.rpcService.getNetwork()).toString();
+    }
+
+    return null;
   }
 }

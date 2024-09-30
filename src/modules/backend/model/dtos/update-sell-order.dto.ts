@@ -1,4 +1,4 @@
-import { IsNumber, IsString, Min } from 'class-validator';
+import { IsNumber, Min } from 'class-validator';
 import { MIN_TOTAL_PRICE } from '../schemas/p2p-order.schema';
 
 export class UpdateSellOrderDto {
@@ -8,7 +8,4 @@ export class UpdateSellOrderDto {
   @IsNumber()
   @Min(MIN_TOTAL_PRICE)
   totalPrice: number;
-
-  @IsString()
-  walletAddress: string;
 }
