@@ -2,6 +2,7 @@ import { AppConfigService } from '../../../core/modules/config/app-config.servic
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { Injectable } from '@nestjs/common';
+import { AppLoggerService } from 'src/modules/core/modules/logger/app-logger.service';
 
 @Injectable()
 export class TelegramBotService {
@@ -11,6 +12,7 @@ export class TelegramBotService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: AppConfigService,
+    private readonly logger: AppLoggerService,
   ) {
     this.apiKey = this.configService.getTelegramBotApiKey;
     if (!this.apiKey) {
@@ -36,8 +38,26 @@ export class TelegramBotService {
       }
     } catch (error) {
       console.error('Error sending formatted message:', error);
+      this.logger.error('Error sending formatted message: ' + JSON.stringify(error));
       throw new Error('Failed to send formatted message');
     }
+  }
+
+  async sendError(channelId: string, error: any): Promise<void> {
+    try {
+      const message = `Error:\n**__Name:__** ${TelegramBotService.escapeMarkdown(error?.name || '')}\n**__Message:__** ${TelegramBotService.escapeMarkdown(error?.message || error.toString())}\n**__Stack:__** ${TelegramBotService.escapeMarkdown(error?.stack || '')}, \n**__additionalData:__** ${TelegramBotService.escapeMarkdown(
+        JSON.stringify(error, (key, value) => (typeof value === 'bigint' ? value.toString() + 'n' : value)),
+      )}`;
+
+      return await this.sendFormattedMessage(channelId, message);
+    } catch (error) {
+      console.error('Error sending error message:', error);
+      this.logger.error('Error sending error message: ' + JSON.stringify(error));
+    }
+  }
+
+  async sendErrorToErrorsChannel(error: any): Promise<void> {
+    return await this.sendError(this.configService.getTelegramErrorsChannelId, error);
   }
 
   static escapeMarkdown(text: string): string {

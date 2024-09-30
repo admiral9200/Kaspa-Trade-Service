@@ -297,19 +297,6 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async logMyWallets(title) {
-    const data = {
-      w1: await this.getWalletTotalBalance('kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2'),
-      w2: await this.getWalletTotalBalance('kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv'),
-      w3: await this.getWalletTotalBalance('kaspatest:qqnvk0l36gn47l2mnktq5m67csmm79wlczva4jcen6xnt6q4z430ccs8dzgzn'),
-      w4: await this.getWalletTotalBalance('kaspatest:qzaxjq87c3yl8xggv8fl39smmahvl8yusgcrw45equjeu8hfz5wtct9y4n96t'),
-    };
-
-    console.log(`--- LOG ${title} - ${new Date().toLocaleTimeString()}`);
-    console.log(data);
-    return data;
-  }
-
   static KaspaToSompi(value: string): bigint {
     return kaspaToSompi(value);
   }
