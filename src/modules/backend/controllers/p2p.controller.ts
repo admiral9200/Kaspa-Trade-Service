@@ -194,4 +194,9 @@ export class P2pController {
       throw error;
     }
   }
+
+  @Get('walletAddress')
+  async getWalletAddress(@Request() req): Promise<string> {
+    return req.wallet;
+  }
 }

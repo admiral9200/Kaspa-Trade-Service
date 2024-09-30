@@ -349,12 +349,12 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           filterQuery.ticker = { $in: filters.tickers };
         }
         if (filters.isSeller) {
-          filterQuery.$or.push({ sellerWalletAddress: { $in: walletAddress } });
-          tickerQuery.$or.push({ sellerWalletAddress: { $in: walletAddress } });
+          filterQuery.$or.push({ sellerWalletAddress: walletAddress });
+          tickerQuery.$or.push({ sellerWalletAddress: walletAddress });
         }
         if (filters.isBuyer) {
-          filterQuery.$or.push({ buyerWalletAddress: { $in: walletAddress } });
-          tickerQuery.$or.push({ buyerWalletAddress: { $in: walletAddress } });
+          filterQuery.$or.push({ buyerWalletAddress: walletAddress });
+          tickerQuery.$or.push({ buyerWalletAddress: walletAddress });
         }
         if (filters.totalPrice) {
           const priceFilter: { $gte?: number; $lte?: number } = {};
