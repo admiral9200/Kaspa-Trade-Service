@@ -210,6 +210,7 @@ export class P2pProvider {
         return {
           confirmed: false,
           needMoney: true,
+          temporaryWalletAddress: temporaryWalletPublicAddress,
         };
       }
 
