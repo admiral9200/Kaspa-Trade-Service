@@ -219,8 +219,8 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.setDelistError(sellOrderId, error);
   }
 
-  async setExpiredUnknownMoneyErrorStatus(sellOrderId: string) {
-    return await this.sellOrdersBookRepository.setExpiredUnknownMoneyErrorStatus(sellOrderId);
+  async setUnknownMoneyErrorStatus(sellOrderId: string) {
+    return await this.sellOrdersBookRepository.setUnknownMoneyErrorStatus(sellOrderId);
   }
 
   isOrderInvalidStatusUpdateError(error: Error) {
