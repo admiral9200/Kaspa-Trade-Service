@@ -13,26 +13,32 @@ export class WalletGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    const message = request.cookies['Message'];
-    const publicKey = request.cookies['PublicKey'];
-    const signature = request.cookies['Signature'];
-
-    if (isEmptyString(message) || isEmptyString(publicKey) || isEmptyString(signature)) {
-      throw new UnauthorizedException();
-    }
-
     try {
+      const userJsonData = request.cookies['user'];
+
+      console.log(userJsonData);
+
+      if (isEmptyString(userJsonData)) {
+        throw new UnauthorizedException();
+      }
+
+      const { message, publicKey, signature } = JSON.parse(userJsonData);
+
+      if (isEmptyString(message) || isEmptyString(publicKey) || isEmptyString(signature)) {
+        throw new UnauthorizedException();
+      }
+
       const walletAddress = await this.kaspaNetworkActionsService.veryfySignedMessageAndGetWalletAddress(
         message,
         signature,
         publicKey,
       );
 
-      request.wallet = walletAddress;
-
       if (!walletAddress) {
         throw new UnauthorizedException();
       }
+
+      request.wallet = walletAddress;
     } catch (error) {
       console.error(error);
       this.logger.error(error?.message, error?.stack);
