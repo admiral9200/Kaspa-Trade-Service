@@ -18,18 +18,17 @@ export class GetOrdersHistoryFiltersDto {
   @IsOptional()
   buyerWalletAddresses?: string[];
 
-  @IsString()
   @IsOptional()
   totalPrice?: {
-    min: number;
-    max: number;
+    min?: number;
+    max?: number;
   };
 
   @IsNumber()
   @IsOptional()
-  startDateTimestamp?: string;
+  startDateTimestamp?: number;
 
   @IsNumber()
   @IsOptional()
-  endDateTimestamp?: string;
+  endDateTimestamp?: number;
 }

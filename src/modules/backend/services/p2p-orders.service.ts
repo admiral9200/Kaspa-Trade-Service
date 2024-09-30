@@ -33,7 +33,7 @@ export class P2pOrdersService {
       getSellOrdersDto.pagination,
     );
   }
-  public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<OrderDm[]> {
+  public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getUserListedSellOrders(
       getSellOrdersDto.walletAddress,
       [SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE],

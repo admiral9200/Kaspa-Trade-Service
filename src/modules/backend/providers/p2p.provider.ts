@@ -51,9 +51,12 @@ export class P2pProvider {
     };
   }
 
-  public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<ListedOrderDto[]> {
-    const orders: OrderDm[] = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
-    return orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order));
+  public async userListings(getSellOrdersRequestDto: GetOrdersDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+    const { orders, totalCount } = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto);
+    return {
+      orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
+      totalCount,
+    };
   }
 
   public async createOrder(sellOrderDto: SellOrderDto): Promise<SellRequestResponseDto> {
@@ -256,14 +259,8 @@ export class P2pProvider {
   async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<OffMarketplaceRequestResponseDto> {
     try {
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId, walletAddress);
-      const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
-        sellOrderDm.walletSequenceId,
-      );
 
-      return P2pOrderBookResponseTransformer.transformOrderDmToOffMerketplaceResponseDto(
-        sellOrderDm,
-        temporaryWalletPublicAddress,
-      );
+      return P2pOrderBookResponseTransformer.transformOrderDmToOffMerketplaceResponseDto(sellOrderDm);
     } catch (error) {
       if (error instanceof InvalidStatusForOrderUpdateError) {
         return {
@@ -363,6 +360,7 @@ export class P2pProvider {
     );
 
     return {
+      allTickers: ordersResponse.allTickers,
       orders: ordersResponse.orders.map((order) => P2pOrderBookResponseTransformer.transformToOrderHistoryOrder(order)),
       totalCount: ordersResponse.totalCount,
     };

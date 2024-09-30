@@ -1,3 +1,5 @@
+import { SellOrderStatus } from '../enums/sell-order-status.enum';
+
 export interface ListedOrderDto {
   orderId: string;
   pricePerToken: number;
@@ -6,4 +8,5 @@ export interface ListedOrderDto {
   totalPrice: number;
   expiresAt: Date;
   createdAt: Date;
+  status?: SellOrderStatus;
 }
