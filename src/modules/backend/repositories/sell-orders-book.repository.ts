@@ -66,13 +66,13 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  async setExpiredUnknownMoneyErrorStatus(orderId: string): Promise<P2pOrderEntity> {
+  async setUnknownMoneyErrorStatus(orderId: string): Promise<P2pOrderEntity> {
     try {
       return await super.updateByOne('_id', orderId, {
-        status: SellOrderStatus.EXPIRED_UNKNOWN_MONEY_ERROR,
+        status: SellOrderStatus.UNKNOWN_MONEY_ERROR,
       });
     } catch (error) {
-      console.error(`Error updating to EXPIRED_UNKNOWN_MONEY_ERROR for order by ID(${orderId}):`, error);
+      console.error(`Error updating to UNKNOWN_MONEY_ERROR for order by ID(${orderId}):`, error);
       throw error;
     }
   }
