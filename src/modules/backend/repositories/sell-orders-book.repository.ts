@@ -358,11 +358,11 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         if (filters.totalPrice) {
           const priceFilter: { $gte?: number; $lte?: number } = {};
 
-          if (filters.totalPrice.min !== undefined) {
+          if (filters.totalPrice?.min) {
             priceFilter.$gte = filters.totalPrice.min;
           }
 
-          if (filters.totalPrice.max !== undefined) {
+          if (filters.totalPrice?.max) {
             priceFilter.$lte = filters.totalPrice.max;
           }
 
