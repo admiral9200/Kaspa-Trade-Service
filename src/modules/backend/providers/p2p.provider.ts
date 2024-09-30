@@ -209,6 +209,7 @@ export class P2pProvider {
       if (walletTotalBalanceAndUtxos.totalBalance === 0n) {
         return {
           confirmed: false,
+          needMoney: true,
         };
       }
 
@@ -224,7 +225,7 @@ export class P2pProvider {
     }
 
     const isVerified: boolean = await this.kaspaFacade.verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(
-      confirmDelistRequestDto.transactionId,
+      transactionId,
       order.sellerWalletAddress,
       temporaryWalletPublicAddress,
       0, // swap fee added in verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee

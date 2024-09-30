@@ -4,4 +4,5 @@ export interface ConfirmDelistOrderRequestResponseDto {
   confirmed: boolean;
   transactions?: Partial<SwapTransactionsResult>;
   priorityFeeTooHigh?: boolean;
+  needMoney?: boolean;
 }
