@@ -399,6 +399,7 @@ export class P2pProvider {
   async handleWatingForFeeOrder(order: P2pOrderEntity) {
     if (order.isDelist) {
       await this.p2pOrderBookService.confirmDelist(order._id, true);
+      await this.delistSellOrder(order);
     } else {
       await this.p2pOrderBookService.updateOrderStatusToCheckout(order._id, true);
       await this.completeSwap(order);
