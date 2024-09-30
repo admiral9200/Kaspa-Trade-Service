@@ -360,6 +360,7 @@ export class P2pProvider {
     );
 
     return {
+      allTickers: ordersResponse.allTickers,
       orders: ordersResponse.orders.map((order) => P2pOrderBookResponseTransformer.transformToOrderHistoryOrder(order)),
       totalCount: ordersResponse.totalCount,
     };

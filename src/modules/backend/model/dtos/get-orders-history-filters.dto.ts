@@ -27,9 +27,9 @@ export class GetOrdersHistoryFiltersDto {
 
   @IsNumber()
   @IsOptional()
-  startDateTimestamp?: string;
+  startDateTimestamp?: number;
 
   @IsNumber()
   @IsOptional()
-  endDateTimestamp?: string;
+  endDateTimestamp?: number;
 }

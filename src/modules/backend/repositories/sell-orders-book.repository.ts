@@ -333,10 +333,12 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     filters: GetOrdersHistoryFiltersDto,
     sort: SortDto,
     pagination: PaginationDto,
-  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
+  ): Promise<{ orders: P2pOrderEntity[]; totalCount: number; allTickers: string[] }> {
     try {
       const filterQuery: any = {};
-
+      const tickerQuery: any = {};
+      filterQuery.$or = []; // Initialize the $or array
+      tickerQuery.$or = [];
       // Filters
       if (filters) {
         if (filters.statuses && filters.statuses.length > 0) {
@@ -346,24 +348,36 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
           filterQuery.ticker = { $in: filters.tickers };
         }
         if (filters.sellerWalletAddresses && filters.sellerWalletAddresses.length > 0) {
-          filterQuery.sellerWalletAddress = { $in: filters.sellerWalletAddresses };
+          filterQuery.$or.push({ sellerWalletAddress: { $in: filters.sellerWalletAddresses } });
+          tickerQuery.$or.push({ sellerWalletAddress: { $in: filters.sellerWalletAddresses } });
         }
         if (filters.buyerWalletAddresses && filters.buyerWalletAddresses.length > 0) {
-          filterQuery.buyerWalletAddress = { $in: filters.buyerWalletAddresses };
+          filterQuery.$or.push({ buyerWalletAddress: { $in: filters.buyerWalletAddresses } });
+          tickerQuery.$or.push({ buyerWalletAddress: { $in: filters.buyerWalletAddresses } });
         }
         if (filters.totalPrice) {
-          filterQuery.totalPrice = {
-            $gte: filters.totalPrice.min,
-            $lte: filters.totalPrice.max,
-          };
+          const priceFilter: { $gte?: number; $lte?: number } = {};
+
+          if (filters.totalPrice.min !== undefined) {
+            priceFilter.$gte = filters.totalPrice.min;
+          }
+
+          if (filters.totalPrice.max !== undefined) {
+            priceFilter.$lte = filters.totalPrice.max;
+          }
+
+          // Only add priceFilter if at least one of $gte or $lte is set
+          if (Object.keys(priceFilter).length > 0) {
+            filterQuery.totalPrice = priceFilter;
+          }
         }
         if (filters.startDateTimestamp || filters.endDateTimestamp) {
           filterQuery.createdAt = {};
           if (filters.startDateTimestamp) {
-            filterQuery.createdAt.$gte = new Date(parseInt(filters.startDateTimestamp));
+            filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
           }
           if (filters.endDateTimestamp) {
-            filterQuery.createdAt.$lte = new Date(parseInt(filters.endDateTimestamp));
+            filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
           }
         }
       }
@@ -376,14 +390,14 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
       // Get total count before pagination
       const totalCount = await this.sellOrdersModel.countDocuments(filterQuery);
-
+      const allTickers = await this.sellOrdersModel.distinct('ticker', tickerQuery);
       // Apply pagination
       query = this.applyPagination(query, pagination);
 
       // Execute the query
       const orders = await query.exec();
 
-      return { orders, totalCount } as any;
+      return { orders, totalCount, allTickers } as any;
     } catch (error) {
       console.error('Error getting orders history:', error);
       throw error;
