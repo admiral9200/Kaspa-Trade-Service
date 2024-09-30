@@ -5,7 +5,7 @@ import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-managem
 import { AdminWalletGuard } from '../guards/adminWallet.guard';
 
 @Controller('orders-management')
-// @UseGuards(AdminWalletGuard)
+@UseGuards(AdminWalletGuard)
 export class OrdersManagementController {
   constructor(
     private readonly ordersManagementProvider: OrdersManagementProvider,
