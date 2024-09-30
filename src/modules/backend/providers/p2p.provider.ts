@@ -206,6 +206,12 @@ export class P2pProvider {
       const walletTotalBalanceAndUtxos: TotalBalanceWithUtxosInterface =
         await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(temporaryWalletPublicAddress);
 
+      if (walletTotalBalanceAndUtxos.totalBalance === 0n) {
+        return {
+          confirmed: false,
+        };
+      }
+
       if (walletTotalBalanceAndUtxos.utxoEntries.length !== 1) {
         await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
         const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
