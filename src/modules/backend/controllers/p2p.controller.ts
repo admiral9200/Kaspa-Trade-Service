@@ -1,31 +1,28 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { SellOrderDto } from '../model/dtos/sell-order.dto';
 import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
 import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/responses/confirm-sell-order-request.response.dto';
 import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
 import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/responses/confirm-buy-order-request.response.dto';
-import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
-import { BuyRequestDto } from '../model/dtos/buy-request.dto';
 import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
 import { GetOrdersDto } from '../model/dtos/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 import { GetUserListingsDto } from '../model/dtos/user-listings.dto';
 import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
 import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
-import { RemoveFromMarketplaceRequestDto } from '../model/dtos/remove-from-marketplace-request.dto';
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
-import { RelistSellOrderDto } from '../model/dtos/relist-sell-order.dto';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
 import { AppLoggerService } from '../../core/modules/logger/app-logger.service';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
+import { WalletGuard } from '../guards/wallet.guard';
 
 @Controller('p2p')
+@UseGuards(WalletGuard)
 export class P2pController {
   constructor(
     private readonly p2pProvider: P2pProvider,
-    private readonly config: AppConfigService,
     private readonly logger: AppLoggerService,
   ) {}
 
@@ -46,9 +43,9 @@ export class P2pController {
   }
 
   @Post('getUserListings')
-  async getListings(@Body() body: GetUserListingsDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+  async getListings(@Request() req, @Body() body: GetUserListingsDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     try {
-      return await this.p2pProvider.userListings(body);
+      return await this.p2pProvider.userListings(body, req.wallet);
     } catch (error) {
       this.logger.error('Error getting user listings', error);
       throw error;
@@ -56,9 +53,17 @@ export class P2pController {
   }
 
   @Post('getOrdersHistory')
-  async getOrdersHistory(@Body() GetOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {
+  async getOrdersHistory(@Request() req, @Body() getOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {
     try {
-      return await this.p2pProvider.getOrdersHistory(GetOrdersHistoryDto);
+      if (!getOrdersHistoryDto.filters) {
+        getOrdersHistoryDto.filters = { isBuyer: true, isSeller: true };
+      }
+
+      if (!getOrdersHistoryDto.filters.isBuyer && !getOrdersHistoryDto.filters.isSeller) {
+        throw new HttpException('Either isBuyer or isSeller must be true', HttpStatus.BAD_REQUEST);
+      }
+
+      return await this.p2pProvider.getOrdersHistory(getOrdersHistoryDto, req.wallet);
     } catch (error) {
       this.logger.error('Error getting orders history', error);
       throw error;
@@ -70,9 +75,9 @@ export class P2pController {
    * @param sellRequestDto  The Sell information
    */
   @Post('sell')
-  async sellToken(@Body() sellRequestDto: SellOrderDto): Promise<SellRequestResponseDto> {
+  async sellToken(@Request() req, @Body() sellRequestDto: SellOrderDto): Promise<SellRequestResponseDto> {
     try {
-      return await this.p2pProvider.createOrder(sellRequestDto);
+      return await this.p2pProvider.createOrder(sellRequestDto, req.wallet);
     } catch (error) {
       this.logger.error('Error creating sell order', error);
       throw error;
@@ -95,11 +100,11 @@ export class P2pController {
 
   @Post('removeFromMarketplace/:sellOrderId')
   async removeSellOrderFromMarketplace(
+    @Request() req,
     @Param('sellOrderId') sellOrderId: string,
-    @Body() body: RemoveFromMarketplaceRequestDto,
   ): Promise<OffMarketplaceRequestResponseDto> {
     try {
-      return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId, body.walletAddress);
+      return await this.p2pProvider.removeSellOrderFromMarketplace(sellOrderId, req.wallet);
     } catch (error) {
       this.logger.error('Error removing sell order from marketplace', error);
       throw error;
@@ -107,9 +112,9 @@ export class P2pController {
   }
 
   @Get('getOrderStatus/:sellOrderId')
-  async getOrderStatus(sellOrderId: string) {
+  async getOrderStatus(@Request() req, sellOrderId: string) {
     try {
-      return await this.p2pProvider.getOrderStatus(sellOrderId);
+      return await this.p2pProvider.getOrderStatus(sellOrderId, req.wallet);
     } catch (error) {
       this.logger.error('Error getting order status', error);
       throw error;
@@ -117,9 +122,13 @@ export class P2pController {
   }
 
   @Post('updateSellOrder/:sellOrderId')
-  async updateSellOrder(@Param('sellOrderId') sellOrderId: string, @Body() body: UpdateSellOrderDto): Promise<void> {
+  async updateSellOrder(
+    @Request() req,
+    @Param('sellOrderId') sellOrderId: string,
+    @Body() body: UpdateSellOrderDto,
+  ): Promise<void> {
     try {
-      await this.p2pProvider.updateSellOrder(sellOrderId, body);
+      await this.p2pProvider.updateSellOrder(sellOrderId, body, req.wallet);
     } catch (error) {
       this.logger.error('Error updating sell order', error);
       throw error;
@@ -127,9 +136,9 @@ export class P2pController {
   }
 
   @Post('relistSellOrder/:sellOrderId')
-  async relistOrder(@Param('sellOrderId') sellOrderId: string, @Body() body: RelistSellOrderDto): Promise<void> {
+  async relistOrder(@Request() req, @Param('sellOrderId') sellOrderId: string): Promise<void> {
     try {
-      await this.p2pProvider.relistSellOrder(sellOrderId, body);
+      await this.p2pProvider.relistSellOrder(sellOrderId, req.wallet);
     } catch (error) {
       this.logger.error('Error relisting sell order', error);
       throw error;
@@ -138,11 +147,12 @@ export class P2pController {
 
   @Post('confirmDelistOrder/:sellOrderId')
   async confirmDelistOrder(
+    @Request() req,
     @Param('sellOrderId') sellOrderId: string,
     @Body() body: ConfirmDelistRequestDto,
   ): Promise<ConfirmDelistOrderRequestResponseDto> {
     try {
-      return await this.p2pProvider.confirmDelistSale(sellOrderId, body);
+      return await this.p2pProvider.confirmDelistSale(sellOrderId, body, req.wallet);
     } catch (error) {
       this.logger.error('Error confirming delist order', error);
       throw error;
@@ -150,9 +160,9 @@ export class P2pController {
   }
 
   @Post('releaseBuyLock/:sellOrderId')
-  async releaseBuyLock(@Param('sellOrderId') sellOrderId: string): Promise<void> {
+  async releaseBuyLock(@Request() req, @Param('sellOrderId') sellOrderId: string): Promise<void> {
     try {
-      return await this.p2pProvider.releaseBuyLock(sellOrderId);
+      return await this.p2pProvider.releaseBuyLock(sellOrderId, req.wallet);
     } catch (error) {
       this.logger.error('Error releasing buy lock', error);
       throw error;
@@ -165,9 +175,9 @@ export class P2pController {
    * @param body
    */
   @Post('buy/:sellOrderId')
-  async buyToken(@Param('sellOrderId') sellOrderId: string, @Body() body: BuyRequestDto): Promise<BuyRequestResponseDto> {
+  async buyToken(@Request() req, @Param('sellOrderId') sellOrderId: string): Promise<BuyRequestResponseDto> {
     try {
-      return await this.p2pProvider.buy(sellOrderId, body);
+      return await this.p2pProvider.buy(sellOrderId, req.wallet);
     } catch (error) {
       this.logger.error('Error buying token', error);
       throw error;
@@ -192,8 +202,8 @@ export class P2pController {
     }
   }
 
-  @Get('feeRate')
-  async getFeeRate() {
-    return await this.p2pProvider.getCurrentFeeRate();
+  @Get('walletAddress')
+  async getWalletAddress(@Request() req): Promise<string> {
+    return req.wallet;
   }
 }

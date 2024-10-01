@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { SellOrderStatus } from '../enums/sell-order-status.enum';
 
 export class GetOrdersHistoryFiltersDto {
@@ -10,13 +10,13 @@ export class GetOrdersHistoryFiltersDto {
   @IsOptional()
   tickers?: string[];
 
-  @IsString({ each: true })
+  @IsBoolean()
   @IsOptional()
-  sellerWalletAddresses?: string[];
+  isSeller?: boolean;
 
-  @IsString({ each: true })
+  @IsBoolean()
   @IsOptional()
-  buyerWalletAddresses?: string[];
+  isBuyer?: boolean;
 
   @IsOptional()
   totalPrice?: {

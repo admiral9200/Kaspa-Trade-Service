@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppConfigService } from './modules/core/modules/config/app-config.service';
 import * as WebSocket from 'websocket';
+import * as cookieParser from 'cookie-parser';
 
 // Needed for Wasm
 globalThis.WebSocket = WebSocket.w3cwebsocket;
@@ -23,6 +24,7 @@ async function bootstrap() {
   );
 
   app.use(helmet());
+  app.use(cookieParser());
 
   const appConfigService = app.get(AppConfigService);
 

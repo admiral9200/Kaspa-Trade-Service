@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator, XPrv } from 'libs/kaspa/kaspa';
+import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator, PublicKey, XPrv } from 'libs/kaspa/kaspa';
 import { KaspaNetworkTransactionsManagerService, MINIMAL_AMOUNT_TO_SEND } from './kaspa-network-transactions-manager.service';
 import { getTransferData, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
@@ -299,5 +299,11 @@ export class KaspaNetworkActionsService {
 
   static KaspaToSompi(value: string): bigint {
     return kaspaToSompi(value);
+  }
+
+  async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
+    });
   }
 }

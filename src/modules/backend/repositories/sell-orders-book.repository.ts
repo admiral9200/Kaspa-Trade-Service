@@ -183,16 +183,11 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async getListedSellOrders(
     ticker: string,
-    walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
-
-      if (walletAddress) {
-        Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
-      }
 
       let query: any = this.sellOrdersModel.find(baseQuery);
 
@@ -333,6 +328,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     filters: GetOrdersHistoryFiltersDto,
     sort: SortDto,
     pagination: PaginationDto,
+    walletAddress: string,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number; allTickers: string[] }> {
     try {
       const filterQuery: any = {};
@@ -347,13 +343,13 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         if (filters.tickers && filters.tickers.length > 0) {
           filterQuery.ticker = { $in: filters.tickers };
         }
-        if (filters.sellerWalletAddresses && filters.sellerWalletAddresses.length > 0) {
-          filterQuery.$or.push({ sellerWalletAddress: { $in: filters.sellerWalletAddresses } });
-          tickerQuery.$or.push({ sellerWalletAddress: { $in: filters.sellerWalletAddresses } });
+        if (filters.isSeller) {
+          filterQuery.$or.push({ sellerWalletAddress: walletAddress });
+          tickerQuery.$or.push({ sellerWalletAddress: walletAddress });
         }
-        if (filters.buyerWalletAddresses && filters.buyerWalletAddresses.length > 0) {
-          filterQuery.$or.push({ buyerWalletAddress: { $in: filters.buyerWalletAddresses } });
-          tickerQuery.$or.push({ buyerWalletAddress: { $in: filters.buyerWalletAddresses } });
+        if (filters.isBuyer) {
+          filterQuery.$or.push({ buyerWalletAddress: walletAddress });
+          tickerQuery.$or.push({ buyerWalletAddress: walletAddress });
         }
         if (filters.totalPrice) {
           const priceFilter: { $gte?: number; $lte?: number } = {};

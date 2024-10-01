@@ -15,7 +15,4 @@ export class SellOrderDto {
   @IsNumber()
   @Min(MIN_TOTAL_PRICE)
   totalPrice: number;
-
-  @IsString()
-  walletAddress: string;
 }

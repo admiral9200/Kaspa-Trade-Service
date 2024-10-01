@@ -26,27 +26,30 @@ export class P2pOrdersService {
   ) {}
 
   public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
-    return await this.sellOrdersBookRepository.getListedSellOrders(
-      ticker,
-      getSellOrdersDto.walletAddress,
-      getSellOrdersDto.sort,
-      getSellOrdersDto.pagination,
-    );
+    return await this.sellOrdersBookRepository.getListedSellOrders(ticker, getSellOrdersDto.sort, getSellOrdersDto.pagination);
   }
-  public async getUserListings(getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
+  public async getUserListings(
+    getSellOrdersDto: GetOrdersDto,
+    walletAddress: string,
+  ): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getUserListedSellOrders(
-      getSellOrdersDto.walletAddress,
+      walletAddress,
       [SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE],
       getSellOrdersDto.sort,
       getSellOrdersDto.pagination,
     );
   }
 
-  public async createSell(sellOrderDto: SellOrderDto, walletSequenceId: number): Promise<P2pOrderEntity> {
+  public async createSell(
+    sellOrderDto: SellOrderDto,
+    walletSequenceId: number,
+    sellerWalletAddress: string,
+  ): Promise<P2pOrderEntity> {
     try {
       const sellOrder: P2pOrderEntity = P2pOrderBookTransformer.createP2pOrderEntityFromSellOrderDto(
         sellOrderDto,
         walletSequenceId,
+        sellerWalletAddress,
       );
 
       return await this.sellOrdersBookRepository.createSellOrder(sellOrder);
@@ -243,9 +246,9 @@ export class P2pOrdersService {
     await this.sellOrdersBookRepository.updateSwapTransactionsResult(sellOrderId, result);
   }
 
-  async getOrdersHistory(filters: GetOrdersHistoryFiltersDto, sort: SortDto, pagination: PaginationDto) {
+  async getOrdersHistory(filters: GetOrdersHistoryFiltersDto, sort: SortDto, pagination: PaginationDto, walletAddress: string) {
     try {
-      return await this.sellOrdersBookRepository.getOrdersHistory(filters, sort, pagination);
+      return await this.sellOrdersBookRepository.getOrdersHistory(filters, sort, pagination, walletAddress);
     } catch (error) {
       throw new HttpException('Failed to get orders history', HttpStatus.INTERNAL_SERVER_ERROR);
     }
