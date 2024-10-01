@@ -15,7 +15,7 @@ export class AdminWalletGuard extends WalletGuard {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const hasWallet = super.canActivate(context);
+    const hasWallet = await super.canActivate(context);
 
     if (!hasWallet) {
       throw new UnauthorizedException();
