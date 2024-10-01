@@ -16,8 +16,6 @@ export class WalletGuard implements CanActivate {
     try {
       const userJsonData = request.cookies['user'];
 
-      console.log(userJsonData);
-
       if (isEmptyString(userJsonData)) {
         throw new UnauthorizedException();
       }
@@ -37,6 +35,8 @@ export class WalletGuard implements CanActivate {
       if (!walletAddress) {
         throw new UnauthorizedException();
       }
+
+      console.log('walletAddress for this request: ', walletAddress);
 
       request.wallet = walletAddress;
     } catch (error) {

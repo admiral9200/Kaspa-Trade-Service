@@ -46,10 +46,9 @@ export class P2pProvider {
 
   public async listOrders(
     ticker: string,
-    walletAddress: string,
     getSellOrdersRequestDto: GetOrdersDto,
   ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
-    const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, walletAddress, getSellOrdersRequestDto);
+    const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
     return {
       orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
       totalCount,

@@ -25,17 +25,8 @@ export class P2pOrdersService {
     private readonly sellOrdersBookRepository: SellOrdersBookRepository,
   ) {}
 
-  public async getSellOrders(
-    ticker: string,
-    walletAddress: string,
-    getSellOrdersDto: GetOrdersDto,
-  ): Promise<{ orders: OrderDm[]; totalCount: number }> {
-    return await this.sellOrdersBookRepository.getListedSellOrders(
-      ticker,
-      walletAddress,
-      getSellOrdersDto.sort,
-      getSellOrdersDto.pagination,
-    );
+  public async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: OrderDm[]; totalCount: number }> {
+    return await this.sellOrdersBookRepository.getListedSellOrders(ticker, getSellOrdersDto.sort, getSellOrdersDto.pagination);
   }
   public async getUserListings(
     getSellOrdersDto: GetOrdersDto,

@@ -183,16 +183,11 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
   async getListedSellOrders(
     ticker: string,
-    walletAddress?: string,
     sort?: SortDto,
     pagination?: PaginationDto,
   ): Promise<{ orders: P2pOrderEntity[]; totalCount: number }> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
-
-      if (walletAddress) {
-        Object.assign(baseQuery, { sellerWalletAddress: walletAddress });
-      }
 
       let query: any = this.sellOrdersModel.find(baseQuery);
 

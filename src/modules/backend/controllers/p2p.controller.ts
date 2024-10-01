@@ -28,7 +28,6 @@ export class P2pController {
 
   @Post('getSellOrders')
   async getOrders(
-    @Request() req,
     @Body() body: GetOrdersDto,
     @Query('ticker') ticker: string,
   ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
@@ -36,7 +35,7 @@ export class P2pController {
       if (!ticker) {
         throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
       }
-      return await this.p2pProvider.listOrders(ticker, req.wallet, body);
+      return await this.p2pProvider.listOrders(ticker, body);
     } catch (error) {
       this.logger.error('Error getting sell orders', error);
       throw error;
@@ -56,6 +55,14 @@ export class P2pController {
   @Post('getOrdersHistory')
   async getOrdersHistory(@Request() req, @Body() getOrdersHistoryDto: GetOrdersHistoryDto): Promise<GetOrdersHistoryResponseDto> {
     try {
+      if (!getOrdersHistoryDto.filters) {
+        getOrdersHistoryDto.filters = { isBuyer: true, isSeller: true };
+      }
+
+      if (!getOrdersHistoryDto.filters.isBuyer && !getOrdersHistoryDto.filters.isSeller) {
+        throw new HttpException('Either isBuyer or isSeller must be true', HttpStatus.BAD_REQUEST);
+      }
+
       return await this.p2pProvider.getOrdersHistory(getOrdersHistoryDto, req.wallet);
     } catch (error) {
       this.logger.error('Error getting orders history', error);
