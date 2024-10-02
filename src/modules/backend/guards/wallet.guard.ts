@@ -14,6 +14,7 @@ export class WalletGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     try {
+      console.log('request.cookies: ', request.cookies);
       const userJsonData = request.cookies['user'];
       console.log('userJsonData: ', userJsonData);
 
