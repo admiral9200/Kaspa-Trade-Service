@@ -15,12 +15,16 @@ export class WalletGuard implements CanActivate {
 
     try {
       const userJsonData = request.cookies['user'];
+      console.log('userJsonData: ', userJsonData);
 
       if (isEmptyString(userJsonData)) {
         throw new UnauthorizedException();
       }
 
       const { message, publicKey, signature } = JSON.parse(userJsonData);
+      console.log('message: ', message);
+      console.log('publicKey: ', publicKey);
+      console.log('signature: ', signature);
 
       if (isEmptyString(message) || isEmptyString(publicKey) || isEmptyString(signature)) {
         throw new UnauthorizedException();
@@ -32,11 +36,10 @@ export class WalletGuard implements CanActivate {
         publicKey,
       );
 
+      console.log('walletAddress for this request: ', walletAddress);
       if (!walletAddress) {
         throw new UnauthorizedException();
       }
-
-      console.log('walletAddress for this request: ', walletAddress);
 
       request.wallet = walletAddress;
     } catch (error) {
