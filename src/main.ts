@@ -24,7 +24,8 @@ async function bootstrap() {
     }, // Replace with your frontend domain
     credentials: true, // Allow sending cookies with requests
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Specify allowed methods (optional)
-    allowedHeaders: 'Content-Type, Authorization', // Specify allowed headers (optional)
+    allowedHeaders: 'Content-Type, Authorization, Cookie', // Specify allowed headers (optional)
+    exposedHeaders: 'Set-Cookie',
   });
 
   app.useGlobalPipes(
