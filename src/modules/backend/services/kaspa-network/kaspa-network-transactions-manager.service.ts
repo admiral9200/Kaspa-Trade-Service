@@ -108,7 +108,7 @@ export class KaspaNetworkTransactionsManagerService {
 
       payments[0].amount =
         walletUtxoInfo.totalBalance > MINIMAL_AMOUNT_TO_SEND * 2n
-          ? walletUtxoInfo.totalBalance - 3300n
+          ? walletUtxoInfo.totalBalance / 2n
           : walletUtxoInfo.totalBalance - MINIMAL_AMOUNT_TO_SEND;
     }
 
