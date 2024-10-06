@@ -273,7 +273,7 @@ export class P2pProvider {
       return transactionsResult;
     } catch (error) {
       if (error instanceof PriorityFeeTooHighError) {
-        await this.p2pOrderBookService.setLowFeeErrorStatus(order._id);
+        await this.p2pOrderBookService.setLowFeeErrorStatus(order._id, true);
       } else {
         this.logger.error(error?.message, error?.stack);
         this.telegramBotService.sendErrorToErrorsChannel(error);
@@ -343,6 +343,11 @@ export class P2pProvider {
   async handleExpiredOrders() {
     const orders = await this.p2pOrderBookService.getExpiredOrders();
 
+    if (orders.length > 0) {
+      debugger;
+      this.logger.info(`Handling expired orders - ${orders.length} orders found`);
+    }
+
     for (const order of orders) {
       try {
         await this.handleExpiredOrder(order);
@@ -359,6 +364,10 @@ export class P2pProvider {
 
   async handleWatingForFeeOrders() {
     const orders = await this.p2pOrderBookService.getWaitingForFeesOrders();
+
+    if (orders.length > 0) {
+      this.logger.info(`Handling wating for fee orders - ${orders.length} orders found`);
+    }
 
     for (const order of orders) {
       try {
@@ -380,18 +389,26 @@ export class P2pProvider {
     if (walletTotalBalanceAndUtxos.totalBalance === 0n) {
       await this.p2pOrderBookService.releaseBuyLock(order._id, true);
     } else {
-      if (walletTotalBalanceAndUtxos.utxoEntries.length !== 1) {
+      const setUnknownMoneyError = async () => {
         await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
         const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
         this.logger.error(unknownMoneyError.message, unknownMoneyError.stack);
         this.telegramBotService.sendErrorToErrorsChannel(unknownMoneyError);
         throw unknownMoneyError;
+      };
+
+      if (walletTotalBalanceAndUtxos.utxoEntries.length !== 1) {
+        await setUnknownMoneyError();
       }
 
       const transactionId = walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId;
 
       await this.p2pOrderBookService.setWaitingForKasStatus(order._id, new Date(), null, true);
-      await this.confirmBuy(order._id, { transactionId });
+      const result = await this.confirmBuy(order._id, { transactionId });
+
+      if (!result.confirmed && !result.priorityFeeTooHigh) {
+        await setUnknownMoneyError();
+      }
     }
   }
 

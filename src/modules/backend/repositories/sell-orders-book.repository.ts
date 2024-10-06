@@ -98,8 +98,12 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     );
   }
 
-  async setLowFeeStatus(orderId: string): Promise<P2pOrderEntity> {
-    return await this.transitionOrderStatus(orderId, SellOrderStatus.WAITING_FOR_LOW_FEE, SellOrderStatus.CHECKOUT);
+  async setLowFeeStatus(orderId: string, fromDelist: boolean = false): Promise<P2pOrderEntity> {
+    return await this.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.WAITING_FOR_LOW_FEE,
+      fromDelist ? SellOrderStatus.DELISTING : SellOrderStatus.CHECKOUT,
+    );
   }
 
   async setDelistStatus(orderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {

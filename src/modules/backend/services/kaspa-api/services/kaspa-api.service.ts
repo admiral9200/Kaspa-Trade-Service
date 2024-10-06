@@ -36,7 +36,6 @@ export class KaspaApiService {
     // 1. Verify sender address
     const input = txnInfo.inputs.find((input: any) => input.previous_outpoint_address === senderAddr);
     if (!input) {
-      console.error('Sender address not found in the inputs.');
       return false;
     }
 
