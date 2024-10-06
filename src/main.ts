@@ -55,7 +55,7 @@ async function bootstrap() {
     console.log(`app running on port:::`, port);
     await app.listen(port);
   } else if (SERVICE_TYPE == ServiceTypeEnum.CRON) {
-    app = await NestFactory.createApplicationContext(CronAppModule);
+    app = await NestFactory.createApplicationContext(AppModule);
   }
 
   const logError = async (error: any) => {
@@ -93,13 +93,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-setTimeout(() => {
-  throw new Error('Test error');
-}, 4000);
-
-new Promise(() =>
-  setTimeout(() => {
-    throw new Error('Test error 2');
-  }, 5000),
-);
