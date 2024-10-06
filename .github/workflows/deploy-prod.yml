@@ -84,3 +84,8 @@ jobs:
             --environment-name kaspiano-p2p-trade-service-prod \
             --version-label ${VERSION_LABEL} \
             --region $AWS_REGION
+
+        aws elasticbeanstalk update-environment \
+            --environment-name kaspiano-p2p-trade-service-cron-prod \
+            --version-label ${VERSION_LABEL} \
+            --region $AWS_REGION            
