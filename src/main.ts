@@ -6,7 +6,6 @@ import * as WebSocket from 'websocket';
 import { AppModule } from './app.module';
 import { AppConfigService } from './modules/core/modules/config/app-config.service';
 import { ServiceTypeEnum } from './modules/core/enums/service-type.enum';
-import { CronAppModule } from './cron-app.module';
 import { SERVICE_TYPE } from './modules/backend/constants';
 import { AppGlobalLoggerService } from './modules/core/modules/logger/app-global-logger.service';
 
