@@ -59,6 +59,7 @@ async function bootstrap() {
   }
 
   const logError = async (error: any) => {
+    console.error('UNCAUGHT EXEPTION OCCORED: ', error);
     const logger = app.get(AppGlobalLoggerService);
 
     logger.error('UNCAUGHT EXEPTION OCCORED');

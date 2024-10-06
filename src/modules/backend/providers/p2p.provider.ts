@@ -358,7 +358,6 @@ export class P2pProvider {
   }
 
   async handleWatingForFeeOrders() {
-    this.logger.error('TESTING LOGGGGGER');
     const orders = await this.p2pOrderBookService.getWaitingForFeesOrders();
 
     for (const order of orders) {

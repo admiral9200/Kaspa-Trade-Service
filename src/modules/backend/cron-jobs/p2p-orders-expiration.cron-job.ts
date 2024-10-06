@@ -9,7 +9,7 @@ export class P2pOrdersExpirationCronJob {
     private readonly p2pProvider: P2pProvider,
     private readonly logger: AppLogger,
   ) {}
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     try {
       await this.p2pProvider.handleWatingForFeeOrders();
