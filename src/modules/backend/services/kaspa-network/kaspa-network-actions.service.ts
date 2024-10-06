@@ -105,7 +105,7 @@ export class KaspaNetworkActionsService {
 
       if (!resultTransactions.sellerTransactionId) {
         const commission = this.config.swapCommissionPercentage;
-        let commissionInKaspa = (kaspaAmount * BigInt(commission)) / 100n;
+        let commissionInKaspa = BigInt(Math.floor((Number(kaspaAmount) * Number(commission)) / 100));
 
         if (commissionInKaspa < MIMINAL_COMMITION) {
           commissionInKaspa = MIMINAL_COMMITION;
@@ -262,16 +262,18 @@ export class KaspaNetworkActionsService {
   }
 
   async getWalletAccountAtIndex(index: number, xprvString: string = null): Promise<WalletAccount> {
-    const xprv = XPrv.fromXPrv(xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)));
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      const xprv = XPrv.fromXPrv(xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)));
 
-    const account = new PrivateKeyGenerator(xprv, false, 0n);
+      const account = new PrivateKeyGenerator(xprv, false, 0n);
 
-    const privateKey = account.receiveKey(index);
+      const privateKey = account.receiveKey(index);
 
-    return {
-      privateKey,
-      address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
-    };
+      return {
+        privateKey,
+        address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
+      };
+    });
   }
 
   async getWalletTotalBalance(address: string): Promise<bigint> {
