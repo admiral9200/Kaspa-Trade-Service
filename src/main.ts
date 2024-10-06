@@ -4,9 +4,9 @@ import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as WebSocket from 'websocket';
 import { AppModule } from './app.module';
-import { AppConfigService } from './modules/core/modules/config/app-config.service';
-import { ServiceTypeEnum } from './modules/core/enums/service-type.enum';
 import { SERVICE_TYPE } from './modules/backend/constants';
+import { ServiceTypeEnum } from './modules/core/enums/service-type.enum';
+import { AppConfigService } from './modules/core/modules/config/app-config.service';
 import { AppGlobalLoggerService } from './modules/core/modules/logger/app-global-logger.service';
 
 // Needed for Wasm
@@ -16,6 +16,8 @@ async function bootstrap() {
   let app = null;
 
   if (SERVICE_TYPE == ServiceTypeEnum.API) {
+    console.log('starting api instance');
+
     app = await NestFactory.create(AppModule);
     const allowedOrigins = ['https://api.kaspiano.com', 'https://dev-api.kaspiano.com', 'http://localhost:8080'];
 
@@ -54,6 +56,8 @@ async function bootstrap() {
     console.log(`app running on port:::`, port);
     await app.listen(port);
   } else if (SERVICE_TYPE == ServiceTypeEnum.CRON) {
+    console.log('starting cron instance');
+
     app = await NestFactory.createApplicationContext(AppModule);
   }
 
