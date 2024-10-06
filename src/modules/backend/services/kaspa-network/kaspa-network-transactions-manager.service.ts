@@ -106,7 +106,10 @@ export class KaspaNetworkTransactionsManagerService {
         throw new NotEnoughBalanceError();
       }
 
-      payments[0].amount = walletUtxoInfo.totalBalance - MINIMAL_AMOUNT_TO_SEND;
+      payments[0].amount =
+        walletUtxoInfo.totalBalance > MINIMAL_AMOUNT_TO_SEND * 2n
+          ? walletUtxoInfo.totalBalance / 2n
+          : walletUtxoInfo.totalBalance - MINIMAL_AMOUNT_TO_SEND;
     }
 
     const transactionData: IGeneratorSettingsObject = {
@@ -120,36 +123,40 @@ export class KaspaNetworkTransactionsManagerService {
 
     const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee);
     transactionData.priorityFee = transactionsFees.priorityFee;
+    
+    console.log(`fees trans sum (${payments.length})`, transactionsFees);
 
     if (sendAll) {
       payments[0].amount = walletUtxoInfo.totalBalance - transactionsFees.maxFee;
     }
 
     return await this.utils.retryOnError(async () => {
-      const transferFundsTransaction = await createTransactions(transactionData);
+      return await this.connectAndDo(async () => {
+        const transferFundsTransaction = await createTransactions(transactionData);
 
-      const transactionReciever = new TransacionReciever(
-        this.rpcService.getRpc(),
-        this.convertPrivateKeyToPublicKey(privateKey),
-        transferFundsTransaction.summary.finalTransactionId,
-        sendAll,
-      );
+        const transactionReciever = new TransacionReciever(
+          this.rpcService.getRpc(),
+          this.convertPrivateKeyToPublicKey(privateKey),
+          transferFundsTransaction.summary.finalTransactionId,
+          sendAll,
+        );
 
-      await transactionReciever.registerEventHandlers();
+        await transactionReciever.registerEventHandlers();
 
-      console.log('trans sum', transferFundsTransaction.summary);
+        console.log(`trans sum (${payments.length})`, transferFundsTransaction.summary);
 
-      try {
-        await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
+        try {
+          await this.signAndSubmitTransactions(transferFundsTransaction, privateKey);
 
-        await transactionReciever.waitForTransactionCompletion();
-      } catch (error) {
-        throw error;
-      } finally {
-        await transactionReciever.dispose();
-      }
+          await transactionReciever.waitForTransactionCompletion();
+        } catch (error) {
+          throw error;
+        } finally {
+          await transactionReciever.dispose();
+        }
 
-      return transferFundsTransaction;
+        return transferFundsTransaction;
+      }, 1);
     });
   }
 
@@ -199,29 +206,31 @@ export class KaspaNetworkTransactionsManagerService {
     baseTransactionData.priorityFee = priorityFee;
 
     const commitTransaction = await this.utils.retryOnError(async () => {
-      const transaction = await createTransactions(baseTransactionData);
+      return await this.connectAndDo(async () => {
+        const transaction = await createTransactions(baseTransactionData);
 
-      const transactionReciever = new TransacionReciever(
-        this.rpcService.getRpc(),
-        this.convertPrivateKeyToPublicKey(privateKey),
-        transaction.summary.finalTransactionId,
-      );
+        const transactionReciever = new TransacionReciever(
+          this.rpcService.getRpc(),
+          this.convertPrivateKeyToPublicKey(privateKey),
+          transaction.summary.finalTransactionId,
+        );
 
-      console.log('commit transaction summry', transaction.summary);
+        console.log('commit transaction summry', transaction.summary);
 
-      await transactionReciever.registerEventHandlers();
+        await transactionReciever.registerEventHandlers();
 
-      try {
-        await this.signAndSubmitTransactions(transaction, privateKey);
+        try {
+          await this.signAndSubmitTransactions(transaction, privateKey);
 
-        await transactionReciever.waitForTransactionCompletion();
-      } catch (error) {
-        throw error;
-      } finally {
-        await transactionReciever.dispose();
-      }
+          await transactionReciever.waitForTransactionCompletion();
+        } catch (error) {
+          throw error;
+        } finally {
+          await transactionReciever.dispose();
+        }
 
-      return transaction;
+        return transaction;
+      }, 1);
     });
 
     return commitTransaction;
@@ -257,40 +266,42 @@ export class KaspaNetworkTransactionsManagerService {
     baseTransactionData.priorityFee = transactionFeeAmount + priorityFee;
 
     const revealTransactions = await this.utils.retryOnError(async () => {
-      const currentTransactions = await createTransactions(baseTransactionData);
+      return await this.connectAndDo(async () => {
+        const currentTransactions = await createTransactions(baseTransactionData);
 
-      for (const transaction of currentTransactions.transactions) {
-        transaction.sign([privateKey], false);
-        const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
+        for (const transaction of currentTransactions.transactions) {
+          transaction.sign([privateKey], false);
+          const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
 
-        if (ourOutput !== -1) {
-          const signature = await transaction.createInputSignature(ourOutput, privateKey);
+          if (ourOutput !== -1) {
+            const signature = await transaction.createInputSignature(ourOutput, privateKey);
 
-          transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
+            transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
+          }
+
+          const revealTransactionReciever = new TransacionReciever(
+            this.rpcService.getRpc(),
+            this.convertPrivateKeyToPublicKey(privateKey),
+            currentTransactions.summary.finalTransactionId,
+          );
+
+          console.log('reveal transaction summry', currentTransactions.summary);
+
+          await revealTransactionReciever.registerEventHandlers();
+
+          try {
+            await transaction.submit(this.rpcService.getRpc());
+
+            await revealTransactionReciever.waitForTransactionCompletion();
+          } catch (error) {
+            throw error;
+          } finally {
+            await revealTransactionReciever.dispose();
+          }
         }
 
-        const revealTransactionReciever = new TransacionReciever(
-          this.rpcService.getRpc(),
-          this.convertPrivateKeyToPublicKey(privateKey),
-          currentTransactions.summary.finalTransactionId,
-        );
-
-        console.log('reveal transaction summry', currentTransactions.summary);
-
-        await revealTransactionReciever.registerEventHandlers();
-
-        try {
-          await transaction.submit(this.rpcService.getRpc());
-
-          await revealTransactionReciever.waitForTransactionCompletion();
-        } catch (error) {
-          throw error;
-        } finally {
-          await revealTransactionReciever.dispose();
-        }
-      }
-
-      return currentTransactions;
+        return currentTransactions;
+      }, 1);
     });
 
     return revealTransactions;
@@ -329,7 +340,7 @@ export class KaspaNetworkTransactionsManagerService {
     return privateKey.toPublicKey().toAddress(this.rpcService.getNetwork()).toString();
   }
 
-  async connectAndDo<T>(fn: () => Promise<T>): Promise<T> {
+  async connectAndDo<T>(fn: () => Promise<T>, attempts: number = 5): Promise<T> {
     await this.utils.retryOnError(async () => {
       if (!this.rpcService.getRpc().isConnected) {
         await this.rpcService.getRpc().connect();
@@ -339,7 +350,7 @@ export class KaspaNetworkTransactionsManagerService {
         this.rpcService.getRpc().disconnect();
         throw new Error('Server is not synced');
       }
-    });
+    }, attempts);
 
     return await fn();
   }
@@ -378,6 +389,7 @@ export class KaspaNetworkTransactionsManagerService {
 
   async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
     const utxoEntries = await this.getWalletUtxos(address);
+
     return {
       totalBalance: utxoEntries.reduce((acc, curr) => acc + curr.amount, 0n),
       utxoEntries: utxoEntries,

@@ -14,18 +14,13 @@ export class WalletGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     try {
-      console.log('request.cookies: ', request.cookies);
       const userJsonData = request.cookies['user'];
-      console.log('userJsonData: ', userJsonData);
 
       if (isEmptyString(userJsonData)) {
         throw new UnauthorizedException();
       }
 
       const { message, publicKey, signature } = JSON.parse(userJsonData);
-      console.log('message: ', message);
-      console.log('publicKey: ', publicKey);
-      console.log('signature: ', signature);
 
       if (isEmptyString(message) || isEmptyString(publicKey) || isEmptyString(signature)) {
         throw new UnauthorizedException();

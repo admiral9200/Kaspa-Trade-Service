@@ -44,6 +44,17 @@ async function bootstrap() {
 
   const appConfigService = app.get(AppConfigService);
 
+  const logError = async (error: any) => {
+    console.error('!!! UNCAUGHT EXEPTION:');
+    console.error('Uncaught Error:', error);
+
+    // TODO: ADD LOGGER WITHOUT REQUEST
+  };
+
+  process.on('unhandledRejection', logError);
+  process.on('unhandledException', logError);
+  process.on('uncaughtException', logError);
+
   const port = appConfigService.getServicePort || 3000;
 
   console.log(`app running on port:::`, port);
