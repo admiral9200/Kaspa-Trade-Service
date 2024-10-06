@@ -14,16 +14,16 @@ import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/co
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
 import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
 import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
-import { AppLoggerService } from '../../core/modules/logger/app-logger.service';
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
 import { WalletGuard } from '../guards/wallet.guard';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Controller('p2p')
 @UseGuards(WalletGuard)
 export class P2pController {
   constructor(
     private readonly p2pProvider: P2pProvider,
-    private readonly logger: AppLoggerService,
+    private readonly logger: AppLogger,
   ) {}
 
   @Post('getSellOrders')

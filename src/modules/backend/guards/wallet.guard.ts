@@ -1,13 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { isEmptyString } from '../utils/object.utils';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
-import { AppLoggerService } from 'src/modules/core/modules/logger/app-logger.service';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Injectable()
 export class WalletGuard implements CanActivate {
   constructor(
     protected readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
-    protected readonly logger: AppLoggerService,
+    protected readonly logger: AppLogger,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

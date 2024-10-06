@@ -214,8 +214,8 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.setSwapError(sellOrderId, error);
   }
 
-  async setLowFeeErrorStatus(sellOrderId: string) {
-    return await this.sellOrdersBookRepository.setLowFeeStatus(sellOrderId);
+  async setLowFeeErrorStatus(sellOrderId: string, fromDelist: boolean = false) {
+    return await this.sellOrdersBookRepository.setLowFeeStatus(sellOrderId, fromDelist);
   }
 
   async setDelistError(sellOrderId: string, error: string) {

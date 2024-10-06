@@ -1,8 +1,8 @@
 import { AppConfigService } from '../../../core/modules/config/app-config.service';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-import { Injectable } from '@nestjs/common';
-import { AppLoggerService } from 'src/modules/core/modules/logger/app-logger.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Injectable()
 export class TelegramBotService {
@@ -12,7 +12,7 @@ export class TelegramBotService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: AppConfigService,
-    private readonly logger: AppLoggerService,
+    @Inject(AppLogger) private readonly logger: AppLogger,
   ) {
     this.apiKey = this.configService.getTelegramBotApiKey;
     if (!this.apiKey) {
