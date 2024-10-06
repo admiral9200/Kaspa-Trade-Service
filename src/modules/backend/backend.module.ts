@@ -24,21 +24,45 @@ import { UtilsHelper } from './helpers/utils.helper';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TelegramNotifierModule } from '../shared/telegram-notifier/telegram-notifier.module';
 import { P2pTelegramNotifierService } from './services/telegram-bot/p2p-telegram-notifier.service';
-import { P2pOrdersExpirationCronJob } from './cron-jobs/p2p-orders-expiration.cron-job';
-import { ServiceTypeEnum } from '../core/enums/service-type.enum';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
-import { Type } from '@nestjs/common/interfaces/type.interface';
 import { OrdersManagementProvider } from './providers/orders-management.provider';
 import { OrdersManagementController } from './controllers/orders-management.controller';
 import { WalletGuard } from './guards/wallet.guard';
 import { AdminWalletGuard } from './guards/adminWallet.guard';
+import { AppGlobalLoggerService } from '../core/modules/logger/app-global-logger.service';
 
-const serviceType: ServiceTypeEnum = (process.env.SERVICE_TYPE as ServiceTypeEnum) || ServiceTypeEnum.API;
-console.log('Backend module loaded - service running on mode:', serviceType);
+export const BASE_PROVIDERS: Provider[] = [
+  // Providers
+  P2pProvider,
 
+  // Facades
+  KaspaFacade,
+
+  // Services
+  P2pOrdersService,
+  KaspaNetworkActionsService,
+  KaspaNetworkTransactionsManagerService,
+  TemporaryWalletSequenceService,
+  RpcService,
+  EncryptionService,
+  P2pTelegramNotifierService,
+  AppGlobalLoggerService,
+
+  // Helpers
+  P2pOrderHelper,
+  UtilsHelper,
+
+  // Repositories
+  SellOrdersBookRepository,
+  P2pTemporaryWalletsSequenceRepository,
+
+  // Guards
+  WalletGuard,
+  AdminWalletGuard,
+];
 @Module({
-  controllers: BackendModule.buildControllersList(),
-  providers: BackendModule.buildProviders(),
+  controllers: [P2pController, OrdersManagementController],
+  providers: [...BASE_PROVIDERS, OrdersManagementProvider],
   imports: [
     TelegramNotifierModule,
     HttpModule,
@@ -69,57 +93,5 @@ export class BackendModule implements OnModuleInit {
 
   async onModuleInit() {
     await this.temporaryWalletsSequenceRepository.createSequenceIfNotExists();
-  }
-
-  static buildControllersList(): Type<any>[] {
-    const controllers: any[] = [];
-
-    if (serviceType === ServiceTypeEnum.API) {
-      controllers.push(P2pController);
-      controllers.push(OrdersManagementController);
-    }
-
-    return controllers;
-  }
-
-  static buildProviders(): Provider[] {
-    const providers: Provider[] = [
-      // Providers
-      P2pProvider,
-
-      // Facades
-      KaspaFacade,
-
-      // Services
-      P2pOrdersService,
-      KaspaNetworkActionsService,
-      KaspaNetworkTransactionsManagerService,
-      TemporaryWalletSequenceService,
-      RpcService,
-      EncryptionService,
-      P2pTelegramNotifierService,
-
-      // Helpers
-      P2pOrderHelper,
-      UtilsHelper,
-
-      // Repositories
-      SellOrdersBookRepository,
-      P2pTemporaryWalletsSequenceRepository,
-
-      // Guards
-      WalletGuard,
-      AdminWalletGuard,
-    ];
-
-    if (serviceType === ServiceTypeEnum.CRON) {
-      providers.push(P2pOrdersExpirationCronJob);
-    }
-
-    if (serviceType === ServiceTypeEnum.API) {
-      providers.push(OrdersManagementProvider);
-    }
-
-    return providers;
   }
 }

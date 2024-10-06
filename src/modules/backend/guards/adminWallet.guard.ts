@@ -2,13 +2,13 @@ import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/com
 import { WalletGuard } from './wallet.guard';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
-import { AppLoggerService } from 'src/modules/core/modules/logger/app-logger.service';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Injectable()
 export class AdminWalletGuard extends WalletGuard {
   constructor(
     readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
-    readonly logger: AppLoggerService,
+    readonly logger: AppLogger,
     protected readonly config: AppConfigService,
   ) {
     super(kaspaNetworkActionsService, logger);

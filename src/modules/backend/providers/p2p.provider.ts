@@ -30,8 +30,8 @@ import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-re
 import { GetOrderStatusResponseDto } from '../model/dtos/get-order-status-response.dto';
 import { isEmptyString } from '../utils/object.utils';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
-import { AppLoggerService } from 'src/modules/core/modules/logger/app-logger.service';
 import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoneyError';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Injectable()
 export class P2pProvider {
@@ -41,7 +41,7 @@ export class P2pProvider {
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly telegramBotService: TelegramBotService,
-    private readonly logger: AppLoggerService,
+    private readonly logger: AppLogger,
   ) {}
 
   public async listOrders(
@@ -358,6 +358,7 @@ export class P2pProvider {
   }
 
   async handleWatingForFeeOrders() {
+    this.logger.error('TESTING LOGGGGGER');
     const orders = await this.p2pOrderBookService.getWaitingForFeesOrders();
 
     for (const order of orders) {
