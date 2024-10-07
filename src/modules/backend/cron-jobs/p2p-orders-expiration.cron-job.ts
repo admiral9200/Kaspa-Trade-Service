@@ -34,6 +34,13 @@ export class P2pOrdersExpirationCronJob {
       this.logger.error(error, error?.stack, error?.meta);
     }
 
+    try {
+      await this.p2pProvider.notifyStuckOrders();
+    } catch (error) {
+      this.logger.error('error notifiing stuck orders');
+      this.logger.error(error, error?.stack, error?.meta);
+    }
+
     P2pOrdersExpirationCronJob.isRunning = false;
   }
 }

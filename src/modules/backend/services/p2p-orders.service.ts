@@ -275,4 +275,8 @@ export class P2pOrdersService {
   async setWalletKeyExposedBy(order: P2pOrderEntity, viewerWallet: string) {
     await this.sellOrdersBookRepository.setWalletKeyExposedBy(order, viewerWallet);
   }
+
+  async getStuckOrders(): Promise<P2pOrderEntity[]> {
+    return await this.sellOrdersBookRepository.getStuckOrders();
+  }
 }

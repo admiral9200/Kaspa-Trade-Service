@@ -97,4 +97,12 @@ export class AppConfigService {
   get getKaspaApiUrl(): string {
     return this.configService.get('KASPA_API_URL');
   }
+
+  get getTelegramOptionalBotApiKey(): string {
+    return this.configService.get('TELEGRAM_OPTIONAL_BOT_API_KEY');
+  }
+
+  get getTelegramOrdersNotificationsChannelId(): string {
+    return this.configService.get('TELEGRAM_ORDERS_NOTIFICATIONS_CHANNEL_ID');
+  }
 }
