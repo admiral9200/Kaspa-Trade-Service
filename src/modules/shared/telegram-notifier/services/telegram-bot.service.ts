@@ -82,7 +82,7 @@ export class TelegramBotService {
           Number(MIMINAL_COMMITION) / 1e8,
         ).toFixed(2);
         let message = TelegramBotService.escapeMarkdown(
-          `Order completed.^n^Order Total Kas: ${order.totalPrice}^n^Order Token: ${order.quantity} ${order.ticker}^n^Commission: ${comission}`,
+          `Order completed.^n^Total Kaspa: ${order.totalPrice}^n^Tokens: ${order.quantity} ${order.ticker}^n^Commission: ${comission}`,
         );
 
         message = message.replace(/\^n\^/g, '\n');

@@ -445,9 +445,9 @@ export class P2pProvider {
     const orders = await this.p2pOrderBookService.getStuckOrders();
 
     if (orders.length > 0) {
+      console.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       this.logger.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
+      await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
     }
-
-    await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
   }
 }
