@@ -1,4 +1,4 @@
-import { IsNumber, Min } from 'class-validator';
+import { IsInt, IsNumber, Min } from 'class-validator';
 import { MIN_TOTAL_PRICE } from '../schemas/p2p-order.schema';
 
 export class UpdateSellOrderDto {
@@ -6,6 +6,7 @@ export class UpdateSellOrderDto {
   pricePerToken: number;
 
   @IsNumber()
+  @IsInt()
   @Min(MIN_TOTAL_PRICE)
   totalPrice: number;
 }
