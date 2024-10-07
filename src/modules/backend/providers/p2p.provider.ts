@@ -32,6 +32,7 @@ import { isEmptyString } from '../utils/object.utils';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoneyError';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
+import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
 
 @Injectable()
 export class P2pProvider {
@@ -126,6 +127,9 @@ export class P2pProvider {
         await this.p2pOrderBookService.updateSwapTransactionsResult(order._id, result);
       });
       await this.p2pOrderBookService.setOrderCompleted(order._id);
+
+      // don't await because not important
+      this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
 
       return transactionsResult;
     } catch (error) {
@@ -435,5 +439,15 @@ export class P2pProvider {
       orders: ordersResponse.orders.map((order) => P2pOrderBookResponseTransformer.transformToOrderHistoryOrder(order)),
       totalCount: ordersResponse.totalCount,
     };
+  }
+
+  async notifyStuckOrders() {
+    const orders = await this.p2pOrderBookService.getStuckOrders();
+
+    if (orders.length > 0) {
+      console.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
+      this.logger.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
+      await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
+    }
   }
 }

@@ -343,7 +343,10 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       if (filters) {
         if (filters.statuses && filters.statuses.length > 0) {
           filterQuery.status = { $in: filters.statuses };
+        } else {
+          filterQuery.status = { $nin: [SellOrderStatus.WAITING_FOR_TOKENS] };
         }
+
         if (filters.tickers && filters.tickers.length > 0) {
           filterQuery.ticker = { $in: filters.tickers };
         }
@@ -446,5 +449,19 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         },
       ]),
     });
+  }
+
+  async getStuckOrders(): Promise<P2pOrderEntity[]> {
+    const lastHour = new Date(Date.now() - 1000 * 60 * 60);
+    const stuckOrders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.CHECKOUT, SellOrderStatus.DELISTING],
+        },
+        updatedAt: { $lte: lastHour },
+      })
+      .exec();
+
+    return stuckOrders;
   }
 }
