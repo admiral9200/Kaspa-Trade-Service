@@ -1,7 +1,9 @@
-import { CancelSwapTransactionsResult } from 'src/modules/backend/services/kaspa-network/interfaces/CancelSwapTransactionsResult.interface';
+import { SwapTransactionsResult } from 'src/modules/backend/services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 
 export interface ConfirmDelistOrderRequestResponseDto {
   confirmed: boolean;
-  transactions?: CancelSwapTransactionsResult;
+  transactions?: Partial<SwapTransactionsResult>;
+  temporaryWalletAddress?: string;
   priorityFeeTooHigh?: boolean;
+  needMoney?: boolean;
 }

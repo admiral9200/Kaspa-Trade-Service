@@ -22,6 +22,7 @@ export class KaspaApiService {
       },
       5,
       5000,
+      true,
     );
   }
 
@@ -35,7 +36,6 @@ export class KaspaApiService {
     // 1. Verify sender address
     const input = txnInfo.inputs.find((input: any) => input.previous_outpoint_address === senderAddr);
     if (!input) {
-      console.error('Sender address not found in the inputs.');
       return false;
     }
 
@@ -50,5 +50,25 @@ export class KaspaApiService {
     }
 
     return true;
+  }
+
+  async getWalletLastTransactions(walletAddress: string = null, limit: number = 10, offset: number = 0): Promise<any> {
+    return await this.utils.retryOnError(
+      async () => {
+        const response = await firstValueFrom(
+          this.httpService.get<any>(
+            `addresses/${walletAddress}/full-transactions?limit=${limit}&offset=${offset}&resolve_previous_outpoints=no`,
+            {
+              timeout: 2 * 60 * 1000,
+            },
+          ),
+        );
+
+        return response.data;
+      },
+      3,
+      1000,
+      true,
+    );
   }
 }

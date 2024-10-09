@@ -15,6 +15,7 @@ export class P2pOrderBookTransformer {
       totalPrice: entity.totalPrice,
       expiresAt: entity.expiresAt,
       createdAt: entity.createdAt,
+      status: entity.status,
     };
   }
 
@@ -31,13 +32,17 @@ export class P2pOrderBookTransformer {
     };
   }
 
-  static createP2pOrderEntityFromSellOrderDto(sellOrderDto: SellOrderDto, walletSequenceId: number): P2pOrderEntity {
+  static createP2pOrderEntityFromSellOrderDto(
+    sellOrderDto: SellOrderDto,
+    walletSequenceId: number,
+    sellerWalletAddress: string,
+  ): P2pOrderEntity {
     return {
       ticker: sellOrderDto.ticker,
       quantity: sellOrderDto.quantity,
       pricePerToken: sellOrderDto.pricePerToken,
       totalPrice: sellOrderDto.totalPrice,
-      sellerWalletAddress: sellOrderDto.walletAddress,
+      sellerWalletAddress: sellerWalletAddress,
       walletSequenceId: walletSequenceId,
       status: SellOrderStatus.WAITING_FOR_TOKENS,
     };

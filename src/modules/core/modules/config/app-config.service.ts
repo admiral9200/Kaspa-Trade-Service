@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ServiceTypeEnum } from '../../enums/service-type.enum';
 
 @Injectable()
 export class AppConfigService {
-  constructor(private readonly configService: ConfigService) {
+  constructor(readonly configService: ConfigService) {
     console.log('All Environment Variables:', JSON.stringify(process.env));
+  }
+
+  get getServiceType(): ServiceTypeEnum {
+    return this.configService.get('SERVICE_TYPE') as ServiceTypeEnum;
   }
 
   get getServiceCommunicationSecretKey(): string {
@@ -17,6 +22,29 @@ export class AppConfigService {
 
   get getServiceName(): string {
     return this.configService.get('name') || 'default-service';
+  }
+
+  get getTelegramBotApiKey(): string {
+    return this.configService.get('TELEGRAM_BOT_API_KEY');
+  }
+
+  get getTelegramErrorsChannelId(): string {
+    return this.configService.get('TELEGRAM_P2P_ERRORS_CHANNEL_ID');
+  }
+
+  get getTelegramPrivateKeysChannelId() {
+    return this.configService.get('TELEGRAM_PRIVATE_KEYS_CHANNEL_ID');
+  }
+
+  get privateKeyViewingPassword(): string {
+    return this.configService.get('PRIVATE_KEY_VIEWING_PASSWORD');
+  }
+
+  get adminWallets(): string[] {
+    return this.configService
+      .get('ADMIN_WALLET_ADDRESSES')
+      .split(',')
+      .map((address) => address.trim());
   }
 
   get getEnv(): string {
@@ -62,15 +90,19 @@ export class AppConfigService {
     };
   }
 
-  get generateMasterSeedPassword(): string {
-    return this.configService.get('GENERATE_MASTER_SEED_PASSWORD');
-  }
-
   get getKrc20ServiceUrl(): string {
     return this.configService.get('KRC20_INFO_SERVICE_URL');
   }
 
   get getKaspaApiUrl(): string {
     return this.configService.get('KASPA_API_URL');
+  }
+
+  get getTelegramOptionalBotApiKey(): string {
+    return this.configService.get('TELEGRAM_OPTIONAL_BOT_API_KEY');
+  }
+
+  get getTelegramOrdersNotificationsChannelId(): string {
+    return this.configService.get('TELEGRAM_ORDERS_NOTIFICATIONS_CHANNEL_ID');
   }
 }

@@ -4,6 +4,7 @@ import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.respo
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { ListedOrderDto } from '../model/dtos/listed-order.dto';
 import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
+import { OrderHistoryDm } from '../model/dms/order-history.dm';
 
 export class P2pOrderBookResponseTransformer {
   static createSellOrderCreatedResponseDto(entity: P2pOrderEntity, temporaryWalletAddress: string): SellRequestResponseDto {
@@ -58,14 +59,25 @@ export class P2pOrderBookResponseTransformer {
     };
   }
 
-  static transformOrderDmToOffMerketplaceResponseDto(
-    orderDm: OrderDm,
-    temporaryWalletAddress: string,
-  ): OffMarketplaceRequestResponseDto {
+  static transformOrderDmToOffMerketplaceResponseDto(orderDm: OrderDm): OffMarketplaceRequestResponseDto {
     return {
       success: true,
-      temporaryWalletAddress: temporaryWalletAddress,
       status: orderDm.status,
+    };
+  }
+
+  static transformToOrderHistoryOrder(order: P2pOrderEntity): OrderHistoryDm {
+    return {
+      orderId: order._id,
+      pricePerToken: order.pricePerToken,
+      quantity: order.quantity,
+      ticker: order.ticker,
+      totalPrice: order.totalPrice,
+      expiresAt: order.expiresAt,
+      createdAt: order.createdAt,
+      status: order.status,
+      sellerWalletAddress: order.sellerWalletAddress,
+      buyerWalletAddress: order.buyerWalletAddress,
     };
   }
 }

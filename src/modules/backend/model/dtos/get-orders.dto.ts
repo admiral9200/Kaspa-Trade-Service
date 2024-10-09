@@ -6,10 +6,6 @@ import { PAGINATION_LIMIT_DEFAULT } from '../../constants/p2p-order.constants';
 import { SortDirection } from '../enums/sort-direction.enum';
 
 export class GetOrdersDto {
-  @IsString()
-  @IsOptional()
-  walletAddress?: string;
-
   @ValidateNested()
   @Type(() => SortDto)
   @IsOptional()

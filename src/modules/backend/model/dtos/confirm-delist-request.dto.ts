@@ -1,9 +1,7 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class ConfirmDelistRequestDto {
   @IsString()
-  transactionId: string;
-
-  @IsString()
-  walletAddress: string;
+  @IsOptional()
+  transactionId?: string;
 }
