@@ -80,7 +80,7 @@ export class TelegramBotService {
         const comission = Math.max(
           order.totalPrice * (this.configService.swapCommissionPercentage / 100),
           Number(MIMINAL_COMMITION) / 1e8,
-        ).toFixed(2);
+        ).toFixed(3);
         let message = TelegramBotService.escapeMarkdown(
           `Order completed.^n^Total Kaspa: ${order.totalPrice}^n^Tokens: ${order.quantity} ${order.ticker}^n^Commission: ${comission}`,
         );
