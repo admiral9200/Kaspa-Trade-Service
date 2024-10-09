@@ -348,7 +348,6 @@ export class P2pProvider {
     const orders = await this.p2pOrderBookService.getExpiredOrders();
 
     if (orders.length > 0) {
-      debugger;
       this.logger.info(`Handling expired orders - ${orders.length} orders found`);
     }
 
