@@ -17,7 +17,11 @@ export class AppConfigService {
   }
 
   get isProduction(): boolean {
-    return this.configService.get('nodeEnv') === 'production';
+    return this.isProd;
+  }
+
+  get isProd(): boolean {
+    return this.configService.get('CURRENT_ENV') === 'prod';
   }
 
   get getServiceName(): string {
