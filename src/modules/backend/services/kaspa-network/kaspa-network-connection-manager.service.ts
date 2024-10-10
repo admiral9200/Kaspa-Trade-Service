@@ -86,7 +86,6 @@ export class KaspaNetworkConnectionManagerService {
         console.error('Failed connecting RPC', err);
       } finally {
         if (timeoutForConnection) {
-          console.log('clear timeout 2');
           clearTimeout(timeoutForConnection);
         }
       }
