@@ -10,16 +10,20 @@ export class RpcService {
 
   constructor(private configService: AppConfigService) {
     this.network = this.configService.kaspaNetwork;
+    this.refreshRpc();
+  }
 
+  getRpc() {
+    return this.RPC;
+  }
+
+  refreshRpc() {
     this.RPC = new RpcClient({
       resolver: new Resolver(),
       encoding: Encoding.Borsh,
       networkId: this.network,
     });
-  }
-
-  getRpc() {
-    return this.RPC;
+    return this.getRpc();
   }
 
   getNetwork() {
