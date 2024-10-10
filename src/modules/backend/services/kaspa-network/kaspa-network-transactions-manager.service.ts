@@ -350,11 +350,6 @@ export class KaspaNetworkTransactionsManagerService {
     return await fn();
   }
 
-  async isServerValid(): Promise<boolean> {
-    const serverInfo = await this.rpcService.getRpc().getServerInfo();
-    return serverInfo.isSynced && serverInfo.hasUtxoIndex;
-  }
-
   async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
 
