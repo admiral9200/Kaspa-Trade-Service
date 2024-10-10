@@ -30,6 +30,7 @@ import { OrdersManagementController } from './controllers/orders-management.cont
 import { WalletGuard } from './guards/wallet.guard';
 import { AdminWalletGuard } from './guards/adminWallet.guard';
 import { AppGlobalLoggerService } from '../core/modules/logger/app-global-logger.service';
+import { KaspaNetworkConnectionManagerService } from './services/kaspa-network/kaspa-network-connection-manager.service';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -42,6 +43,7 @@ export const BASE_PROVIDERS: Provider[] = [
   P2pOrdersService,
   KaspaNetworkActionsService,
   KaspaNetworkTransactionsManagerService,
+  KaspaNetworkConnectionManagerService,
   TemporaryWalletSequenceService,
   RpcService,
   EncryptionService,
