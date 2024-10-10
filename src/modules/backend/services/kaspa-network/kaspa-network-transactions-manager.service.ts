@@ -22,6 +22,7 @@ import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.in
 import { UtilsHelper } from '../../helpers/utils.helper';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
+import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
 
 export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 
@@ -29,6 +30,7 @@ export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 export class KaspaNetworkTransactionsManagerService {
   constructor(
     private rpcService: RpcService,
+    private readonly connectionManager: KaspaNetworkConnectionManagerService,
     private readonly utils: UtilsHelper,
   ) {}
 
@@ -123,7 +125,7 @@ export class KaspaNetworkTransactionsManagerService {
 
     const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee);
     transactionData.priorityFee = transactionsFees.priorityFee;
-    
+
     console.log(`fees trans sum (${payments.length})`, transactionsFees);
 
     if (sendAll) {
@@ -342,22 +344,10 @@ export class KaspaNetworkTransactionsManagerService {
 
   async connectAndDo<T>(fn: () => Promise<T>, attempts: number = 5): Promise<T> {
     await this.utils.retryOnError(async () => {
-      if (!this.rpcService.getRpc().isConnected) {
-        await this.rpcService.getRpc().connect();
-      }
-
-      if (!(await this.isServerValid())) {
-        this.rpcService.getRpc().disconnect();
-        throw new Error('Server is not synced');
-      }
+      await this.connectionManager.waitForConnection();
     }, attempts);
 
     return await fn();
-  }
-
-  async isServerValid(): Promise<boolean> {
-    const serverInfo = await this.rpcService.getRpc().getServerInfo();
-    return serverInfo.isSynced && serverInfo.hasUtxoIndex;
   }
 
   async getEstimatedPriorityFeeRate(): Promise<number> {
