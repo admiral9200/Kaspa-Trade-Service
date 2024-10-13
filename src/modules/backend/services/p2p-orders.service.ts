@@ -138,6 +138,14 @@ export class P2pOrdersService {
     }
   }
 
+  async setTokensNotSent(orderId: string): Promise<P2pOrderEntity> {
+    return await this.sellOrdersBookRepository.transitionOrderStatus(
+      orderId,
+      SellOrderStatus.TOKENS_NOT_SENT,
+      SellOrderStatus.WAITING_FOR_TOKENS,
+    );
+  }
+
   async updateOrderStatusToCheckout(sellOrderId: string, fromLowFee: boolean = false): Promise<P2pOrderEntity> {
     // FROM HERE, MEANS VALIDATION PASSED
     const order: P2pOrderEntity = await this.sellOrdersBookRepository.setCheckoutStatus(sellOrderId, fromLowFee);
@@ -163,6 +171,10 @@ export class P2pOrdersService {
 
   async getExpiredOrders() {
     return await this.sellOrdersBookRepository.getExpiredOrders();
+  }
+
+  async getWaitingForTokensOrders() {
+    return await this.sellOrdersBookRepository.getWaitingForTokensOrders();
   }
 
   async getWaitingForFeesOrders() {

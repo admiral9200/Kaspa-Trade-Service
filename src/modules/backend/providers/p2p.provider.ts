@@ -365,6 +365,27 @@ export class P2pProvider {
     }
   }
 
+  async handleWaitingTokensOrders() {
+    const orders = await this.p2pOrderBookService.getWaitingForTokensOrders();
+
+    if (orders.length > 0) {
+      this.logger.info(`Handling waiting for token orders - ${orders.length} orders found`);
+    }
+
+    for (const order of orders) {
+      try {
+        await this.handleWaitingTokensOrder(order);
+      } catch (error) {
+        console.error('Failed in handling waiting for token orders', error);
+
+        if (!(error instanceof PriorityFeeTooHighError)) {
+          this.logger.error(error?.message, error?.stack);
+          this.telegramBotService.sendErrorToErrorsChannel(error);
+        }
+      }
+    }
+  }
+
   async handleWatingForFeeOrders() {
     const orders = await this.p2pOrderBookService.getWaitingForFeesOrders();
 
@@ -412,6 +433,22 @@ export class P2pProvider {
       if (!result.confirmed && !result.priorityFeeTooHigh) {
         await setUnknownMoneyError();
       }
+    }
+  }
+
+  async handleWaitingTokensOrder(order: P2pOrderEntity) {
+    const temporaryWalletPublicAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId);
+
+    const hasTokens: boolean = await this.kaspaFacade.checkIfWalletHasKrc20Token(
+      temporaryWalletPublicAddress,
+      order.ticker,
+      order.quantity,
+    );
+
+    if (hasTokens) {
+      await this.p2pOrderBookService.setReadyForSale(order._id);
+    } else {
+      await this.p2pOrderBookService.setTokensNotSent(order._id);
     }
   }
 
