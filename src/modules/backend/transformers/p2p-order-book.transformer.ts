@@ -1,9 +1,9 @@
-import { SellOrderDto } from '../model/dtos/sell-order.dto';
+import { SellOrderDto } from '../model/dtos/p2p-orders/sell-order.dto';
 import { OrderDm } from '../model/dms/order.dm';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
-import { SellOrderResponseDto } from '../model/dtos/responses/sell-order.response.dto';
-import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { SellOrderResponseDto } from '../model/dtos/p2p-orders/responses/sell-order.response.dto';
+import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
 
 export class P2pOrderBookTransformer {
   static transformP2pOrderEntityToListedOrderDto(entity: P2pOrderEntity): ListedOrderDto {

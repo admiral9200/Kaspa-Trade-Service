@@ -1,9 +1,9 @@
 import { OrderDm } from '../model/dms/order.dm';
-import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
-import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
+import { SellRequestResponseDto } from '../model/dtos/p2p-orders/responses/sell-request.response.dto';
+import { BuyRequestResponseDto } from '../model/dtos/p2p-orders/responses/buy-request.response.dto';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
-import { ListedOrderDto } from '../model/dtos/listed-order.dto';
-import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
+import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
+import { OffMarketplaceRequestResponseDto } from '../model/dtos/p2p-orders/responses/off-marketplace-request.response.dto';
 import { OrderHistoryDm } from '../model/dms/order-history.dm';
 
 export class P2pOrderBookResponseTransformer {

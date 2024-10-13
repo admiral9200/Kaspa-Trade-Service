@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { SellOrderStatus } from '../enums/sell-order-status.enum';
+import { SellOrderStatus } from '../../enums/sell-order-status.enum';
 
 export class GetOrdersHistoryFiltersDto {
   @IsEnum(SellOrderStatus, { each: true })

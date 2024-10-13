@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { P2pOrdersService } from '../services/p2p-orders.service';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
-import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
