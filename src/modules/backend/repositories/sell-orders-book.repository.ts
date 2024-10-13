@@ -361,7 +361,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         if (filters.statuses && filters.statuses.length > 0) {
           filterQuery.status = { $in: filters.statuses };
         } else {
-          filterQuery.status = { $nin: [SellOrderStatus.WAITING_FOR_TOKENS, SellOrderStatus.TOKENS_NOT_SENT] };
+          filterQuery.status = { $nin: [SellOrderStatus.TOKENS_NOT_SENT] };
         }
 
         if (filters.tickers && filters.tickers.length > 0) {
