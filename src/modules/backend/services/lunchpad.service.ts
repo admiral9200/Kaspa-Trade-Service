@@ -62,4 +62,18 @@ export class LunchpadService {
       (error) => !this.lunchpadRepository.isDocumentTransactionLockedError(error),
     );
   }
+
+  async cancelLunchpadOrder(order: LunchpadOrder): Promise<{ lunchpad: LunchpadEntity; lunchpadOrder: LunchpadOrder }> {
+    return await this.utils.retryOnError(
+      async () => await this.lunchpadRepository.cancelLunchpadOrderAndLockLunchpadQty(order.lunchpadId, order._id),
+      10,
+      1000,
+      true,
+      (error) => !this.lunchpadRepository.isDocumentTransactionLockedError(error),
+    );
+  }
+
+  async getOrderByIdAndWallet(orderId: string, walletAddress: string): Promise<LunchpadOrder> {
+    return this.lunchpadRepository.findOrderByIdAndWalletAddress(orderId, walletAddress);
+  }
 }

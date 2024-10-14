@@ -85,4 +85,18 @@ export class LunchpadController {
       lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
     };
   }
+
+  @Post(':orderId/cancel-order')
+  async cancelOrder(@Param('orderId') orderId: string, @Request() req): Promise<ClientSideLunchpadOrderWithStatus> {
+    const result = await this.lunchpadProvider.cancelOrder(orderId, req.wallet);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpadOrder: result.lunchpadOrder
+        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(result.lunchpadOrder)
+        : null,
+      lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
+    };
+  }
 }

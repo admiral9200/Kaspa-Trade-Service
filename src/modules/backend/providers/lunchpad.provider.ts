@@ -5,7 +5,7 @@ import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-netw
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { LunchpadService } from '../services/lunchpad.service';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
-import { LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
+import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadDataWithWallet, LunchpadOrderDataWithErrors } from '../model/dtos/lunchpad/lunchpad-data-with-wallet';
 import { ERROR_CODES } from '../constants';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
@@ -173,6 +173,66 @@ export class LunchpadProvider {
   }
 
   async processOrder(orderId, walletAddress): Promise<LunchpadOrderDataWithErrors> {
+    const orderData = await this.getOrderByIdAndWalletAndStatus(orderId, walletAddress, LunchpadOrderStatus.WAITING_FOR_KAS);
+
+    if (!orderData.success) {
+      return orderData;
+    }
+
+    // TODO: check wallet balance
     return null;
+  }
+
+  async cancelOrder(orderId, walletAddress): Promise<LunchpadOrderDataWithErrors> {
+    const orderData = await this.getOrderByIdAndWalletAndStatus(orderId, walletAddress, LunchpadOrderStatus.WAITING_FOR_KAS);
+
+    if (!orderData.success) {
+      return orderData;
+    }
+
+    try {
+      const result = await this.lunchpadService.cancelLunchpadOrder(orderData.lunchpadOrder);
+
+      return {
+        success: true,
+        lunchpadOrder: result.lunchpadOrder,
+        lunchpad: result.lunchpad,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        lunchpadOrder: orderData.lunchpadOrder,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+      };
+    }
+  }
+
+  async getOrderByIdAndWalletAndStatus(
+    orderId: string,
+    walletAddress: string,
+    status: LunchpadOrderStatus,
+  ): Promise<LunchpadOrderDataWithErrors> {
+    const order = await this.lunchpadService.getOrderByIdAndWallet(orderId, walletAddress);
+
+    if (!order) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+        lunchpadOrder: null,
+      };
+    }
+
+    if (order.status !== status) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_ORDER_STATUS,
+        lunchpadOrder: order,
+      };
+    }
+
+    return {
+      success: true,
+      lunchpadOrder: order,
+    };
   }
 }

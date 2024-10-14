@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { ClientSession, Model } from 'mongoose';
+import { ClientSession, FilterQuery, Model } from 'mongoose';
 import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { InvalidStatusForLunchpadUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadUpdate';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
@@ -100,5 +100,63 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       throw error;
     }
+  }
+
+  async cancelLunchpadOrderAndLockLunchpadQty(
+    lunchpadId: string,
+    orderId: string,
+  ): Promise<{ lunchpad: LunchpadEntity; lunchpadOrder: LunchpadOrder }> {
+    const session = await this.connection.startSession();
+
+    session.startTransaction();
+
+    try {
+      const lockedLunchpad = await this.lunchpadModel.findOneAndUpdate(
+        { _id: lunchpadId },
+        { $inc: { availabeUnits: 0 } }, // No-op, essentially locks the document
+        { new: true, session }, // Use session to ensure it's part of the transaction
+      );
+
+      if (!lockedLunchpad) {
+        throw new Error('Lunchpad not found');
+      }
+
+      const filter: FilterQuery<LunchpadOrder> = {
+        status: LunchpadOrderStatus.WAITING_FOR_KAS,
+        _id: orderId,
+      };
+
+      const updatedOrder = await this.lunchpadOrderModel
+        .findOneAndUpdate(filter, { $set: { status: LunchpadOrderStatus.TOKENS_NOT_SENT } }, { new: true })
+        .session(session)
+        .exec();
+
+      if (!updatedOrder) {
+        throw new Error('Order not found/Invalid order status');
+      }
+
+      const amountToAdd = updatedOrder.totalUnits;
+
+      const updatedLunchpad = await this.lunchpadModel.findOneAndUpdate(
+        { _id: lockedLunchpad._id },
+        { $inc: { availabeUnits: amountToAdd } }, // Decrease the quantity
+        { new: true, session }, // Use session for the transaction
+      );
+
+      session.commitTransaction();
+
+      return {
+        lunchpad: updatedLunchpad,
+        lunchpadOrder: updatedOrder,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+
+      throw error;
+    }
+  }
+
+  async findOrderByIdAndWalletAddress(orderId: string, walletAddress: string): Promise<LunchpadOrder | null> {
+    return this.lunchpadOrderModel.findOne({ _id: orderId, userWalletAddress: walletAddress });
   }
 }
