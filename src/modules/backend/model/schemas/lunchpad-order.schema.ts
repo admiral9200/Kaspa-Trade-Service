@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { WalletPrivateKeyExposedRecord } from '../../services/kaspa-network/interfaces/WalletPrivateKeyExposedRecord.interface';
-import { LunchpadStatus } from '../enums/lunchpad-statuses.enum';
+import { LunchpadOrderStatus } from '../enums/lunchpad-statuses.enum';
 
 @Schema({
   versionKey: false,
@@ -23,8 +23,11 @@ export class LunchpadOrder {
   @Prop({ required: true })
   tokenPerUnit: number;
 
-  @Prop({ required: true, default: LunchpadStatus.CREATED })
-  status: LunchpadStatus;
+  @Prop({ required: true, default: LunchpadOrderStatus.WAITING_FOR_KAS })
+  status: LunchpadOrderStatus;
+
+  @Prop({ required: true })
+  userWalletAddress: string;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
@@ -36,5 +39,5 @@ export class LunchpadOrder {
   updatedAt?: Date;
 }
 
-export type OrderDocument = HydratedDocument<LunchpadOrder>;
+export type LunchpadOrderDocument = HydratedDocument<LunchpadOrder>;
 export const LunchpadOrderSchema = SchemaFactory.createForClass(LunchpadOrder);

@@ -30,7 +30,7 @@ import { LunchpadService } from '../services/lunchpad.service';
 import { LunchpadProvider } from '../providers/lunchpad.provider';
 import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
-import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema copy';
+import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers

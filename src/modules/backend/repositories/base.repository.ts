@@ -1,8 +1,12 @@
-import { FilterQuery, Model, ClientSession } from 'mongoose';
+import { FilterQuery, Model, ClientSession, Connection } from 'mongoose';
+import { MONGO_DATABASE_CONNECTIONS } from '../constants';
+import { InjectConnection } from '@nestjs/mongoose';
 
 const CONFLICT_TRANSACTION_ERROR_CODE = 112;
 const CONFLICT_TRANSACTION_ERROR_NAME = 'WriteConflict';
 export abstract class BaseRepository<T> {
+  @InjectConnection(MONGO_DATABASE_CONNECTIONS.P2P) protected readonly connection: Connection;
+
   protected constructor(private readonly model: Model<T>) {}
 
   private get modelName(): string {
@@ -22,6 +26,10 @@ export abstract class BaseRepository<T> {
       .findOne({ [field]: value } as any)
       .session(session)
       .exec();
+  }
+
+  async findOne(filter: FilterQuery<T>, session?: ClientSession): Promise<T | null> {
+    return this.model.findOne(filter).session(session).exec();
   }
 
   async updateByOne(

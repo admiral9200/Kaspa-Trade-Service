@@ -144,7 +144,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       return order;
     } catch (error) {
       if (!this.isOrderInvalidStatusUpdateError(error)) {
-        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+        console.error(`Error updating to ${newStatus} for order by ID(${orderId}):`, error);
       }
 
       throw error;

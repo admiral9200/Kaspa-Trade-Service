@@ -18,9 +18,13 @@ export class KaspaFacade {
   }
 
   async checkIfWalletHasKrc20Token(address: string, ticker: string, amount: number): Promise<boolean> {
-    const walletTokensAmount = await this.kasplexApiService.fetchWalletBalance(address, ticker);
+    const walletTokensAmount = await this.getKrc20TokenBalance(address, ticker);
 
     return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
+  }
+
+  async getKrc20TokenBalance(address: string, ticker: string): Promise<bigint> {
+    return await this.kasplexApiService.fetchWalletBalance(address, ticker);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(

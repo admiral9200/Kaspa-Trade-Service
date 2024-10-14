@@ -4,6 +4,8 @@ import { WalletPrivateKeyExposedRecord } from '../../services/kaspa-network/inte
 import { LunchpadStatus } from '../enums/lunchpad-statuses.enum';
 
 export const MIN_KAS_PER_UNIT = 1;
+export const MIN_TOKEN_PER_UNIT = 1;
+export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 
 @Schema({
   versionKey: false,
@@ -13,6 +15,7 @@ export const MIN_KAS_PER_UNIT = 1;
 export class LunchpadEntity {
   _id?: string;
 
+  // INDEX UNIQUE
   @Prop({ required: true })
   ticker: string;
 
@@ -24,6 +27,9 @@ export class LunchpadEntity {
 
   @Prop({ required: true })
   tokenPerUnit: number;
+
+  @Prop({ required: true })
+  maxFeeRatePerTransaction: number;
 
   @Prop({ required: true })
   walletSequenceId: number;
@@ -47,5 +53,5 @@ export class LunchpadEntity {
   updatedAt?: Date;
 }
 
-export type OrderDocument = HydratedDocument<LunchpadEntity>;
+export type LunchpadDocument = HydratedDocument<LunchpadEntity>;
 export const LunchpadEntitySchema = SchemaFactory.createForClass(LunchpadEntity);

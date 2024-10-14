@@ -303,6 +303,10 @@ export class KaspaNetworkActionsService {
     return kaspaToSompi(value);
   }
 
+  static SompiToNumber(value: bigint): number {
+    return Number(value) / 1e8;
+  }
+
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
   }

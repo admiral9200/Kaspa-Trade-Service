@@ -1,5 +1,5 @@
 import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { LunchpadEntity, MIN_KAS_PER_UNIT } from '../../schemas/lunchpad.schema';
+import { MIN_FEE_RATE_PER_TRANSACTION, MIN_KAS_PER_UNIT, MIN_TOKEN_PER_UNIT } from '../../schemas/lunchpad.schema';
 
 export class CreateLunchpadRequestDto {
   @IsString()
@@ -10,15 +10,15 @@ export class CreateLunchpadRequestDto {
   kasPerUnit: number;
 
   @IsNumber()
+  @Min(MIN_TOKEN_PER_UNIT)
   tokenPerUnit: number;
+
+  @IsNumber()
+  @Min(MIN_FEE_RATE_PER_TRANSACTION)
+  maxFeeRatePerTransaction: number;
 
   @IsOptional()
   @IsNumber()
   @IsInt()
   minimumUnitsPerOrder?: number;
-}
-
-export interface CreateLunchpadResponseDto {
-  lunchpad: LunchpadEntity;
-  walletAddress: string;
 }
