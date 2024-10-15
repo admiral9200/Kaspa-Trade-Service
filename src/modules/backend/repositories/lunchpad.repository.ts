@@ -8,6 +8,8 @@ import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-sta
 import { InvalidStatusForLunchpadUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadUpdate';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadNotEnoughAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughAvailableQtyError';
+import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate copy';
+import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
@@ -87,6 +89,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         status: LunchpadOrderStatus.WAITING_FOR_KAS,
         totalUnits: amountToReduce,
         userWalletAddress: orderCreatorWallet,
+        roundNumber: updatedLunchpad.roundNumber,
       });
 
       session.commitTransaction();
@@ -121,19 +124,11 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         throw new Error('Lunchpad not found');
       }
 
-      const filter: FilterQuery<LunchpadOrder> = {
-        status: LunchpadOrderStatus.WAITING_FOR_KAS,
-        _id: orderId,
-      };
-
-      const updatedOrder = await this.lunchpadOrderModel
-        .findOneAndUpdate(filter, { $set: { status: LunchpadOrderStatus.TOKENS_NOT_SENT } }, { new: true })
-        .session(session)
-        .exec();
-
-      if (!updatedOrder) {
-        throw new Error('Order not found/Invalid order status');
-      }
+      const updatedOrder = await this.transitionLunchpadOrderStatus(
+        orderId,
+        LunchpadOrderStatus.TOKENS_NOT_SENT,
+        LunchpadOrderStatus.WAITING_FOR_KAS,
+      );
 
       const amountToAdd = updatedOrder.totalUnits;
 
@@ -156,7 +151,69 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
+  async transitionLunchpadOrderStatus(
+    orderId: string,
+    newStatus: LunchpadOrderStatus,
+    requiredStatus: LunchpadOrderStatus,
+    additionalData: Partial<LunchpadOrder> = {},
+    session?: ClientSession,
+  ): Promise<LunchpadOrder> {
+    try {
+      const filter: FilterQuery<LunchpadOrder> = {
+        status: requiredStatus,
+        _id: orderId,
+      };
+
+      const updatedOrder = await this.lunchpadOrderModel
+        .findOneAndUpdate(filter, { $set: { status: newStatus, ...additionalData } }, { new: true })
+        .session(session)
+        .exec();
+
+      if (!updatedOrder) {
+        throw new InvalidStatusForLunchpadOrderUpdateError();
+      }
+
+      return updatedOrder;
+    } catch (error) {
+      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+        console.error(`Error updating to ${newStatus} for order by ID(${orderId}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
   async findOrderByIdAndWalletAddress(orderId: string, walletAddress: string): Promise<LunchpadOrder | null> {
     return this.lunchpadOrderModel.findOne({ _id: orderId, userWalletAddress: walletAddress });
+  }
+
+  async updateOrderTransactionsResult(
+    orderId: string,
+    transactionsResult: Partial<KRC20ActionTransations>,
+  ): Promise<LunchpadOrder> {
+    try {
+      return await this.lunchpadOrderModel
+        .findOneAndUpdate(
+          { _id: orderId },
+          {
+            $set: {
+              transactions: transactionsResult,
+            },
+          },
+        )
+        .exec();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async reduceLunchpadTokenCurrentAmount(lunchpadId: string, amountToReduce: number): Promise<LunchpadEntity> {
+    try {
+      return await this.lunchpadModel
+        .findOneAndUpdate({ _id: lunchpadId }, { $inc: { currentTokensAmount: -amountToReduce } }, { new: true })
+        .exec();
+    } catch (error) {
+      throw error;
+    }
   }
 }

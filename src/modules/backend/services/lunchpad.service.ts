@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
-import { LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
+import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
 import { UtilsHelper } from '../helpers/utils.helper';
+import { KRC20ActionTransations } from './kaspa-network/interfaces/Krc20ActionTransactions.interface';
 
 @Injectable()
 export class LunchpadService {
@@ -18,6 +19,10 @@ export class LunchpadService {
     return await this.lunchpadRepository.findOne({ ticker });
   }
 
+  async getById(id: string): Promise<LunchpadEntity> {
+    return await this.lunchpadRepository.findOne({ _id: id });
+  }
+
   async createLunchpad(createLunchpadDto: CreateLunchpadRequestDto, ownerWallet: string, walletSequenceId: number) {
     return await this.lunchpadRepository.create({
       ticker: createLunchpadDto.ticker,
@@ -27,8 +32,12 @@ export class LunchpadService {
       walletSequenceId,
       ownerWallet,
       status: LunchpadStatus.INACTIVE,
-      minimumUnitsPerOrder: createLunchpadDto.minimumUnitsPerOrder,
+      minUnitsPerOrder: createLunchpadDto.minUnitsPerOrder,
+      maxUnitsPerOrder: createLunchpadDto.maxUnitsPerOrder,
       availabeUnits: 0,
+      totalUnits: 0,
+      roundNumber: 0,
+      currentTokensAmount: 0,
     });
   }
 
@@ -36,12 +45,16 @@ export class LunchpadService {
     return await this.lunchpadRepository.findOne({ _id: id, ownerWallet });
   }
 
-  async startLunchpad(lunchpad: any, totalTokens: number) {
+  async startLunchpad(lunchpad: LunchpadEntity, totalTokens: number) {
+    const totalUnits = Math.floor(totalTokens / lunchpad.tokenPerUnit);
     const result = await this.lunchpadRepository.updateLunchpadByStatus(
       lunchpad._id,
       {
         status: LunchpadStatus.ACTIVE,
-        availabeUnits: Math.floor(totalTokens / lunchpad.tokenPerUnit),
+        availabeUnits: totalUnits,
+        totalUnits: totalUnits,
+        roundNumber: lunchpad.roundNumber + 1,
+        currentTokensAmount: totalTokens,
       },
       LunchpadStatus.INACTIVE,
     );
@@ -75,5 +88,50 @@ export class LunchpadService {
 
   async getOrderByIdAndWallet(orderId: string, walletAddress: string): Promise<LunchpadOrder> {
     return this.lunchpadRepository.findOrderByIdAndWalletAddress(orderId, walletAddress);
+  }
+
+  async setOrderStatusToWaitingForProcessing(orderId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
+      orderId,
+      LunchpadOrderStatus.WAITING_FOR_PROCESSING,
+      LunchpadOrderStatus.WAITING_FOR_KAS,
+    );
+  }
+
+  async setOrderStatusToProcessing(orderId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
+      orderId,
+      LunchpadOrderStatus.PROCESSING,
+      LunchpadOrderStatus.WAITING_FOR_PROCESSING,
+    );
+  }
+
+  async setLowFeeErrorStatus(orderId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
+      orderId,
+      LunchpadOrderStatus.WAITING_FOR_LOW_FEE,
+      LunchpadOrderStatus.PROCESSING,
+    );
+  }
+
+  async setProcessingError(orderId: string, error: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
+      orderId,
+      LunchpadOrderStatus.ERROR,
+      LunchpadOrderStatus.PROCESSING,
+      { error },
+    );
+  }
+
+  isLunchpadInvalidStatusUpdateError(error) {
+    return this.lunchpadRepository.isLunchpadInvalidStatusUpdateError(error);
+  }
+
+  async updateOrderTransactionsResult(orderId: string, result: Partial<KRC20ActionTransations>): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.updateOrderTransactionsResult(orderId, result);
+  }
+
+  async reduceLunchpadTokenCurrentAmount(lunchpad: LunchpadEntity, amount: number): Promise<LunchpadEntity> {
+    return await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
   }
 }

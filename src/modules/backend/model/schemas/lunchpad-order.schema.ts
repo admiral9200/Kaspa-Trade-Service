@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { WalletPrivateKeyExposedRecord } from '../../services/kaspa-network/interfaces/WalletPrivateKeyExposedRecord.interface';
 import { LunchpadOrderStatus } from '../enums/lunchpad-statuses.enum';
+import { KRC20ActionTransations } from '../../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 
 @Schema({
   versionKey: false,
@@ -12,7 +13,7 @@ export class LunchpadOrder {
   _id?: string;
 
   @Prop({ required: true })
-  lunchpadId: string;
+  lunchpadId: string; // Index
 
   @Prop({ required: true })
   totalUnits: number;
@@ -29,8 +30,20 @@ export class LunchpadOrder {
   @Prop({ required: true })
   userWalletAddress: string;
 
+  @Prop({ required: true })
+  roundNumber: number; // Index with lunchpadId
+
+  @Prop()
+  userTransactionId?: string; // Unique index - important
+
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
+
+  @Prop({ type: Object })
+  transactions?: Partial<KRC20ActionTransations>;
+
+  @Prop()
+  error?: string;
 
   @Prop()
   createdAt?: Date;

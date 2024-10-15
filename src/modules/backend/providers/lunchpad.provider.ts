@@ -10,6 +10,11 @@ import { LunchpadDataWithWallet, LunchpadOrderDataWithErrors } from '../model/dt
 import { ERROR_CODES } from '../constants';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
 import { LunchpadNotEnoughAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughAvailableQtyError';
+import { KaspaApiService } from '../services/kaspa-api/services/kaspa-api.service';
+import { PriorityFeeTooHighError } from '../services/kaspa-network/errors/PriorityFeeTooHighError';
+import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
+import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
+import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 
 @Injectable()
 export class LunchpadProvider {
@@ -18,6 +23,8 @@ export class LunchpadProvider {
     private readonly kaspaFacade: KaspaFacade,
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
+    private readonly kaspaApiService: KaspaApiService,
+    private readonly telegramBotService: TelegramBotService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -137,7 +144,16 @@ export class LunchpadProvider {
       };
     }
 
-    if (body.units < lunchpad.minimumUnitsPerOrder) {
+    if (lunchpad.minUnitsPerOrder && body.units < lunchpad.minUnitsPerOrder) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_ORDER_UNITS,
+        lunchpadOrder: null,
+        lunchpad: lunchpad,
+      };
+    }
+
+    if (lunchpad.maxUnitsPerOrder && body.units > lunchpad.maxUnitsPerOrder) {
       return {
         success: false,
         errorCode: ERROR_CODES.LUNCHPAD.INVALID_ORDER_UNITS,
@@ -172,15 +188,130 @@ export class LunchpadProvider {
     }
   }
 
-  async processOrder(orderId, walletAddress): Promise<LunchpadOrderDataWithErrors> {
-    const orderData = await this.getOrderByIdAndWalletAndStatus(orderId, walletAddress, LunchpadOrderStatus.WAITING_FOR_KAS);
+  async processOrder(orderId, userWalletAddress, transactionId): Promise<LunchpadOrderDataWithErrors> {
+    const orderData = await this.getOrderByIdAndWalletAndStatus(
+      orderId,
+      userWalletAddress,
+      LunchpadOrderStatus.WAITING_FOR_KAS,
+      true,
+    );
 
     if (!orderData.success) {
       return orderData;
     }
 
-    // TODO: check wallet balance
-    return null;
+    if (!orderData.lunchpad || !orderData.lunchpadOrder) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+        lunchpadOrder: orderData.lunchpadOrder,
+        lunchpad: orderData.lunchpad,
+      };
+    }
+
+    const lunchpadWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(orderData.lunchpad.walletSequenceId);
+
+    console.log('wallet add', lunchpadWalletAddress);
+
+    const isTransactionVerified = await this.kaspaApiService.verifyPaymentTransaction(
+      transactionId,
+      userWalletAddress,
+      lunchpadWalletAddress,
+      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpadOrder.kasPerUnit)),
+    );
+
+    if (!isTransactionVerified) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.TRANSACTION_VERIFICATION_FAILED,
+        lunchpadOrder: orderData.lunchpadOrder,
+        lunchpad: orderData.lunchpad,
+      };
+    }
+
+    let updatedOrder = null;
+
+    // change status
+    try {
+      updatedOrder = await this.lunchpadService.setOrderStatusToWaitingForProcessing(orderData.lunchpadOrder._id);
+    } catch (error) {
+      if (this.lunchpadService.isLunchpadInvalidStatusUpdateError(error)) {
+        return {
+          success: false,
+          errorCode: ERROR_CODES.LUNCHPAD.INVALID_ORDER_STATUS,
+          lunchpadOrder: orderData.lunchpadOrder,
+          lunchpad: orderData.lunchpad,
+        };
+      } else {
+        this.logger.error('Failed to set order status to waiting for processing');
+        this.logger.error(error, error?.stack, error?.meta);
+        return {
+          success: false,
+          errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+          lunchpadOrder: orderData.lunchpadOrder,
+          lunchpad: orderData.lunchpad,
+        };
+      }
+    }
+
+    try {
+      // process order
+      return await this.processOrderAfterStatusChange(updatedOrder, orderData.lunchpad);
+    } catch (error) {
+      this.logger.error('Failed transfering lunchpad order KRC20 Tokens');
+      this.logger.error(error, error?.stack, error?.meta);
+
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        lunchpadOrder: orderData.lunchpadOrder,
+        lunchpad: orderData.lunchpad,
+      };
+    }
+  }
+
+  private async processOrderAfterStatusChange(
+    order: LunchpadOrder,
+    lunchpad: LunchpadEntity,
+  ): Promise<LunchpadOrderDataWithErrors> {
+    let updatedOrder = await this.lunchpadService.setOrderStatusToProcessing(order._id);
+    let updatedLunchpad = lunchpad;
+
+    try {
+      await this.kaspaFacade.verifyTokensAndProcessLunchpadOrder(updatedOrder, lunchpad, async (result) => {
+        updatedOrder = await this.lunchpadService.updateOrderTransactionsResult(updatedOrder._id, result);
+        if (result.commitTransactionId != updatedOrder.transactions?.commitTransactionId) {
+          updatedLunchpad = await this.lunchpadService.reduceLunchpadTokenCurrentAmount(
+            lunchpad,
+            updatedOrder.totalUnits * updatedOrder.tokenPerUnit,
+          );
+        }
+      });
+
+      return {
+        success: true,
+        lunchpad: updatedLunchpad,
+        lunchpadOrder: updatedOrder,
+      };
+    } catch (error) {
+      let errorCode = ERROR_CODES.GENERAL.UNKNOWN_ERROR;
+
+      if (error instanceof PriorityFeeTooHighError) {
+        await this.lunchpadService.setLowFeeErrorStatus(updatedOrder._id);
+        errorCode = ERROR_CODES.KASPA.HIGH_PRIORITY_FEE;
+      } else {
+        await this.lunchpadService.setProcessingError(updatedOrder._id, error.toString());
+        this.logger.error(error?.message, error?.stack);
+        this.telegramBotService.sendErrorToErrorsChannel(error);
+      }
+
+      return {
+        success: false,
+        errorCode: errorCode,
+        lunchpad: updatedLunchpad,
+        lunchpadOrder: updatedOrder,
+      };
+    }
   }
 
   async cancelOrder(orderId, walletAddress): Promise<LunchpadOrderDataWithErrors> {
@@ -211,8 +342,10 @@ export class LunchpadProvider {
     orderId: string,
     walletAddress: string,
     status: LunchpadOrderStatus,
+    withLunchpad = false,
   ): Promise<LunchpadOrderDataWithErrors> {
     const order = await this.lunchpadService.getOrderByIdAndWallet(orderId, walletAddress);
+    let lunchpad = null;
 
     if (!order) {
       return {
@@ -230,9 +363,14 @@ export class LunchpadProvider {
       };
     }
 
+    if (withLunchpad) {
+      lunchpad = await this.lunchpadService.getById(order.lunchpadId);
+    }
+
     return {
       success: true,
       lunchpadOrder: order,
+      lunchpad,
     };
   }
 }

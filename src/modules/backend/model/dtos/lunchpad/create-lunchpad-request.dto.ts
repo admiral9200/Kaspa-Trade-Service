@@ -20,5 +20,10 @@ export class CreateLunchpadRequestDto {
   @IsOptional()
   @IsNumber()
   @IsInt()
-  minimumUnitsPerOrder?: number;
+  minUnitsPerOrder?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  maxUnitsPerOrder?: number;
 }

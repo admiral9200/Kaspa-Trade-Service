@@ -182,6 +182,7 @@ export class KaspaNetworkTransactionsManagerService {
     privateKey: PrivateKey,
     krc20transactionData: KRC20OperationDataInterface,
     maxPriorityFee: bigint = 0n,
+    baseTransactionAmount = KRC20_BASE_TRANSACTION_AMOUNT,
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
@@ -195,7 +196,7 @@ export class KaspaNetworkTransactionsManagerService {
       outputs: [
         {
           address: scriptAndScriptAddress.p2shaAddress.toString(),
-          amount: KRC20_BASE_TRANSACTION_AMOUNT,
+          amount: baseTransactionAmount,
         },
       ],
       feeRate: 1.0,

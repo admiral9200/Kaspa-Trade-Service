@@ -9,6 +9,7 @@ import {
 } from '../transformers/lunchpad.transformer';
 import { AvoidGuards } from '../guards/infra/avoidGuard';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
+import { ProcessLunchpadOrderRequestDto } from '../model/dtos/lunchpad/process-lunchpad-order-request.dto';
 
 @Controller('lunchpad')
 @UseGuards(WalletGuard)
@@ -73,8 +74,12 @@ export class LunchpadController {
   }
 
   @Post(':orderId/process-order')
-  async startProcessingOrder(@Param('orderId') orderId: string, @Request() req): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.processOrder(orderId, req.wallet);
+  async startProcessingOrder(
+    @Param('orderId') orderId: string,
+    @Body() body: ProcessLunchpadOrderRequestDto,
+    @Request() req,
+  ): Promise<ClientSideLunchpadOrderWithStatus> {
+    const result = await this.lunchpadProvider.processOrder(orderId, req.wallet, body.transactionId);
 
     return {
       success: result.success,

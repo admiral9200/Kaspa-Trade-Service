@@ -23,6 +23,9 @@ export class LunchpadEntity {
   availabeUnits: number;
 
   @Prop({ required: true })
+  totalUnits: number;
+
+  @Prop({ required: true })
   kasPerUnit: number;
 
   @Prop({ required: true })
@@ -40,8 +43,17 @@ export class LunchpadEntity {
   @Prop({ required: true })
   status: LunchpadStatus;
 
+  @Prop({ required: true })
+  roundNumber: number;
+
+  @Prop({ required: true })
+  currentTokensAmount: number;
+
   @Prop()
-  minimumUnitsPerOrder?: number;
+  minUnitsPerOrder?: number;
+
+  @Prop()
+  maxUnitsPerOrder?: number;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];

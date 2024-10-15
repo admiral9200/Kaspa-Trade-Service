@@ -9,7 +9,7 @@ export type ClientSideLunchpad = {
   status: LunchpadStatus;
   kasPerUnit: number;
   tokenPerUnit: number;
-  minimumUnitsPerOrder?: number;
+  minUnitsPerOrder?: number;
   walletAddress?: string;
   krc20TokensAmount?: number;
 };
@@ -49,7 +49,7 @@ export class LunchpadTransformer {
       status: data.status,
       kasPerUnit: data.kasPerUnit,
       tokenPerUnit: data.tokenPerUnit,
-      minimumUnitsPerOrder: data.minimumUnitsPerOrder,
+      minUnitsPerOrder: data.minUnitsPerOrder,
       walletAddress,
       krc20TokensAmount: krc20TokensAmount,
     };
