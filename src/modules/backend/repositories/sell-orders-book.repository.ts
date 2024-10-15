@@ -14,6 +14,9 @@ import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-fil
 import { isEmpty } from '../utils/object.utils';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
 
+const STUCK_SWAPS_TIME_TO_CHECK = 60 * 60 * 1000;
+const WAITING_FOR_TOKENS_TIME_TO_CHECK = 5 * 60 * 1000;
+
 @Injectable()
 export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   constructor(
@@ -267,6 +270,20 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     return updatedOrders;
   }
 
+  async getWaitingForTokensOrders(): Promise<P2pOrderEntity[]> {
+    const dateToCheckBefore = new Date(Date.now() - WAITING_FOR_TOKENS_TIME_TO_CHECK);
+    const updatedOrders = await this.sellOrdersModel
+      .find({
+        status: {
+          $in: [SellOrderStatus.WAITING_FOR_TOKENS],
+        },
+        createdAt: { $lt: dateToCheckBefore },
+      })
+      .exec();
+
+    return updatedOrders;
+  }
+
   async getWaitingForFeesOrders(): Promise<P2pOrderEntity[]> {
     const orders = await this.sellOrdersModel
       .find({
@@ -344,7 +361,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
         if (filters.statuses && filters.statuses.length > 0) {
           filterQuery.status = { $in: filters.statuses };
         } else {
-          filterQuery.status = { $nin: [SellOrderStatus.WAITING_FOR_TOKENS] };
+          filterQuery.status = { $nin: [SellOrderStatus.TOKENS_NOT_SENT] };
         }
 
         if (filters.tickers && filters.tickers.length > 0) {
@@ -452,7 +469,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
   }
 
   async getStuckOrders(): Promise<P2pOrderEntity[]> {
-    const lastHour = new Date(Date.now() - 1000 * 60 * 60);
+    const lastHour = new Date(Date.now() - STUCK_SWAPS_TIME_TO_CHECK);
     const stuckOrders = await this.sellOrdersModel
       .find({
         status: {

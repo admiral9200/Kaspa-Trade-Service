@@ -41,6 +41,13 @@ export class P2pOrdersExpirationCronJob {
       this.logger.error(error, error?.stack, error?.meta);
     }
 
+    try {
+      await this.p2pProvider.handleWaitingTokensOrders();
+    } catch (error) {
+      this.logger.error('error handaling waiting tokens orders');
+      this.logger.error(error, error?.stack, error?.meta);
+    }
+
     P2pOrdersExpirationCronJob.isRunning = false;
   }
 }

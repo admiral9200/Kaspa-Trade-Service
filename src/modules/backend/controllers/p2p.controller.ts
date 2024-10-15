@@ -17,6 +17,7 @@ import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-re
 import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
 import { WalletGuard } from '../guards/wallet.guard';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
+import { AvoidGuards } from '../guards/infra/avoidGuard';
 
 @Controller('p2p')
 @UseGuards(WalletGuard)
@@ -27,6 +28,7 @@ export class P2pController {
   ) {}
 
   @Post('getSellOrders')
+  @AvoidGuards([WalletGuard])
   async getOrders(
     @Body() body: GetOrdersDto,
     @Query('ticker') ticker: string,
