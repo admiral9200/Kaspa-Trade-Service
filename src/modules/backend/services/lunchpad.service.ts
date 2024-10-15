@@ -90,11 +90,12 @@ export class LunchpadService {
     return this.lunchpadRepository.findOrderByIdAndWalletAddress(orderId, walletAddress);
   }
 
-  async setOrderStatusToWaitingForProcessing(orderId: string): Promise<LunchpadOrder> {
+  async setOrderStatusToWaitingForProcessing(orderId: string, transactionId: string): Promise<LunchpadOrder> {
     return await this.lunchpadRepository.transitionLunchpadOrderStatus(
       orderId,
       LunchpadOrderStatus.WAITING_FOR_PROCESSING,
       LunchpadOrderStatus.WAITING_FOR_KAS,
+      { userTransactionId: transactionId },
     );
   }
 
@@ -133,5 +134,13 @@ export class LunchpadService {
 
   async reduceLunchpadTokenCurrentAmount(lunchpad: LunchpadEntity, amount: number): Promise<LunchpadEntity> {
     return await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
+  }
+
+  async setOrderCompleted(orderId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
+      orderId,
+      LunchpadOrderStatus.COMPLETED,
+      LunchpadOrderStatus.PROCESSING,
+    );
   }
 }

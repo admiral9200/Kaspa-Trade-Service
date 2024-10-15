@@ -211,8 +211,6 @@ export class LunchpadProvider {
 
     const lunchpadWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(orderData.lunchpad.walletSequenceId);
 
-    console.log('wallet add', lunchpadWalletAddress);
-
     const isTransactionVerified = await this.kaspaApiService.verifyPaymentTransaction(
       transactionId,
       userWalletAddress,
@@ -233,7 +231,7 @@ export class LunchpadProvider {
 
     // change status
     try {
-      updatedOrder = await this.lunchpadService.setOrderStatusToWaitingForProcessing(orderData.lunchpadOrder._id);
+      updatedOrder = await this.lunchpadService.setOrderStatusToWaitingForProcessing(orderData.lunchpadOrder._id, transactionId);
     } catch (error) {
       if (this.lunchpadService.isLunchpadInvalidStatusUpdateError(error)) {
         return {
@@ -287,6 +285,12 @@ export class LunchpadProvider {
           );
         }
       });
+
+      updatedOrder = await this.lunchpadService.setOrderCompleted(order._id);
+
+      // don't await because not important
+      // this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
+
 
       return {
         success: true,
