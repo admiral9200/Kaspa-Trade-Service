@@ -31,13 +31,13 @@ export function getTransferData(ticker: string, amount: bigint, to: string): KRC
 }
 
 // Need to check to see if works
-// export function getMintData(ticker: string): KRC20OperationDataInterface {
-//   return {
-//     p: 'krc-20',
-//     op: 'mint',
-//     tick: ticker,
-//   };
-// }
+export function getMintData(ticker: string): KRC20OperationDataInterface {
+  return {
+    p: 'krc-20',
+    op: 'mint',
+    tick: ticker,
+  };
+}
 
 // Need to check to see if works
 // export function getDeployData(
