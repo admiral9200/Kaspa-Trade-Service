@@ -31,6 +31,7 @@ import { LunchpadProvider } from '../providers/lunchpad.provider';
 import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
+import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -89,4 +90,5 @@ export const BASE_IMPORTS = [
   ),
   KaspaApiModule,
   KasplexApiModule,
+  KaspianoBackendApiModule,
 ];
