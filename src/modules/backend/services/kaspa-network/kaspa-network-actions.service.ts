@@ -256,7 +256,7 @@ export class KaspaNetworkActionsService {
             ? KRC20_BASE_TRANSACTION_AMOUNT
             : KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT;
 
-        const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransaction(
+        const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           krc20OperationData,
           maxPriorityFee,
@@ -268,7 +268,7 @@ export class KaspaNetworkActionsService {
       }
 
       if (!resultTransactions.revealTransactionId) {
-        const revealTransaction = await this.transactionsManagerService.doKrc20RevealTransaction(
+        const revealTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           krc20OperationData,
           KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,

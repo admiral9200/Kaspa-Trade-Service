@@ -17,11 +17,7 @@ export class TransacionReciever {
     private transactionToMonitor,
     private walletShouldBeEmpty = false,
   ) {
-    this.id =
-      Date.now().toString(36) +
-      (Math.random() * 1e9).toString(36).substring(0, 6) +
-      '-' +
-      this.publicAddress;
+    this.id = Date.now().toString(36) + (Math.random() * 1e9).toString(36).substring(0, 6) + '-' + this.publicAddress;
     this.handlerWithBind = this.handleEvent.bind(this);
   }
 

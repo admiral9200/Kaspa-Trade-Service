@@ -23,6 +23,7 @@ import { UtilsHelper } from '../../helpers/utils.helper';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
+import { UtxoProcessorManager } from './classes/UnxoProcessorManager';
 
 export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 
@@ -308,6 +309,143 @@ export class KaspaNetworkTransactionsManagerService {
     });
 
     return revealTransactions;
+  }
+
+  async doKrc20CommitTransactionWithUtxoProcessor(
+    privateKey: PrivateKey,
+    krc20transactionData: KRC20OperationDataInterface,
+    maxPriorityFee: bigint = 0n,
+    baseTransactionAmount = KRC20_BASE_TRANSACTION_AMOUNT,
+  ) {
+    const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
+    return await this.connectAndDo<ICreateTransactions>(async () => {
+      return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
+        this.rpcService.getRpc(),
+        this.rpcService.getNetwork(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        async (context) => {
+          const baseTransactionData: IGeneratorSettingsObject = {
+            priorityEntries: [],
+            entries: context,
+            outputs: [
+              {
+                address: scriptAndScriptAddress.p2shaAddress.toString(),
+                amount: baseTransactionAmount,
+              },
+            ],
+            feeRate: 1.0,
+            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+            priorityFee: 0n,
+            networkId: this.rpcService.getNetwork(),
+          };
+
+          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
+          baseTransactionData.priorityFee = priorityFee;
+
+          const commitTransaction = await this.utils.retryOnError(async () => {
+            const transaction = await createTransactions(baseTransactionData);
+
+            const transactionReciever = new TransacionReciever(
+              this.rpcService.getRpc(),
+              this.convertPrivateKeyToPublicKey(privateKey),
+              transaction.summary.finalTransactionId,
+            );
+
+            console.log('commit transaction summry', transaction.summary);
+
+            await transactionReciever.registerEventHandlers();
+
+            try {
+              await this.signAndSubmitTransactions(transaction, privateKey);
+
+              await transactionReciever.waitForTransactionCompletion();
+            } catch (error) {
+              throw error;
+            } finally {
+              await transactionReciever.dispose();
+            }
+
+            return transaction;
+          });
+
+          return commitTransaction;
+        },
+      );
+    });
+  }
+
+  async doKrc20RevealTransactionWithUtxoProcessor(
+    privateKey: PrivateKey,
+    krc20transactionData: KRC20OperationDataInterface,
+    transactionFeeAmount: bigint,
+    maxPriorityFee: bigint = 0n,
+  ) {
+    const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
+
+    return await this.connectAndDo(async () => {
+      const revealUTXOs = await this.rpcService.getRpc().getUtxosByAddresses({
+        addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
+      });
+
+      return await UtxoProcessorManager.useUtxoProcessorManager(
+        this.rpcService.getRpc(),
+        this.rpcService.getNetwork(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        async (context) => {
+          const baseTransactionData: IGeneratorSettingsObject = {
+            priorityEntries: [revealUTXOs.entries[0]],
+            entries: context,
+            outputs: [],
+            feeRate: 1.0,
+            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+            priorityFee: transactionFeeAmount,
+            networkId: this.rpcService.getNetwork(),
+          };
+
+          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
+          baseTransactionData.priorityFee = transactionFeeAmount + priorityFee;
+
+          const revealTransactions = await this.utils.retryOnError(async () => {
+            const currentTransactions = await createTransactions(baseTransactionData);
+
+            for (const transaction of currentTransactions.transactions) {
+              transaction.sign([privateKey], false);
+              const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
+
+              if (ourOutput !== -1) {
+                const signature = await transaction.createInputSignature(ourOutput, privateKey);
+
+                transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
+              }
+
+              const revealTransactionReciever = new TransacionReciever(
+                this.rpcService.getRpc(),
+                this.convertPrivateKeyToPublicKey(privateKey),
+                currentTransactions.summary.finalTransactionId,
+              );
+
+              console.log('reveal transaction summry', currentTransactions.summary);
+
+              await revealTransactionReciever.registerEventHandlers();
+
+              try {
+                await transaction.submit(this.rpcService.getRpc());
+
+                await revealTransactionReciever.waitForTransactionCompletion();
+              } catch (error) {
+                throw error;
+              } finally {
+                await revealTransactionReciever.dispose();
+              }
+            }
+
+            return currentTransactions;
+          });
+
+          return revealTransactions;
+        },
+      );
+    });
   }
 
   /**
