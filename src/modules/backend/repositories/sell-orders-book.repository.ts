@@ -10,9 +10,9 @@ import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { SortDirection } from '../model/enums/sort-direction.enum';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
-import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
+import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
 import { isEmpty } from '../utils/object.utils';
-import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 
 const STUCK_SWAPS_TIME_TO_CHECK = 60 * 60 * 1000;
 const WAITING_FOR_TOKENS_TIME_TO_CHECK = 5 * 60 * 1000;
@@ -144,7 +144,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       return order;
     } catch (error) {
       if (!this.isOrderInvalidStatusUpdateError(error)) {
-        console.error(`Error updating to WAITING_FOR_KAS for order by ID(${orderId}):`, error);
+        console.error(`Error updating to ${newStatus} for order by ID(${orderId}):`, error);
       }
 
       throw error;

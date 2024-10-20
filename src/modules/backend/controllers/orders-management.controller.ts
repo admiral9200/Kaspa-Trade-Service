@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { OrdersManagementProvider } from '../providers/orders-management.provider';
-import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 import { AdminWalletGuard } from '../guards/adminWallet.guard';
 
 @Controller('orders-management')

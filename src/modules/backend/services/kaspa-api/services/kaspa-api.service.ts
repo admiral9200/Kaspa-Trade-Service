@@ -26,7 +26,7 @@ export class KaspaApiService {
     );
   }
 
-  async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: number): Promise<boolean> {
+  async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: bigint): Promise<boolean> {
     const txnInfo = await this.getTxnInfo(txnId);
     if (!txnInfo) {
       console.error('Transaction info not found.');
@@ -41,7 +41,7 @@ export class KaspaApiService {
 
     // 2. Verify the output amount and receiver address
     const output = txnInfo.outputs.find(
-      (output: any) => output.amount === amount && output.script_public_key_address === receiverAddr,
+      (output: any) => output.amount === Number(amount) && output.script_public_key_address === receiverAddr,
     );
 
     if (!output) {

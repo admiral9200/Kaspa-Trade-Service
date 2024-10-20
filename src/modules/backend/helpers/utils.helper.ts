@@ -7,12 +7,16 @@ export class UtilsHelper {
     times: number = 5,
     waitBeforeNextAttempt = 1000,
     skipLog: boolean = false,
+    stopFunction?: (error: any) => boolean,
   ): Promise<T> {
     let attempt = 0;
     while (attempt < times) {
       try {
         return await fn();
       } catch (error) {
+        if (stopFunction && stopFunction(error)) {
+          throw error;
+        }
         attempt++;
 
         if (!skipLog) {

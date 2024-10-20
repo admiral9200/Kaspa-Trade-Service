@@ -1,4 +1,4 @@
-import { SwapTransactionsResult } from '../../../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
+import { SwapTransactionsResult } from '../../../../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 
 export interface ConfirmBuyOrderRequestResponseDto {
   confirmed: boolean;

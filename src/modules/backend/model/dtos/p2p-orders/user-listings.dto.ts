@@ -1,9 +1,9 @@
-import { SortDto } from './abstract/sort.dto';
+import { SortDto } from '../abstract/sort.dto';
 import { IsOptional, ValidateNested } from 'class-validator';
-import { PaginationDto } from './abstract/pagination.dto';
+import { PaginationDto } from '../abstract/pagination.dto';
 import { Type } from 'class-transformer';
-import { PAGINATION_LIMIT_DEFAULT } from '../../constants/p2p-order.constants';
-import { SortDirection } from '../enums/sort-direction.enum';
+import { PAGINATION_LIMIT_DEFAULT } from '../../../constants/p2p-order.constants';
+import { SortDirection } from '../../enums/sort-direction.enum';
 
 export class GetUserListingsDto {
   @ValidateNested()

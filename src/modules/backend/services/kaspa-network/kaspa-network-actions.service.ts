@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator, XPrv } from 'libs/kaspa/kaspa';
 import { KaspaNetworkTransactionsManagerService, MINIMAL_AMOUNT_TO_SEND } from './kaspa-network-transactions-manager.service';
-import { getTransferData, KRC20_TRANSACTIONS_AMOUNTS } from './classes/KRC20OperationData';
+import {
+  getTransferData,
+  KRC20_BASE_TRANSACTION_AMOUNT,
+  KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT,
+  KRC20_TRANSACTIONS_AMOUNTS,
+} from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { EncryptionService } from '../encryption.service';
 import { WalletAccount } from './interfaces/wallet-account.interface';
@@ -10,6 +15,7 @@ import { Krc20TransactionsResult } from './interfaces/Krc20TransactionsResult.in
 import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwap';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
+import { KRC20ActionTransations } from './interfaces/Krc20ActionTransactions.interface';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
@@ -17,6 +23,7 @@ export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 export const MIMINAL_COMMITION = kaspaToSompi('1');
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
+const MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS = kaspaToSompi('1');
 
 @Injectable()
 export class KaspaNetworkActionsService {
@@ -33,7 +40,7 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, Number(amount));
+    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount);
     if (!kaspaApiResult) {
       return false;
     }
@@ -221,6 +228,61 @@ export class KaspaNetworkActionsService {
     });
   }
 
+  async transferKrc20TokenAndNotify(
+    holderWalletPrivateKey: PrivateKey,
+    sellerAddress: string,
+    krc20tokenTicker: string,
+    krc20TokenAmount: bigint,
+    alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
+    maxPriorityFee: bigint,
+    notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+  ): Promise<KRC20ActionTransations> {
+    const resultTransactions = { ...alreadyFinishedTransactions };
+
+    const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, sellerAddress);
+
+    return await this.transactionsManagerService.connectAndDo<KRC20ActionTransations>(async () => {
+      if (!resultTransactions.commitTransactionId) {
+        const totalWalletAmountAtStart = await this.getWalletTotalBalance(
+          this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
+        );
+
+        if (totalWalletAmountAtStart < MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS) {
+          throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS);
+        }
+
+        const baseTransactionAmount =
+          totalWalletAmountAtStart > KRC20_BASE_TRANSACTION_AMOUNT + KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT
+            ? KRC20_BASE_TRANSACTION_AMOUNT
+            : KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT;
+
+        const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+          holderWalletPrivateKey,
+          krc20OperationData,
+          maxPriorityFee,
+          baseTransactionAmount,
+        );
+
+        resultTransactions.commitTransactionId = commitTransaction.summary.finalTransactionId;
+        await notifyUpdate(resultTransactions);
+      }
+
+      if (!resultTransactions.revealTransactionId) {
+        const revealTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+          holderWalletPrivateKey,
+          krc20OperationData,
+          KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+          maxPriorityFee,
+        );
+
+        resultTransactions.revealTransactionId = revealTransaction.summary.finalTransactionId;
+        await notifyUpdate(resultTransactions);
+      }
+
+      return resultTransactions as KRC20ActionTransations;
+    });
+  }
+
   async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(privateKey, payments, maxPriorityFee);
@@ -262,18 +324,16 @@ export class KaspaNetworkActionsService {
   }
 
   async getWalletAccountAtIndex(index: number, xprvString: string = null): Promise<WalletAccount> {
-    return await this.transactionsManagerService.connectAndDo(async () => {
-      const xprv = XPrv.fromXPrv(xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)));
+    const xprv = XPrv.fromXPrv(xprvString || (await this.encryptionService.decrypt(this.config.masterWalletKey)));
 
-      const account = new PrivateKeyGenerator(xprv, false, 0n);
+    const account = new PrivateKeyGenerator(xprv, false, 0n);
 
-      const privateKey = account.receiveKey(index);
+    const privateKey = account.receiveKey(index);
 
-      return {
-        privateKey,
-        address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
-      };
-    });
+    return {
+      privateKey,
+      address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
+    };
   }
 
   async getWalletTotalBalance(address: string): Promise<bigint> {
@@ -301,6 +361,10 @@ export class KaspaNetworkActionsService {
 
   static KaspaToSompi(value: string): bigint {
     return kaspaToSompi(value);
+  }
+
+  static SompiToNumber(value: bigint): number {
+    return Number(value) / 1e8;
   }
 
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
