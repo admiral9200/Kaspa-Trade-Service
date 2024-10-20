@@ -33,6 +33,7 @@ import { TelegramBotService } from 'src/modules/shared/telegram-notifier/service
 import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoneyError';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
+import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
 
 @Injectable()
 export class P2pProvider {
@@ -42,6 +43,7 @@ export class P2pProvider {
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly telegramBotService: TelegramBotService,
+    private readonly kaspianoBackendApiService: KaspianoBackendApiService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -130,6 +132,9 @@ export class P2pProvider {
 
       // don't await because not important
       this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
+      this.kaspianoBackendApiService.sendMailAfterSwap(order._id).catch((err) => {
+        console.error(err);
+      });
 
       return transactionsResult;
     } catch (error) {
