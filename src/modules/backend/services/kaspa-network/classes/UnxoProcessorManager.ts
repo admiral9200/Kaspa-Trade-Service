@@ -13,25 +13,31 @@ export class UtxoProcessorManager {
   private processorEventListenerTimoutReached = false;
 
   private processorHandlerWithBind = null;
+  private balanceEventHandlerWithBind = null;
+
+  private balancePromise = null;
+  private balanceResolve = null;
+  private isBalancedResolved = true;
 
   static async useUtxoProcessorManager<T>(
     rpc: RpcClient,
     network: string,
     publicAddress: string,
-    func: (context: UtxoContext) => Promise<any>,
+    func: (context: UtxoContext, utxoProcessonManager: UtxoProcessorManager) => Promise<any>,
   ): Promise<T> {
     const trxManager = new UtxoProcessorManager(rpc, network, publicAddress);
     await trxManager.registerEventHandlers();
 
     try {
-      return await func(trxManager.getContext());
+      return await func(trxManager.getContext(), trxManager);
     } catch (error) {
+      throw error;
+    } finally {
       try {
         await trxManager.dispose();
       } catch (error) {
         console.error('Failed to dispose trxManager', error);
       }
-      throw error;
     }
   }
 
@@ -41,12 +47,38 @@ export class UtxoProcessorManager {
     private readonly publicAddress: string,
   ) {
     this.processorHandlerWithBind = this.processorEventListener.bind(this);
+    this.balanceEventHandlerWithBind = this.balanceEventHandler.bind(this);
     this.processor = new UtxoProcessor({ rpc: this.rpc, networkId: this.network });
     this.context = new UtxoContext({ processor: this.processor });
   }
 
   getContext(): UtxoContext {
     return this.context;
+  }
+
+  private initBalancePromiseAndTimeout() {
+    this.isBalancedResolved = false;
+    this.balancePromise = new Promise((resolve) => {
+      this.balanceResolve = resolve;
+    });
+  }
+
+  private async balanceEventHandler(event) {
+    if (event.type == 'pending') {
+      this.initBalancePromiseAndTimeout();
+    } else if (event.type == 'balance') {
+      if (!this.balancePromise) {
+        return;
+      }
+
+      if (!this.isBalancedResolved) {
+        const currentHasPending = event.data.balance.pending > 0;
+        if (!currentHasPending) {
+          this.isBalancedResolved = true;
+          this.balanceResolve();
+        }
+      }
+    }
   }
 
   private async processorEventListener() {
@@ -65,7 +97,7 @@ export class UtxoProcessorManager {
     }
   }
 
-  async registerEventHandlers() {
+  private async registerEventHandlers() {
     if (this.processorEventListenerPromise) {
       throw new Error('This object can be used only once');
     }
@@ -89,6 +121,8 @@ export class UtxoProcessorManager {
       this.processorEventListenerReject = reject;
     });
     this.processor.addEventListener('utxo-proc-start', this.processorHandlerWithBind);
+    this.processor.addEventListener('balance', this.balanceEventHandlerWithBind);
+    this.processor.addEventListener('pending', this.balanceEventHandlerWithBind);
     await this.processor.start();
     return await this.processorEventListenerPromise;
   }
@@ -96,5 +130,13 @@ export class UtxoProcessorManager {
   private async stopAndUnregisterProcessor() {
     await this.processor.stop();
     this.processor.removeEventListener('utxo-proc-start', this.processorHandlerWithBind);
+    this.processor.removeEventListener('balance', this.balanceEventHandlerWithBind);
+    this.processor.removeEventListener('pending', this.balanceEventHandlerWithBind);
+  }
+
+  async waitForPendingUtxoToFinish() {
+    if (this.balancePromise) {
+      await this.balancePromise;
+    }
   }
 }

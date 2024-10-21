@@ -323,7 +323,7 @@ export class KaspaNetworkTransactionsManagerService {
         this.rpcService.getRpc(),
         this.rpcService.getNetwork(),
         this.convertPrivateKeyToPublicKey(privateKey),
-        async (context) => {
+        async (context, utxoProcessonManager) => {
           const baseTransactionData: IGeneratorSettingsObject = {
             priorityEntries: [],
             entries: context,
@@ -345,25 +345,31 @@ export class KaspaNetworkTransactionsManagerService {
           const commitTransaction = await this.utils.retryOnError(async () => {
             const transaction = await createTransactions(baseTransactionData);
 
-            const transactionReciever = new TransacionReciever(
-              this.rpcService.getRpc(),
-              this.convertPrivateKeyToPublicKey(privateKey),
-              transaction.summary.finalTransactionId,
-            );
-
             console.log('commit transaction amount', transaction.transactions.length);
             console.log('commit transaction summry', transaction.summary);
 
-            await transactionReciever.registerEventHandlers();
+            for (const currentTransaction of transaction.transactions) {
+              currentTransaction.sign([privateKey]);
 
-            try {
-              await this.signAndSubmitTransactions(transaction, privateKey);
+              const transactionReciever = new TransacionReciever(
+                this.rpcService.getRpc(),
+                this.convertPrivateKeyToPublicKey(privateKey),
+                transaction.summary.finalTransactionId,
+              );
 
-              await transactionReciever.waitForTransactionCompletion();
-            } catch (error) {
-              throw error;
-            } finally {
-              await transactionReciever.dispose();
+              await transactionReciever.registerEventHandlers();
+
+              try {
+                await currentTransaction.submit(this.rpcService.getRpc());
+                await transactionReciever.waitForTransactionCompletion();
+                await utxoProcessonManager.waitForPendingUtxoToFinish();
+              } catch (error) {
+                throw error;
+              } finally {
+                await transactionReciever.dispose();
+              }
+
+              console.log('asd');
             }
 
             return transaction;
@@ -392,7 +398,7 @@ export class KaspaNetworkTransactionsManagerService {
         this.rpcService.getRpc(),
         this.rpcService.getNetwork(),
         this.convertPrivateKeyToPublicKey(privateKey),
-        async (context) => {
+        async (context, utxoProcessonManager) => {
           const baseTransactionData: IGeneratorSettingsObject = {
             priorityEntries: [revealUTXOs.entries[0]],
             entries: context,
@@ -443,6 +449,9 @@ export class KaspaNetworkTransactionsManagerService {
               } finally {
                 await revealTransactionReciever.dispose();
               }
+
+              await utxoProcessonManager.waitForPendingUtxoToFinish();
+              console.log('asd');
             }
 
             return currentTransactions;
