@@ -266,7 +266,7 @@ export class KaspaNetworkActionsService {
       }
 
       if (!resultTransactions.revealTransactionId) {
-        const revealTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+        const revealTransaction = await this.transactionsManagerService.doKrc20RevealTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           operationData,
           operationCost,

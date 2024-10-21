@@ -8,6 +8,7 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { LunchpadWalletTokenBalanceIncorrect } from '../services/kaspa-network/errors/LunchpadWalletTokenBalanceIncorrect';
+import { PrivateKey } from 'libs/kaspa/kaspa';
 
 @Injectable()
 export class KaspaFacade {
@@ -120,5 +121,17 @@ export class KaspaFacade {
       KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
       notifyUpdate,
     );
+  }
+
+  async doBatchMint(privateKey: PrivateKey, ticker: string, amount: number, maxPriorityFee: number) {
+    for (let i = 0; i < amount; i++) {
+      await this.kaspaNetworkActionsService.mintAndNotify(
+        privateKey,
+        ticker,
+        KaspaNetworkActionsService.KaspaToSompi(String(maxPriorityFee)),
+        {},
+        async (r) => console.log(r),
+      );
+    }
   }
 }

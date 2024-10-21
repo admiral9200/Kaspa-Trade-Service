@@ -31,11 +31,13 @@ import { LunchpadProvider } from '../providers/lunchpad.provider';
 import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
+import { BatchMintProvider } from '../providers/batch-mint.provider';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
   P2pProvider,
   LunchpadProvider,
+  BatchMintProvider,
 
   // Facades
   KaspaFacade,

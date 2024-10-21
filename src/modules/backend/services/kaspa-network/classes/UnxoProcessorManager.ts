@@ -57,9 +57,7 @@ export class UtxoProcessorManager {
     clearTimeout(this.processorEventListenerTimeout);
 
     try {
-      console.log(`TrxManager: registerProcessor - this.context.clear()`);
       await this.context.clear();
-      console.log(`TrxManager: registerProcessor - tracking pool address`);
       await this.context.trackAddresses([this.publicAddress]);
       this.processorEventListenerResolve();
     } catch (error) {

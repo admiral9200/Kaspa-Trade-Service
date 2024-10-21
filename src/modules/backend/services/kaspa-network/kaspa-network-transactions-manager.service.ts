@@ -339,8 +339,8 @@ export class KaspaNetworkTransactionsManagerService {
             networkId: this.rpcService.getNetwork(),
           };
 
-          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
-          baseTransactionData.priorityFee = priorityFee;
+          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
+          baseTransactionData.priorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
 
           const commitTransaction = await this.utils.retryOnError(async () => {
             const transaction = await createTransactions(baseTransactionData);
@@ -351,6 +351,7 @@ export class KaspaNetworkTransactionsManagerService {
               transaction.summary.finalTransactionId,
             );
 
+            console.log('commit transaction amount', transaction.transactions.length);
             console.log('commit transaction summry', transaction.summary);
 
             await transactionReciever.registerEventHandlers();
@@ -382,12 +383,12 @@ export class KaspaNetworkTransactionsManagerService {
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
-    return await this.connectAndDo(async () => {
+    return await this.connectAndDo<ICreateTransactions>(async () => {
       const revealUTXOs = await this.rpcService.getRpc().getUtxosByAddresses({
         addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
       });
 
-      return await UtxoProcessorManager.useUtxoProcessorManager(
+      return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
         this.rpcService.getRpc(),
         this.rpcService.getNetwork(),
         this.convertPrivateKeyToPublicKey(privateKey),
@@ -402,11 +403,16 @@ export class KaspaNetworkTransactionsManagerService {
             networkId: this.rpcService.getNetwork(),
           };
 
-          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, maxPriorityFee);
-          baseTransactionData.priorityFee = transactionFeeAmount + priorityFee;
+          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
+          const currentNeededPriorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
+
+          baseTransactionData.priorityFee =
+            currentNeededPriorityFee > transactionFeeAmount ? currentNeededPriorityFee : transactionFeeAmount;
 
           const revealTransactions = await this.utils.retryOnError(async () => {
             const currentTransactions = await createTransactions(baseTransactionData);
+
+            console.log('reveal transaction amount', currentTransactions.transactions.length);
 
             for (const transaction of currentTransactions.transactions) {
               transaction.sign([privateKey], false);
