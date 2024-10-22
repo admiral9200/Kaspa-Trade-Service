@@ -30,9 +30,6 @@ import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
 import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
-import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
-import { JwtAdminWalletAuthGuard } from '../guards/jwt-admin-wallet-auth.guard';
-import { SkipGuardsService } from '../guards/infra/skipGuardsService';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -53,7 +50,6 @@ export const BASE_PROVIDERS: Provider[] = [
   P2pTelegramNotifierService,
   AppGlobalLoggerService,
   LunchpadService,
-  SkipGuardsService,
 
   // Helpers
   P2pOrderHelper,
@@ -63,10 +59,6 @@ export const BASE_PROVIDERS: Provider[] = [
   SellOrdersBookRepository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
-
-  // Guards
-  JwtWalletAuthGuard,
-  JwtAdminWalletAuthGuard,
 ];
 
 export const BASE_IMPORTS = [

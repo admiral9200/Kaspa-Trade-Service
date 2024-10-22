@@ -10,10 +10,20 @@ import { JwtModule } from '@nestjs/jwt';
 import { AppConfigModule } from 'src/modules/core/modules/config/app-config.module';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { JwtWalletStrategy } from '../guards/jwt-wallet.strategy';
+import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
+import { JwtAdminWalletAuthGuard } from '../guards/jwt-admin-wallet-auth.guard';
+import { SkipGuardsService } from '../guards/infra/skipGuardsService';
 
 @Module({
   controllers: [P2pController, OrdersManagementController, LunchpadController, AuthController],
-  providers: [...BASE_PROVIDERS, JwtWalletStrategy, OrdersManagementProvider],
+  providers: [
+    ...BASE_PROVIDERS,
+    JwtWalletStrategy,
+    OrdersManagementProvider,
+    JwtWalletAuthGuard,
+    JwtAdminWalletAuthGuard,
+    SkipGuardsService,
+  ],
   imports: [
     ...BASE_IMPORTS,
     PassportModule.register({ defaultStrategy: 'jwt' }),
