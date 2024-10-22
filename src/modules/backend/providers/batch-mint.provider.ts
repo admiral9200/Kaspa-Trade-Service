@@ -2,16 +2,35 @@ import { Injectable } from '@nestjs/common';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { PrivateKey } from 'libs/kaspa/kaspa';
 import { CreateBatchMintRequestDto } from '../model/dtos/batch-mint/create-batch-mint-request.dto';
+import { BatchMintService } from '../services/batch-mint.service';
+import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
+import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
 
 @Injectable()
 export class BatchMintProvider {
-  constructor(private readonly kaspaFacade: KaspaFacade) {}
+  constructor(
+    private readonly batchMintService: BatchMintService,
+    private readonly temporaryWalletService: TemporaryWalletSequenceService,
+    private readonly kaspaFacade: KaspaFacade,
+  ) {}
   async createBatchMint(ticker: string, ownerWalletAddress: string, batchMintRequestDto: CreateBatchMintRequestDto) {
-    await this.kaspaFacade.doBatchMint(
-      new PrivateKey('89ccb3e6969aa3bb48568de3172fd5ae31942ca8cb3aace665931b11cb033cc8'),
+    const walletSequenceId: number = await this.temporaryWalletService.getNextSequenceId();
+
+    const batchMintEntity = await this.batchMintService.create(
       ticker,
       batchMintRequestDto.amount,
+      ownerWalletAddress,
+      walletSequenceId,
       batchMintRequestDto.maxPriorityFee,
     );
+
+    return {
+      success: true,
+      batchMint: batchMintEntity,
+    };
+  }
+
+  async doBatchMint(batchMintEntity: BatchMintEntity) {
+    const batchMintWallet = await this.kaspaFacade.doBatchMint(batchMintEntity, async () => {});
   }
 }

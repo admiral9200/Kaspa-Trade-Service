@@ -368,8 +368,6 @@ export class KaspaNetworkTransactionsManagerService {
               } finally {
                 await transactionReciever.dispose();
               }
-
-              console.log('asd');
             }
 
             return transaction;
@@ -451,7 +449,6 @@ export class KaspaNetworkTransactionsManagerService {
               }
 
               await utxoProcessonManager.waitForPendingUtxoToFinish();
-              console.log('asd');
             }
 
             return currentTransactions;

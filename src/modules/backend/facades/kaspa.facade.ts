@@ -9,6 +9,9 @@ import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { LunchpadWalletTokenBalanceIncorrect } from '../services/kaspa-network/errors/LunchpadWalletTokenBalanceIncorrect';
 import { PrivateKey } from 'libs/kaspa/kaspa';
+import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
+import { Krc20TransactionsResult } from '../services/kaspa-network/interfaces/Krc20TransactionsResult.interface';
+import { isEmptyString } from '../utils/object.utils';
 
 @Injectable()
 export class KaspaFacade {
@@ -123,15 +126,33 @@ export class KaspaFacade {
     );
   }
 
-  async doBatchMint(privateKey: PrivateKey, ticker: string, amount: number, maxPriorityFee: number) {
-    for (let i = 0; i < amount; i++) {
+  async doBatchMint(batchMintEntity: BatchMintEntity, notifyUpdate: (result: Partial<Krc20TransactionsResult>) => Promise<void>) {
+    const batchMintWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(batchMintEntity.walletSequenceId);
+
+    const finishedTransactionsLength = (batchMintEntity.transactions && batchMintEntity.transactions.length) || 0;
+
+    let lastTransactions: Partial<KRC20ActionTransations> =
+      batchMintEntity.transactions && finishedTransactionsLength
+        ? batchMintEntity.transactions[finishedTransactionsLength - 1]
+        : {};
+
+    let timesLeftToRun = batchMintEntity.totalMints - finishedTransactionsLength;
+
+    if (!(!isEmptyString(lastTransactions.commitTransactionId) && isEmptyString(lastTransactions.revealTransactionId))) {
+      lastTransactions = {};
+      timesLeftToRun++;
+    }
+
+    for (let i = 0; i < timesLeftToRun; i++) {
       await this.kaspaNetworkActionsService.mintAndNotify(
-        privateKey,
-        ticker,
-        KaspaNetworkActionsService.KaspaToSompi(String(maxPriorityFee)),
-        {},
-        async (r) => console.log(r),
+        batchMintWallet.privateKey,
+        batchMintEntity.ticker,
+        KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+        lastTransactions,
+        notifyUpdate,
       );
+
+      lastTransactions = {};
     }
   }
 }

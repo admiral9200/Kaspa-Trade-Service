@@ -32,6 +32,9 @@ import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
 import { BatchMintProvider } from '../providers/batch-mint.provider';
+import { BatchMintService } from '../services/batch-mint.service';
+import { BatchMintRepository } from '../repositories/batch-mint.repository';
+import { BatchMintEntity, BatchMintEntitySchema } from '../model/schemas/batch-mint.schema';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -53,6 +56,7 @@ export const BASE_PROVIDERS: Provider[] = [
   P2pTelegramNotifierService,
   AppGlobalLoggerService,
   LunchpadService,
+  BatchMintService,
 
   // Helpers
   P2pOrderHelper,
@@ -62,6 +66,7 @@ export const BASE_PROVIDERS: Provider[] = [
   SellOrdersBookRepository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
+  BatchMintRepository,
 
   // Guards
   WalletGuard,
@@ -86,6 +91,7 @@ export const BASE_IMPORTS = [
       { name: TemporaryWalletsSequence.name, schema: TemporaryWalletsSequenceSchema },
       { name: LunchpadEntity.name, schema: LunchpadEntitySchema },
       { name: LunchpadOrder.name, schema: LunchpadOrderSchema },
+      { name: BatchMintEntity.name, schema: BatchMintEntitySchema },
     ],
     MONGO_DATABASE_CONNECTIONS.P2P,
   ),
