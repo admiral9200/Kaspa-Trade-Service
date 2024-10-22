@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
-import { WalletGuard } from '../guards/wallet.guard';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadProvider } from '../providers/lunchpad.provider';
 import {
@@ -7,17 +6,20 @@ import {
   ClientSideLunchpadWithStatus,
   LunchpadTransformer,
 } from '../transformers/lunchpad.transformer';
-import { AvoidGuards } from '../guards/infra/avoidGuard';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
 import { ProcessLunchpadOrderRequestDto } from '../model/dtos/lunchpad/process-lunchpad-order-request.dto';
+import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
+import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
+import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
+import { SkipGuards } from '../guards/infra/skipGuardsService';
 
 @Controller('lunchpad')
-@UseGuards(WalletGuard)
+@UseGuards(JwtWalletAuthGuard)
 export class LunchpadController {
   constructor(private readonly lunchpadProvider: LunchpadProvider) {}
 
   @Get(':ticker')
-  @AvoidGuards([WalletGuard])
+  @SkipGuards([JwtWalletAuthGuard])
   async getLunchpad(@Param('ticker') ticker: string): Promise<ClientSideLunchpadWithStatus> {
     const result = await this.lunchpadProvider.getLunchpadByTicker(ticker);
 
@@ -31,8 +33,11 @@ export class LunchpadController {
   }
 
   @Post('create')
-  async createLunchpadOrder(@Request() req, @Body() body: CreateLunchpadRequestDto): Promise<ClientSideLunchpadWithStatus> {
-    const result = await this.lunchpadProvider.createLunchpad(body, req.wallet);
+  async createLunchpadOrder(
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+    @Body() body: CreateLunchpadRequestDto,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.createLunchpad(body, walletInfo.walletAddress);
 
     return {
       success: result.success,
@@ -43,8 +48,11 @@ export class LunchpadController {
   }
 
   @Post(':id/start')
-  async startLunchpad(@Param('id') id: string, @Request() req): Promise<ClientSideLunchpadWithStatus> {
-    const result = await this.lunchpadProvider.startLunchpad(id, req.wallet);
+  async startLunchpad(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.startLunchpad(id, walletInfo.walletAddress);
 
     return {
       success: result.success,
@@ -59,9 +67,9 @@ export class LunchpadController {
   async createLunchpadOrderWithId(
     @Param('ticker') ticker: string,
     @Body() body: CreateLunchpadOrderRequestDto,
-    @Request() req,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.createLunchpadOrder(ticker, body, req.wallet);
+    const result = await this.lunchpadProvider.createLunchpadOrder(ticker, body, walletInfo.walletAddress);
 
     return {
       success: result.success,
@@ -77,9 +85,9 @@ export class LunchpadController {
   async startProcessingOrder(
     @Param('orderId') orderId: string,
     @Body() body: ProcessLunchpadOrderRequestDto,
-    @Request() req,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.processOrder(orderId, req.wallet, body.transactionId);
+    const result = await this.lunchpadProvider.processOrder(orderId, walletInfo.walletAddress, body.transactionId);
 
     return {
       success: result.success,
@@ -92,8 +100,11 @@ export class LunchpadController {
   }
 
   @Post(':orderId/cancel-order')
-  async cancelOrder(@Param('orderId') orderId: string, @Request() req): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.cancelOrder(orderId, req.wallet);
+  async cancelOrder(
+    @Param('orderId') orderId: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadOrderWithStatus> {
+    const result = await this.lunchpadProvider.cancelOrder(orderId, walletInfo.walletAddress);
 
     return {
       success: result.success,

@@ -22,8 +22,6 @@ import { UtilsHelper } from '../helpers/utils.helper';
 import { TelegramNotifierModule } from '../../shared/telegram-notifier/telegram-notifier.module';
 import { P2pTelegramNotifierService } from '../services/telegram-bot/p2p-telegram-notifier.service';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
-import { WalletGuard } from '../guards/wallet.guard';
-import { AdminWalletGuard } from '../guards/adminWallet.guard';
 import { AppGlobalLoggerService } from '../../core/modules/logger/app-global-logger.service';
 import { KaspaNetworkConnectionManagerService } from '../services/kaspa-network/kaspa-network-connection-manager.service';
 import { LunchpadService } from '../services/lunchpad.service';
@@ -32,6 +30,9 @@ import { LunchpadRepository } from '../repositories/lunchpad.repository';
 import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.schema';
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
 import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
+import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
+import { JwtAdminWalletAuthGuard } from '../guards/jwt-admin-wallet-auth.guard';
+import { SkipGuardsService } from '../guards/infra/skipGuardsService';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -52,6 +53,7 @@ export const BASE_PROVIDERS: Provider[] = [
   P2pTelegramNotifierService,
   AppGlobalLoggerService,
   LunchpadService,
+  SkipGuardsService,
 
   // Helpers
   P2pOrderHelper,
@@ -63,8 +65,8 @@ export const BASE_PROVIDERS: Provider[] = [
   LunchpadRepository,
 
   // Guards
-  WalletGuard,
-  AdminWalletGuard,
+  JwtWalletAuthGuard,
+  JwtAdminWalletAuthGuard,
 ];
 
 export const BASE_IMPORTS = [

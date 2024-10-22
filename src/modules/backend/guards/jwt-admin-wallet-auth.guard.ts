@@ -1,11 +1,12 @@
 import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { WalletGuard } from './wallet.guard';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
+import { JwtWalletAuthGuard } from './jwt-wallet-auth.guard';
+import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 
 @Injectable()
-export class AdminWalletGuard extends WalletGuard {
+export class JwtAdminWalletAuthGuard extends JwtWalletAuthGuard {
   constructor(
     readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     readonly logger: AppLogger,
@@ -23,9 +24,9 @@ export class AdminWalletGuard extends WalletGuard {
 
     const request = context.switchToHttp().getRequest();
 
-    const wallet = request.wallet;
+    const walletInfo: AuthWalletInfo = request.walletInfo;
 
-    if (!this.config.adminWallets.includes(wallet)) {
+    if (!this.config.adminWallets.includes(walletInfo.walletAddress)) {
       throw new UnauthorizedException();
     }
 
