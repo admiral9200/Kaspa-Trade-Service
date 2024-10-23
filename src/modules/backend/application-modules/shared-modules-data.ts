@@ -22,8 +22,6 @@ import { UtilsHelper } from '../helpers/utils.helper';
 import { TelegramNotifierModule } from '../../shared/telegram-notifier/telegram-notifier.module';
 import { P2pTelegramNotifierService } from '../services/telegram-bot/p2p-telegram-notifier.service';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
-import { WalletGuard } from '../guards/wallet.guard';
-import { AdminWalletGuard } from '../guards/adminWallet.guard';
 import { AppGlobalLoggerService } from '../../core/modules/logger/app-global-logger.service';
 import { KaspaNetworkConnectionManagerService } from '../services/kaspa-network/kaspa-network-connection-manager.service';
 import { LunchpadService } from '../services/lunchpad.service';
@@ -61,10 +59,6 @@ export const BASE_PROVIDERS: Provider[] = [
   SellOrdersBookRepository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
-
-  // Guards
-  WalletGuard,
-  AdminWalletGuard,
 ];
 
 export const BASE_IMPORTS = [

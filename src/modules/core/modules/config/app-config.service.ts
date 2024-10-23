@@ -113,4 +113,8 @@ export class AppConfigService {
   get getKaspianoBackendUrl(): string {
     return this.configService.get('KASPIANO_BACKEND_URL');
   }
+
+  get jwtSecretKey() {
+    return this.configService.get('JWT_SECRET_KEY');
+  }
 }
