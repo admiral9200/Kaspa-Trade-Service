@@ -6,4 +6,10 @@ export enum AuthType {
 export interface AuthWalletInfo {
   walletAddress: string;
   authType: AuthType;
+  userRoles?: UserRoleEnum[];
+}
+
+export enum UserRoleEnum {
+  SYS_ADMIN = -1,
+  LISTING_MANAGER = 1,
 }

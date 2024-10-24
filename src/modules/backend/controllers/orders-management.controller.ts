@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { OrdersManagementProvider } from '../providers/orders-management.provider';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
-import { JwtAdminWalletAuthGuard } from '../guards/jwt-admin-wallet-auth.guard';
+import { AllowedRoles, RolesGuard } from '../guards/roles.guard';
+import { UserRoleEnum } from '../model/dtos/auth/auth-wallet-info';
 
 @Controller('orders-management')
-@UseGuards(JwtAdminWalletAuthGuard)
+@UseGuards(RolesGuard)
+@AllowedRoles(UserRoleEnum.SYS_ADMIN)
 export class OrdersManagementController {
   constructor(private readonly ordersManagementProvider: OrdersManagementProvider) {}
 
