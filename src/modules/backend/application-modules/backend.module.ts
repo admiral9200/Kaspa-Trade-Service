@@ -11,19 +11,12 @@ import { AppConfigModule } from 'src/modules/core/modules/config/app-config.modu
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { JwtWalletStrategy } from '../guards/jwt-wallet.strategy';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
-import { JwtAdminWalletAuthGuard } from '../guards/jwt-admin-wallet-auth.guard';
 import { SkipGuardsService } from '../guards/infra/skipGuardsService';
+import { RolesGuard } from '../guards/roles.guard';
 
 @Module({
   controllers: [P2pController, OrdersManagementController, LunchpadController, AuthController],
-  providers: [
-    ...BASE_PROVIDERS,
-    JwtWalletStrategy,
-    OrdersManagementProvider,
-    JwtWalletAuthGuard,
-    JwtAdminWalletAuthGuard,
-    SkipGuardsService,
-  ],
+  providers: [...BASE_PROVIDERS, JwtWalletStrategy, OrdersManagementProvider, JwtWalletAuthGuard, SkipGuardsService, RolesGuard],
   imports: [
     ...BASE_IMPORTS,
     PassportModule.register({ defaultStrategy: 'jwt' }),
