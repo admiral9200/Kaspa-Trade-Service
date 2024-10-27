@@ -1,16 +1,14 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { OrdersManagementProvider } from '../providers/orders-management.provider';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
-import { AdminWalletGuard } from '../guards/adminWallet.guard';
+import { AllowedRoles, RolesGuard } from '../guards/roles.guard';
+import { UserRoleEnum } from '../model/dtos/auth/auth-wallet-info';
 
 @Controller('orders-management')
-@UseGuards(AdminWalletGuard)
+@UseGuards(RolesGuard)
+@AllowedRoles(UserRoleEnum.SYS_ADMIN)
 export class OrdersManagementController {
-  constructor(
-    private readonly ordersManagementProvider: OrdersManagementProvider,
-    private readonly config: AppConfigService,
-  ) {}
+  constructor(private readonly ordersManagementProvider: OrdersManagementProvider) {}
 
   @Post('generate-master-wallet')
   async generateMasterWallet() {
