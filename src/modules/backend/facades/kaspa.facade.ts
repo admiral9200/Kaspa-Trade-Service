@@ -8,6 +8,8 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { LunchpadWalletTokenBalanceIncorrect } from '../services/kaspa-network/errors/LunchpadWalletTokenBalanceIncorrect';
+import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
+import { UtxoEntry } from 'libs/kaspa/kaspa';
 
 @Injectable()
 export class KaspaFacade {
@@ -42,6 +44,30 @@ export class KaspaFacade {
       from,
       to,
       KaspaNetworkActionsService.KaspaToSompi(String(amount)) + AMOUNT_FOR_SWAP_FEES,
+    );
+  }
+
+  async getWalletBalanceAndUtxos(walletSequenceId: number): Promise<TotalBalanceWithUtxosInterface> {
+    const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
+
+    return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(walletAccount.address);
+  }
+
+  async checkIfWalletHasValidKaspaAmountForSwap(order: P2pOrderEntity): Promise<boolean> {
+    const swapWallet = await this.getAccountWalletAddressAtIndex(order.walletSequenceId);
+    const isValidData = await this.kaspaNetworkActionsService.isValidKaspaAmountForSwap(
+      swapWallet,
+      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+    );
+
+    return isValidData.isValid;
+  }
+
+  async getUtxoSenderWallet(receiverWalletAddress: string, utxoEntry: UtxoEntry): Promise<any> {
+    return await this.kaspaNetworkActionsService.getTransactionSenderWallet(
+      utxoEntry.outpoint.transactionId,
+      receiverWalletAddress,
+      utxoEntry.amount,
     );
   }
 

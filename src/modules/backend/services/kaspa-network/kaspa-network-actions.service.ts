@@ -34,6 +34,14 @@ export class KaspaNetworkActionsService {
     private readonly kaspaApiService: KaspaApiService,
   ) {}
 
+  async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
+    // const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, to, amount);
+    // if (!kaspaApiResult) {
+    //   return null;
+    // }
+    return this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
+  }
+
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
     transactionId: string,
     from: string,
@@ -51,6 +59,21 @@ export class KaspaNetworkActionsService {
     // And it will be sent to the buyer even though it's not his money
     // This is in case of an error
     return walletTotalBalance === amount;
+  }
+
+  async isValidKaspaAmountForSwap(
+    walletAddress: string,
+    swapAmount: bigint,
+  ): Promise<{ isValid: boolean; requiredAmount: bigint; currentAmount: bigint }> {
+    const totalWalletAmountAtStart = await this.getWalletTotalBalance(walletAddress);
+
+    const requiredAmount = swapAmount + AMOUNT_FOR_SWAP_FEES;
+
+    return {
+      isValid: totalWalletAmountAtStart === requiredAmount,
+      requiredAmount,
+      currentAmount: totalWalletAmountAtStart,
+    };
   }
 
   /**
@@ -80,12 +103,13 @@ export class KaspaNetworkActionsService {
 
     return await this.transactionsManagerService.connectAndDo<SwapTransactionsResult>(async () => {
       if (!resultTransactions.commitTransactionId) {
-        const totalWalletAmountAtStart = await this.getWalletTotalBalance(
+        const isWalletHasValidAmount = await this.isValidKaspaAmountForSwap(
           this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
+          kaspaAmount,
         );
 
-        if (totalWalletAmountAtStart < AMOUNT_FOR_SWAP_FEES + kaspaAmount) {
-          throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, AMOUNT_FOR_SWAP_FEES + kaspaAmount);
+        if (!isWalletHasValidAmount.isValid) {
+          throw new IncorrectKaspaAmountForSwap(isWalletHasValidAmount.currentAmount, isWalletHasValidAmount.requiredAmount);
         }
 
         const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransaction(

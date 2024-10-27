@@ -88,6 +88,16 @@ export class P2pProvider {
 
   public async buy(orderId: string, buyerWalletAddress: string): Promise<BuyRequestResponseDto> {
     try {
+      const order = await this.p2pOrderBookService.getOrderById(orderId);
+      const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
+        // no need to await to release user
+        this.handleOrderWithMoneyAndNoBuyer(order).catch((err) => this.logger.error(err));
+
+        return { success: false };
+      }
+
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyerWalletAddress);
       const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
         sellOrderDm.walletSequenceId,
@@ -489,6 +499,35 @@ export class P2pProvider {
       console.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       this.logger.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
+    }
+  }
+
+  async handleOrderWithMoneyAndNoBuyer(order: P2pOrderEntity) {
+    try {
+      const walletTotalBalanceAndUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (
+        walletTotalBalanceAndUtxos.utxoEntries.length == 1 &&
+        (await this.kaspaFacade.checkIfWalletHasValidKaspaAmountForSwap(order))
+      ) {
+        const senderAddr = await this.kaspaFacade.getUtxoSenderWallet(
+          await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId),
+          walletTotalBalanceAndUtxos.utxoEntries[0],
+        );
+
+        if (senderAddr) {
+          await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
+          await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
+        }
+      }
+
+      await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
+      const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
+      this.logger.error(unknownMoneyError.message, unknownMoneyError.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(unknownMoneyError);
+    } catch (error) {
+      this.logger.error(error?.message, error?.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(error);
     }
   }
 }

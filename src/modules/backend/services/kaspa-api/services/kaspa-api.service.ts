@@ -26,6 +26,31 @@ export class KaspaApiService {
     );
   }
 
+  async getTransactionSender(txnId: string, receiverAddr: string, amount: bigint): Promise<string> {
+    const txnInfo = await this.getTxnInfo(txnId);
+    if (!txnInfo) {
+      console.error('Transaction info not found.');
+      return null;
+    }
+
+    // 2. Verify the output amount and receiver address
+    const output = txnInfo.outputs.find(
+      (output: any) => output.amount === Number(amount) && output.script_public_key_address === receiverAddr,
+    );
+
+    if (!output) {
+      console.error('Receiver address or amount mismatch in the outputs.');
+      return null;
+    }
+
+    if (txnInfo.inputs.length != 1) {
+      console.error('Incorrect inputs amount on getTransactionSender');
+      return null;
+    }
+
+    return txnInfo.inputs[0].previous_outpoint_address;
+  }
+
   async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: bigint): Promise<boolean> {
     const txnInfo = await this.getTxnInfo(txnId);
     if (!txnInfo) {
