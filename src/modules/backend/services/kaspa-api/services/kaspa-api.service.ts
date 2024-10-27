@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaApiTransactionData } from '../model/kaspa-api-transaction-data.interface';
+import { groupBy } from 'loadsh';
 
 @Injectable()
 export class KaspaApiService {
@@ -43,12 +44,14 @@ export class KaspaApiService {
       return null;
     }
 
-    if (txnInfo.inputs.length != 1) {
+    const inputWallets = Object.keys(groupBy(txnInfo.inputs, (input) => input.previous_outpoint_address));
+
+    if (inputWallets.length != 1) {
       console.error('Incorrect inputs amount on getTransactionSender');
       return null;
     }
 
-    return txnInfo.inputs[0].previous_outpoint_address;
+    return inputWallets[0];
   }
 
   async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: bigint): Promise<boolean> {
