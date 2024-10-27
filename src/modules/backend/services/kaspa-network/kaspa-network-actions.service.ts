@@ -35,11 +35,7 @@ export class KaspaNetworkActionsService {
   ) {}
 
   async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
-    // const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, to, amount);
-    // if (!kaspaApiResult) {
-    //   return null;
-    // }
-    return this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
+    return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(

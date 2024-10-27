@@ -518,6 +518,7 @@ export class P2pProvider {
         if (senderAddr) {
           await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
           await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
+          return;
         }
       }
 
