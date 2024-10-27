@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, Min } from 'class-validator';
+import { IsInt, IsNumber, Max, Min } from 'class-validator';
 
 export class CreateBatchMintRequestDto {
   @IsNumber()
@@ -8,5 +8,6 @@ export class CreateBatchMintRequestDto {
   @IsNumber()
   @IsInt()
   @Min(1)
+  @Max(10000)
   amount: number;
 }

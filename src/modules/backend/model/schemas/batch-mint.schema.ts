@@ -20,6 +20,9 @@ export class BatchMintEntity {
   totalMints: number;
 
   @Prop({ required: true })
+  finishedMints: number;
+
+  @Prop({ required: true })
   ownerWallet: string;
 
   @Prop({ required: true })
@@ -34,8 +37,14 @@ export class BatchMintEntity {
   @Prop()
   transactions?: KRC20ActionTransations[];
 
+  @Prop()
+  refundTransactionId?: string;
+
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
+
+  @Prop()
+  error?: string;
 
   @Prop()
   createdAt?: Date;

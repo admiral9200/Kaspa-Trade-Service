@@ -10,6 +10,7 @@ import { ITokenOperation, ITokenOperationResponse, OperationAcceptResult } from 
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaResponse } from '../model/kaspa-response.interface';
 import { IBalanceArray } from '../model/balance-array.interface';
+import { ITokenDetailsWithHolders } from '../model/token-details-with-holders.interface';
 
 @Injectable()
 export class KasplexApiService {
@@ -86,20 +87,18 @@ export class KasplexApiService {
     return response.data;
   }
 
-  // async fetchTokenInfo(
-  //   tick: string,
-  //   holders = true,
-  // ): Promise<IKaspaResponse<ITokenDetailsWithHolders>> {
-  //   try {
-  //     const response = await firstValueFrom(
-  //       this.httpService.get<any>(`krc20/token/${tick}?holder=${holders}`),
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('Error fetching token info:', error);
-  //     return undefined;
-  //   }
-  // }
+  async fetchTokenInfo(ticker: string): Promise<ITokenDetailsWithHolders> {
+    const response = await firstValueFrom(this.httpService.get<ITokenDetailsWithHolders>(`krc20/token/${ticker}`));
+    return response.data;
+  }
+
+  async getTokenRemainingMints(ticker: string): Promise<number> {
+    const response = await this.fetchTokenInfo(ticker);
+
+    const maxTokens = BigInt(response.max);
+    const mintedTokens = BigInt(response.minted);
+    return Number((maxTokens - mintedTokens) / BigInt(response.lim));
+  }
 
   // async fetchHoldersCount(ticker: string): Promise<number> {
   //   try {

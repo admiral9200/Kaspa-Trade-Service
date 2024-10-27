@@ -5,7 +5,6 @@ import {
   getMintData,
   getTransferData,
   KRC20_BASE_TRANSACTION_AMOUNT,
-  KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT,
   KRC20_TRANSACTIONS_AMOUNTS,
   KRC20OperationDataInterface,
 } from './classes/KRC20OperationData';
@@ -26,7 +25,7 @@ export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 export const MIMINAL_COMMITION = kaspaToSompi('1');
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
-const MINIMUM_WALLET_AMOUNT_FOR_KRC20_OPERATIONS = kaspaToSompi('1');
+const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10n;
 
 @Injectable()
 export class KaspaNetworkActionsService {
@@ -37,8 +36,26 @@ export class KaspaNetworkActionsService {
     private readonly kaspaApiService: KaspaApiService,
   ) {}
 
+  getRequiredKaspaAmountForBatchMint(amountToMint: number, maxPriorityFee: bigint): bigint {
+    let maxPriortyFeeWithMintAmount = maxPriorityFee - KRC20_TRANSACTIONS_AMOUNTS.MINT;
+    const estimatedTransactionMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
+
+    if (maxPriortyFeeWithMintAmount < 0) {
+      maxPriortyFeeWithMintAmount = 0n;
+    }
+
+    return (
+      BigInt(amountToMint) * (maxPriorityFee + maxPriortyFeeWithMintAmount + estimatedTransactionMass) +
+      KRC20_BASE_TRANSACTION_AMOUNT
+    );
+  }
+
   async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
     return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
+  }
+
+  async verifyPaymentTransaction(transactionId: string, from: string, to: string, amount: bigint): Promise<boolean> {
+    return await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
@@ -47,7 +64,7 @@ export class KaspaNetworkActionsService {
     to: string,
     amount: bigint,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount);
+    const kaspaApiResult = await this.verifyPaymentTransaction(transactionId, from, to, amount);
     if (!kaspaApiResult) {
       return false;
     }
@@ -344,6 +361,22 @@ export class KaspaNetworkActionsService {
   async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(privateKey, payments, maxPriorityFee);
+    });
+  }
+
+  async transferAllRemainingKaspa(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string) {
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+        privateKey,
+        [
+          {
+            address: targetWallet,
+            amount: MINIMAL_AMOUNT_TO_SEND,
+          },
+        ],
+        maxPriorityFee,
+        true,
+      );
     });
   }
 
