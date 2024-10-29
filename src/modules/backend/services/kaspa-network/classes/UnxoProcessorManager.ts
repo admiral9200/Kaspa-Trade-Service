@@ -29,9 +29,7 @@ export class UtxoProcessorManager {
     await trxManager.registerEventHandlers();
 
     try {
-      await trxManager.waitForPendingUtxoToFinish();
       const result = await func(trxManager.getContext(), trxManager);
-      await trxManager.waitForPendingUtxoToFinish();
 
       return result;
     } catch (error) {

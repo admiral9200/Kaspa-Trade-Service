@@ -323,11 +323,17 @@ export class KaspaNetworkTransactionsManagerService {
         this.rpcService.getNetwork(),
         this.convertPrivateKeyToPublicKey(privateKey),
         async (context, utxoProcessonManager) => {
-          const totalPaymentAmountWithoutFirst = payments.slice(1).reduce((sum, payment) => sum + payment.amount, 0n);
-          const currentBalance = context.balance.mature;
+          const totalPaymentAmount = payments.reduce((sum, payment) => sum + payment.amount, 0n);
+
+          const totalPaymentAmountWithoutFirst = totalPaymentAmount - payments[0].amount;
+          let currentBalance = context.balance.mature;
 
           if (sendAll) {
-            const availableToUse = context.balance.mature - totalPaymentAmountWithoutFirst;
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+
+            currentBalance = context.balance.mature;
+
+            const availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
 
             if (availableToUse <= MINIMAL_AMOUNT_TO_SEND) {
               throw new NotEnoughBalanceError();
@@ -335,6 +341,15 @@ export class KaspaNetworkTransactionsManagerService {
 
             payments[0].amount =
               availableToUse > MINIMAL_AMOUNT_TO_SEND * 2n ? availableToUse / 2n : availableToUse - MINIMAL_AMOUNT_TO_SEND;
+          } else {
+            if (currentBalance < totalPaymentAmount && context.balance.pending > 0n) {
+              await utxoProcessonManager.waitForPendingUtxoToFinish();
+              currentBalance = context.balance.mature;
+            }
+          }
+
+          if (currentBalance < totalPaymentAmount) {
+            throw new NotEnoughBalanceError();
           }
 
           const baseTransactionData: IGeneratorSettingsObject = {
@@ -382,7 +397,6 @@ export class KaspaNetworkTransactionsManagerService {
                 try {
                   await currentTransaction.submit(this.rpcService.getRpc());
                   await transactionReciever.waitForTransactionCompletion();
-                  await utxoProcessonManager.waitForPendingUtxoToFinish();
                 } catch (error) {
                   throw error;
                 } finally {
@@ -426,8 +440,19 @@ export class KaspaNetworkTransactionsManagerService {
             networkId: this.rpcService.getNetwork(),
           };
 
+          if (context.balance.mature < baseTransactionAmount + MINIMAL_AMOUNT_TO_SEND && context.balance.pending > 0n) {
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+          }
+
           const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
           baseTransactionData.priorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
+
+          if (
+            context.balance.mature < baseTransactionAmount + MINIMAL_AMOUNT_TO_SEND + baseTransactionData.priorityFee &&
+            context.balance.pending > 0n
+          ) {
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+          }
 
           const commitTransaction = await this.utils.retryOnError(async () => {
             const transaction = await createTransactions(baseTransactionData);
@@ -449,7 +474,6 @@ export class KaspaNetworkTransactionsManagerService {
               try {
                 await currentTransaction.submit(this.rpcService.getRpc());
                 await transactionReciever.waitForTransactionCompletion();
-                await utxoProcessonManager.waitForPendingUtxoToFinish();
               } catch (error) {
                 throw error;
               } finally {
@@ -494,11 +518,22 @@ export class KaspaNetworkTransactionsManagerService {
             networkId: this.rpcService.getNetwork(),
           };
 
+          if (context.balance.mature < transactionFeeAmount + MINIMAL_AMOUNT_TO_SEND && context.balance.pending > 0n) {
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+          }
+
           const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
           const currentNeededPriorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
 
           baseTransactionData.priorityFee =
             currentNeededPriorityFee > transactionFeeAmount ? currentNeededPriorityFee : transactionFeeAmount;
+
+          if (
+            context.balance.mature < transactionFeeAmount + MINIMAL_AMOUNT_TO_SEND + baseTransactionData.priorityFee &&
+            context.balance.pending > 0n
+          ) {
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+          }
 
           const revealTransactions = await this.utils.retryOnError(async () => {
             const currentTransactions = await createTransactions(baseTransactionData);
@@ -534,8 +569,6 @@ export class KaspaNetworkTransactionsManagerService {
               } finally {
                 await revealTransactionReciever.dispose();
               }
-
-              await utxoProcessonManager.waitForPendingUtxoToFinish();
             }
 
             return currentTransactions;
