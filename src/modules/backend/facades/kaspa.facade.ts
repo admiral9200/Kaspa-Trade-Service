@@ -155,11 +155,11 @@ export class KaspaFacade {
     );
   }
 
-  getRequiredAmountForBatchMint(batchMintEntity: BatchMintEntity): number {
+  getRequiredAmountForBatchMint(totalMints: number, maxPriorityFee: number): number {
     return KaspaNetworkActionsService.SompiToNumber(
       this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
-        batchMintEntity.totalMints,
-        KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+        totalMints,
+        KaspaNetworkActionsService.KaspaToSompi(String(maxPriorityFee)),
       ),
     );
   }

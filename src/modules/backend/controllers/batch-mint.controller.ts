@@ -4,6 +4,7 @@ import { CreateBatchMintRequestDto } from '../model/dtos/batch-mint/create-batch
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
+import { BatchMintTransformer, ClientSideBatchMintWithStatus } from '../transformers/batch-mint.transformer';
 
 @Controller('batch-mint')
 @UseGuards(JwtWalletAuthGuard)
@@ -15,12 +16,39 @@ export class BatchMintController {
     @Param('ticker') ticker: string,
     @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
     @Body() body: CreateBatchMintRequestDto,
-  ): Promise<any> {
-    return this.batchMintProvider.createBatchMint(ticker, authWalletInfo.walletAddress, body);
+  ): Promise<ClientSideBatchMintWithStatus> {
+    const result = await this.batchMintProvider.createBatchMint(ticker, authWalletInfo.walletAddress, body);
+
+    return BatchMintTransformer.transformBatchMintDataWithStatusToClientSide(result);
+  }
+
+  @Post(':ticker/estimate')
+  async estimateTokensAmount(
+    @Param('ticker') ticker: string,
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() body: CreateBatchMintRequestDto,
+  ): Promise<{ success: boolean; requiredKaspaAmount: number }> {
+    return (await this.batchMintProvider.getBatchMintRequiredKaspa(body)) as { success: boolean; requiredKaspaAmount: number };
   }
 
   @Post(':id/start')
-  async startBatchMint(@Param('id') id: string, @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo): Promise<any> {
-    return await this.batchMintProvider.doBatchMint(id, authWalletInfo.walletAddress);
+  async startBatchMint(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+  ): Promise<ClientSideBatchMintWithStatus> {
+    const result = await this.batchMintProvider.doBatchMint(id, authWalletInfo.walletAddress);
+
+    return BatchMintTransformer.transformBatchMintDataWithStatusToClientSide(result);
+  }
+
+  @Post(':id/validate')
+  async validateBatchMintKaspaAmount(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+  ): Promise<{ success: boolean; isValid: boolean }> {
+    return {
+      success: true,
+      isValid: await this.batchMintProvider.checkIfWalletHasValidKaspaAmount(id, authWalletInfo.walletAddress),
+    };
   }
 }

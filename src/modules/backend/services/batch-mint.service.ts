@@ -16,8 +16,14 @@ export class BatchMintService {
     return this.batchMintRepository.findOne({ _id: id, ownerWallet: wallet });
   }
 
-  async create(ticker: string, amount: number, ownerWallet: string, walletSequenceId: number, maxPriorityFee: number) {
-    this.batchMintRepository.create({
+  async create(
+    ticker: string,
+    amount: number,
+    ownerWallet: string,
+    walletSequenceId: number,
+    maxPriorityFee: number,
+  ): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.create({
       ticker,
       ownerWallet,
       totalMints: amount,

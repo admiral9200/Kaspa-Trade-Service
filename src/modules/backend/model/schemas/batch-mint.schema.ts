@@ -12,7 +12,6 @@ import { KRC20ActionTransations } from '../../services/kaspa-network/interfaces/
 export class BatchMintEntity {
   _id?: string;
 
-  // INDEX UNIQUE
   @Prop({ required: true })
   ticker: string;
 
@@ -22,7 +21,7 @@ export class BatchMintEntity {
   @Prop({ required: true })
   finishedMints: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   ownerWallet: string;
 
   @Prop({ required: true })

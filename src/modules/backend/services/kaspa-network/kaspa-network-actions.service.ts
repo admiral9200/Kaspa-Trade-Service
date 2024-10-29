@@ -36,18 +36,40 @@ export class KaspaNetworkActionsService {
     private readonly kaspaApiService: KaspaApiService,
   ) {}
 
+  getBatchMintCommissionInSompi(mintsAmount: number): bigint {
+    const mintsComission =
+      (BigInt(mintsAmount * this.config.batchMintCommissionPercentage) * KRC20_TRANSACTIONS_AMOUNTS.MINT) / 100n;
+
+    return mintsComission < MIMINAL_COMMITION ? MIMINAL_COMMITION : mintsComission;
+  }
+
   getRequiredKaspaAmountForBatchMint(amountToMint: number, maxPriorityFee: bigint): bigint {
     let maxPriortyFeeWithMintAmount = maxPriorityFee - KRC20_TRANSACTIONS_AMOUNTS.MINT;
-    const estimatedTransactionMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
+    const estimatedKrc20TransactionsMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
 
     if (maxPriortyFeeWithMintAmount < 0) {
       maxPriortyFeeWithMintAmount = 0n;
     }
 
-    return (
-      BigInt(amountToMint) * (maxPriorityFee + maxPriortyFeeWithMintAmount + estimatedTransactionMass) +
-      KRC20_BASE_TRANSACTION_AMOUNT
-    );
+    // EXPLNATION -
+    // for every transaction there is commit and reveal
+    // reveal always 1 priority fee or more, maxPriortyFeeWithMintAmount is what is above 1
+    // estimatedKrc20TransactionsMass - how much mass is every transaction more or less
+    const baseAmountForMints =
+      BigInt(amountToMint) *
+        (maxPriorityFee + maxPriortyFeeWithMintAmount + estimatedKrc20TransactionsMass + KRC20_TRANSACTIONS_AMOUNTS.MINT) +
+      KRC20_BASE_TRANSACTION_AMOUNT +
+      this.getBatchMintCommissionInSompi(amountToMint);
+
+    // 3 transactions - commit, reveal and kaspa
+    const amountForTransactionsTuReturnToTheSeller =
+      maxPriorityFee * 3n + estimatedKrc20TransactionsMass + MAX_ESTIMATED_KRC20_TRANSACTION_MASS;
+
+    const requiredAmount = baseAmountForMints + amountForTransactionsTuReturnToTheSeller;
+
+    const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(requiredAmount));
+
+    return KaspaNetworkActionsService.KaspaToSompi(String(requiredAmountCeiled));
   }
 
   async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
