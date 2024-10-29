@@ -13,6 +13,7 @@ export interface KRC20OperationDataInterface {
 }
 
 export const KRC20_BASE_TRANSACTION_AMOUNT = kaspaToSompi('3');
+export const KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT = kaspaToSompi('0.2');
 export const KRC20_TRANSACTIONS_AMOUNTS = {
   DEPLOY: kaspaToSompi('1000'),
   MINT: kaspaToSompi('1'),

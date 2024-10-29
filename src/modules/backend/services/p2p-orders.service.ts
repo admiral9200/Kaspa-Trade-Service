@@ -8,14 +8,14 @@ import { ClientSession, Connection } from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { P2P_ORDER_EXPIRATION_TIME_MINUTES } from '../constants/p2p-order.constants';
-import { SellOrderDto } from '../model/dtos/sell-order.dto';
-import { GetOrdersDto } from '../model/dtos/get-orders.dto';
-import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { SellOrderDto } from '../model/dtos/p2p-orders/sell-order.dto';
+import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
+import { UpdateSellOrderDto } from '../model/dtos/p2p-orders/update-sell-order.dto';
 import { SwapTransactionsResult } from './kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
-import { GetOrdersHistoryFiltersDto } from '../model/dtos/get-orders-history-filters.dto';
-import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/orders-management-update-sell-order.dto';
+import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
+import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 import { isEmptyString } from '../utils/object.utils';
 
 @Injectable()

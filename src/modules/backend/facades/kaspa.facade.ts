@@ -4,6 +4,12 @@ import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-accou
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
+import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
+import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
+import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
+import { LunchpadWalletTokenBalanceIncorrect } from '../services/kaspa-network/errors/LunchpadWalletTokenBalanceIncorrect';
+import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
+import { UtxoEntry } from 'libs/kaspa/kaspa';
 
 @Injectable()
 export class KaspaFacade {
@@ -18,9 +24,13 @@ export class KaspaFacade {
   }
 
   async checkIfWalletHasKrc20Token(address: string, ticker: string, amount: number): Promise<boolean> {
-    const walletTokensAmount = await this.kasplexApiService.fetchWalletBalance(address, ticker);
+    const walletTokensAmount = await this.getKrc20TokenBalance(address, ticker);
 
     return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
+  }
+
+  async getKrc20TokenBalance(address: string, ticker: string): Promise<bigint> {
+    return await this.kasplexApiService.fetchWalletBalance(address, ticker);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee(
@@ -34,6 +44,30 @@ export class KaspaFacade {
       from,
       to,
       KaspaNetworkActionsService.KaspaToSompi(String(amount)) + AMOUNT_FOR_SWAP_FEES,
+    );
+  }
+
+  async getWalletBalanceAndUtxos(walletSequenceId: number): Promise<TotalBalanceWithUtxosInterface> {
+    const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
+
+    return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(walletAccount.address);
+  }
+
+  async checkIfWalletHasValidKaspaAmountForSwap(order: P2pOrderEntity): Promise<boolean> {
+    const swapWallet = await this.getAccountWalletAddressAtIndex(order.walletSequenceId);
+    const isValidData = await this.kaspaNetworkActionsService.isValidKaspaAmountForSwap(
+      swapWallet,
+      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+    );
+
+    return isValidData.isValid;
+  }
+
+  async getUtxoSenderWallet(receiverWalletAddress: string, utxoEntry: UtxoEntry): Promise<any> {
+    return await this.kaspaNetworkActionsService.getTransactionSenderWallet(
+      utxoEntry.outpoint.transactionId,
+      receiverWalletAddress,
+      utxoEntry.amount,
     );
   }
 
@@ -78,6 +112,38 @@ export class KaspaFacade {
       order.ticker,
       quantity,
       order.transactions || {},
+      notifyUpdate,
+    );
+  }
+
+  async verifyTokensAndProcessLunchpadOrder(
+    lunchpadOrder: LunchpadOrder,
+    lunchpad: LunchpadEntity,
+    notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+  ): Promise<KRC20ActionTransations> {
+    // Verify wallet amount
+    const lunchpadWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.walletSequenceId);
+
+    const lunchpadWalletTokensAmount = KaspaNetworkActionsService.SompiToNumber(
+      await this.getKrc20TokenBalance(lunchpadWallet.address, lunchpad.ticker),
+    );
+
+    if (lunchpadWalletTokensAmount != lunchpad.currentTokensAmount) {
+      throw new LunchpadWalletTokenBalanceIncorrect(
+        lunchpad.ticker,
+        lunchpadWallet.address,
+        lunchpad.currentTokensAmount,
+        lunchpadWalletTokensAmount,
+      );
+    }
+
+    return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+      lunchpadWallet.privateKey,
+      lunchpadOrder.userWalletAddress,
+      lunchpad.ticker,
+      KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpadOrder.tokenPerUnit)),
+      lunchpadOrder.transactions || {},
+      KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
       notifyUpdate,
     );
   }

@@ -109,4 +109,12 @@ export class AppConfigService {
   get getTelegramOrdersNotificationsChannelId(): string {
     return this.configService.get('TELEGRAM_ORDERS_NOTIFICATIONS_CHANNEL_ID');
   }
+
+  get getKaspianoBackendUrl(): string {
+    return this.configService.get('KASPIANO_BACKEND_URL');
+  }
+
+  get jwtSecretKey() {
+    return this.configService.get('JWT_SECRET_KEY');
+  }
 }

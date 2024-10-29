@@ -1,38 +1,39 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
-import { SellOrderDto } from '../model/dtos/sell-order.dto';
+import { SellOrderDto } from '../model/dtos/p2p-orders/sell-order.dto';
 import { P2pOrdersService } from '../services/p2p-orders.service';
 import { P2pOrderBookTransformer } from '../transformers/p2p-order-book.transformer';
 import { OrderDm } from '../model/dms/order.dm';
 import { P2pOrderBookResponseTransformer } from '../transformers/p2p-order-book-response.transformer';
-import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/responses/confirm-sell-order-request.response.dto';
-import { BuyRequestResponseDto } from '../model/dtos/responses/buy-request.response.dto';
-import { SellRequestResponseDto } from '../model/dtos/responses/sell-request.response.dto';
-import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/responses/confirm-buy-order-request.response.dto';
+import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/p2p-orders/responses/confirm-sell-order-request.response.dto';
+import { BuyRequestResponseDto } from '../model/dtos/p2p-orders/responses/buy-request.response.dto';
+import { SellRequestResponseDto } from '../model/dtos/p2p-orders/responses/sell-request.response.dto';
+import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/p2p-orders/responses/confirm-buy-order-request.response.dto';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
-import { ConfirmBuyRequestDto } from '../model/dtos/confirm-buy-request.dto';
-import { GetOrdersDto } from '../model/dtos/get-orders.dto';
-import { ListedOrderDto } from '../model/dtos/listed-order.dto';
+import { ConfirmBuyRequestDto } from '../model/dtos/p2p-orders/confirm-buy-request.dto';
+import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
+import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { PriorityFeeTooHighError } from '../services/kaspa-network/errors/PriorityFeeTooHighError';
-import { ConfirmDelistRequestDto } from '../model/dtos/confirm-delist-request.dto';
-import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/responses/confirm-delist-order-request.response.dto copy';
+import { ConfirmDelistRequestDto } from '../model/dtos/p2p-orders/confirm-delist-request.dto';
+import { ConfirmDelistOrderRequestResponseDto } from '../model/dtos/p2p-orders/responses/confirm-delist-order-request.response.dto copy';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
-import { OffMarketplaceRequestResponseDto } from '../model/dtos/responses/off-marketplace-request.response.dto';
-import { UpdateSellOrderDto } from '../model/dtos/update-sell-order.dto';
+import { OffMarketplaceRequestResponseDto } from '../model/dtos/p2p-orders/responses/off-marketplace-request.response.dto';
+import { UpdateSellOrderDto } from '../model/dtos/p2p-orders/update-sell-order.dto';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { P2pOrderHelper } from '../helpers/p2p-order.helper';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
-import { GetOrdersHistoryDto } from '../model/dtos/get-orders-history.dto';
-import { GetOrdersHistoryResponseDto } from '../model/dtos/get-orders-history-response.dto';
-import { GetOrderStatusResponseDto } from '../model/dtos/get-order-status-response.dto';
+import { GetOrdersHistoryDto } from '../model/dtos/p2p-orders/get-orders-history.dto';
+import { GetOrdersHistoryResponseDto } from '../model/dtos/p2p-orders/get-orders-history-response.dto';
+import { GetOrderStatusResponseDto } from '../model/dtos/p2p-orders/get-order-status-response.dto';
 import { isEmptyString } from '../utils/object.utils';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoneyError';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
+import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
 
 @Injectable()
 export class P2pProvider {
@@ -42,6 +43,7 @@ export class P2pProvider {
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly telegramBotService: TelegramBotService,
+    private readonly kaspianoBackendApiService: KaspianoBackendApiService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -86,6 +88,16 @@ export class P2pProvider {
 
   public async buy(orderId: string, buyerWalletAddress: string): Promise<BuyRequestResponseDto> {
     try {
+      const order = await this.p2pOrderBookService.getOrderById(orderId);
+      const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
+        // no need to await to release user
+        this.handleOrderWithMoneyAndNoBuyer(order).catch((err) => this.logger.error(err));
+
+        return { success: false };
+      }
+
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.assignBuyerToOrder(orderId, buyerWalletAddress);
       const temporaryWalletPublicAddress: string = await this.kaspaFacade.getAccountWalletAddressAtIndex(
         sellOrderDm.walletSequenceId,
@@ -130,6 +142,9 @@ export class P2pProvider {
 
       // don't await because not important
       this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
+      this.kaspianoBackendApiService.sendMailAfterSwap(order._id).catch((err) => {
+        console.error(err);
+      });
 
       return transactionsResult;
     } catch (error) {
@@ -484,6 +499,36 @@ export class P2pProvider {
       console.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       this.logger.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
+    }
+  }
+
+  async handleOrderWithMoneyAndNoBuyer(order: P2pOrderEntity) {
+    try {
+      const walletTotalBalanceAndUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (
+        walletTotalBalanceAndUtxos.utxoEntries.length == 1 &&
+        (await this.kaspaFacade.checkIfWalletHasValidKaspaAmountForSwap(order))
+      ) {
+        const senderAddr = await this.kaspaFacade.getUtxoSenderWallet(
+          await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId),
+          walletTotalBalanceAndUtxos.utxoEntries[0],
+        );
+
+        if (senderAddr) {
+          await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
+          await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
+          return;
+        }
+      }
+
+      await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
+      const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
+      this.logger.error(unknownMoneyError.message, unknownMoneyError.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(unknownMoneyError);
+    } catch (error) {
+      this.logger.error(error?.message, error?.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(error);
     }
   }
 }
