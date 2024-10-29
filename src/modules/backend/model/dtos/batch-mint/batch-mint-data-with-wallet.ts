@@ -7,3 +7,9 @@ export interface BatchMintDataWithErrors {
   walletAddress?: string;
   requiredKaspaAmount?: number;
 }
+
+export interface BatchMintListDataWithErrors {
+  success: boolean;
+  errorCode?: number;
+  batchMints?: BatchMintEntity[];
+}

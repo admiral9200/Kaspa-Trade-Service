@@ -25,7 +25,7 @@ export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 export const MIMINAL_COMMITION = kaspaToSompi('1');
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
-const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10n;
+const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10000n;
 
 @Injectable()
 export class KaspaNetworkActionsService {
@@ -386,16 +386,25 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async transferAllRemainingKaspa(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string) {
+  async transferAllRemainingKaspa(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string, commission: bigint = 0n) {
+    const payments = [
+      {
+        address: targetWallet,
+        amount: MINIMAL_AMOUNT_TO_SEND,
+      },
+    ];
+
+    if (commission && commission > 0n) {
+      payments.push({
+        address: this.config.commitionWalletAddress,
+        amount: commission,
+      });
+    }
+
     return await this.transactionsManagerService.connectAndDo(async () => {
-      return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(
+      return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
         privateKey,
-        [
-          {
-            address: targetWallet,
-            amount: MINIMAL_AMOUNT_TO_SEND,
-          },
-        ],
+        payments,
         maxPriorityFee,
         true,
       );

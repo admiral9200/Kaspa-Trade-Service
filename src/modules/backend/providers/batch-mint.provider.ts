@@ -6,8 +6,9 @@ import { TemporaryWalletSequenceService } from '../services/temporary-wallet-seq
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
-import { BatchMintDataWithErrors } from '../model/dtos/batch-mint/batch-mint-data-with-wallet';
+import { BatchMintDataWithErrors, BatchMintListDataWithErrors } from '../model/dtos/batch-mint/batch-mint-data-with-wallet';
 import { ERROR_CODES } from '../constants';
+import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
 
 @Injectable()
 export class BatchMintProvider {
@@ -83,29 +84,56 @@ export class BatchMintProvider {
       };
     }
 
-    let isValidated = false;
+    if (batchMintEntity.status != BatchMintStatus.ERROR) {
+      let isValidated = false;
 
-    try {
-      isValidated = await this.kaspaFacade.validateBatchMintWalletAmount(batchMintEntity);
-    } catch (error) {
-      this.logger.error(error?.message || error, error?.stack, error?.meta);
-      this.telegramBotService.sendErrorToErrorsChannel(error);
+      try {
+        isValidated = await this.kaspaFacade.validateBatchMintWalletAmount(batchMintEntity);
+      } catch (error) {
+        this.logger.error(error?.message || error, error?.stack, error?.meta);
+        this.telegramBotService.sendErrorToErrorsChannel(error);
+      }
+
+      if (!isValidated) {
+        return {
+          success: false,
+          batchMint: null,
+          errorCode: ERROR_CODES.BATCH_MINT.INVALID_KASPA_AMOUNT,
+        };
+      }
     }
 
-    if (!isValidated) {
+    let updatedBatchMint = batchMintEntity;
+
+    try {
+      updatedBatchMint = await this.batchMintService.updateStatusToInProgress(
+        batchMintEntity._id,
+        batchMintEntity.status == BatchMintStatus.ERROR,
+      );
+    } catch (error) {
+      const isStatusError = this.batchMintService.isBatchMintInvalidStatusUpdateError(error);
+
+      if (!isStatusError) {
+        this.logger.error(error?.message || error, error?.stack, error?.meta);
+      }
+
       return {
         success: false,
-        batchMint: null,
-        errorCode: ERROR_CODES.BATCH_MINT.INVALID_KASPA_AMOUNT,
+        batchMint: updatedBatchMint,
+        errorCode: isStatusError ? ERROR_CODES.BATCH_MINT.INVALID_BATCH_MINT_STATUS : ERROR_CODES.GENERAL.UNKNOWN_ERROR,
       };
     }
 
-    let updatedBatchMint = await this.batchMintService.updateStatusToInProgress(batchMintEntity._id);
-
     try {
-      const result = await this.kaspaFacade.doBatchMint(batchMintEntity, async (transactions: KRC20ActionTransations) => {
-        updatedBatchMint = await this.batchMintService.updateMintProgress(updatedBatchMint, transactions);
-      });
+      const result = await this.kaspaFacade.doBatchMint(
+        batchMintEntity,
+        async (transactions: KRC20ActionTransations) => {
+          updatedBatchMint = await this.batchMintService.updateMintProgress(updatedBatchMint, transactions);
+        },
+        async (transactions: KRC20ActionTransations) => {
+          updatedBatchMint = await this.batchMintService.updateTransferTokenTransactions(updatedBatchMint, transactions);
+        },
+      );
 
       updatedBatchMint = await this.batchMintService.updateStatusToCompleted(
         updatedBatchMint._id,
@@ -128,5 +156,16 @@ export class BatchMintProvider {
         errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
       };
     }
+  }
+
+  async getBatchMintsByWallet(walletAddress: string): Promise<BatchMintListDataWithErrors> {
+    const batchMints = await this.batchMintService.getByWallet(walletAddress);
+
+    console.log('batchMints', batchMints);
+
+    return {
+      success: true,
+      batchMints,
+    };
   }
 }

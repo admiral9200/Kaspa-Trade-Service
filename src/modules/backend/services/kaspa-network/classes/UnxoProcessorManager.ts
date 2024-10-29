@@ -29,7 +29,11 @@ export class UtxoProcessorManager {
     await trxManager.registerEventHandlers();
 
     try {
-      return await func(trxManager.getContext(), trxManager);
+      await trxManager.waitForPendingUtxoToFinish();
+      const result = await func(trxManager.getContext(), trxManager);
+      await trxManager.waitForPendingUtxoToFinish();
+
+      return result;
     } catch (error) {
       throw error;
     } finally {
@@ -61,16 +65,19 @@ export class UtxoProcessorManager {
     this.balancePromise = new Promise((resolve) => {
       this.balanceResolve = resolve;
     });
+
+    if (this.context.balance.pending == 0n) {
+      this.isBalancedResolved = true;
+      this.balanceResolve();
+    }
   }
 
   private async balanceEventHandler(event) {
     if (event.type == 'pending') {
-      this.initBalancePromiseAndTimeout();
-    } else if (event.type == 'balance') {
-      if (!this.balancePromise) {
-        return;
+      if (!this.isBalancedResolved) {
+        this.initBalancePromiseAndTimeout();
       }
-
+    } else if (event.type == 'balance') {
       if (!this.isBalancedResolved) {
         const currentHasPending = event.data.balance.pending > 0;
         if (!currentHasPending) {
@@ -91,6 +98,7 @@ export class UtxoProcessorManager {
     try {
       await this.context.clear();
       await this.context.trackAddresses([this.publicAddress]);
+      this.initBalancePromiseAndTimeout();
       this.processorEventListenerResolve();
     } catch (error) {
       this.processorEventListenerReject(error);

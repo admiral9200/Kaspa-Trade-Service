@@ -37,8 +37,8 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
       {
         $set: {
           'transactions.$[elem]': transactions,
-          finishedMints: entity.finishedMints + 1,
         },
+        $inc: { finishedMints: 1 },
       },
       {
         new: true,
@@ -63,7 +63,7 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
 
       return result;
     } catch (error) {
-      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+      if (!this.isBatchMintInvalidStatusUpdateError(error)) {
         console.error(`Error updating to  for order by ID(${id}):`, error);
       }
 
@@ -71,7 +71,38 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
     }
   }
 
-  public isLunchpadInvalidStatusUpdateError(error) {
+  public isBatchMintInvalidStatusUpdateError(error) {
     return error instanceof InvalidStatusForBatchMintUpdateError || this.isDocumentTransactionLockedError(error);
+  }
+
+  async updateTransferTokenTransactions(entity: BatchMintEntity, transactions: KRC20ActionTransations): Promise<BatchMintEntity> {
+    return await this.batchMintModel.findByIdAndUpdate(
+      entity._id,
+      {
+        $set: {
+          transferTokenTransactions: transactions,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  async findByWallet(walletAddress: string): Promise<BatchMintEntity[]> {
+    return await this.batchMintModel
+      .find(
+        { ownerWallet: walletAddress },
+        {
+          _id: 1,
+          ticker: 1,
+          totalMints: 1,
+          finishedMints: 1,
+          maxPriorityFee: 1,
+          status: 1,
+          createdAt: 1,
+        },
+      )
+      .exec();
   }
 }

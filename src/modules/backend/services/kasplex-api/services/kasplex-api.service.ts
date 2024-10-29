@@ -88,8 +88,11 @@ export class KasplexApiService {
   }
 
   async fetchTokenInfo(ticker: string): Promise<ITokenDetailsWithHolders> {
-    const response = await firstValueFrom(this.httpService.get<ITokenDetailsWithHolders>(`krc20/token/${ticker}`));
-    return response.data;
+    const response = await firstValueFrom(
+      this.httpService.get<IKaspaResponse<ITokenDetailsWithHolders>>(`krc20/token/${ticker}`),
+    );
+
+    return response.data?.result[0];
   }
 
   async getTokenRemainingMints(ticker: string): Promise<number> {
@@ -98,6 +101,12 @@ export class KasplexApiService {
     const maxTokens = BigInt(response.max);
     const mintedTokens = BigInt(response.minted);
     return Number((maxTokens - mintedTokens) / BigInt(response.lim));
+  }
+
+  async getTokenMintsAmount(ticker: string, amount: number): Promise<bigint> {
+    const response = await this.fetchTokenInfo(ticker);
+
+    return BigInt(response.lim) * BigInt(amount);
   }
 
   // async fetchHoldersCount(ticker: string): Promise<number> {
@@ -137,7 +146,7 @@ export class KasplexApiService {
   async fetchWalletBalance(address: string, ticker: string): Promise<bigint> {
     const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/token/${ticker}`));
 
-    return response.data.result[0].balance;
+    return response?.data?.result[0].balance;
   }
 
   async fetchOperationResults(revealTransactoinId: string): Promise<ITokenOperation[]> {

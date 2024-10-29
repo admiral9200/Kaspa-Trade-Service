@@ -1,10 +1,14 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { BatchMintProvider } from '../providers/batch-mint.provider';
 import { CreateBatchMintRequestDto } from '../model/dtos/batch-mint/create-batch-mint-request.dto';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
-import { BatchMintTransformer, ClientSideBatchMintWithStatus } from '../transformers/batch-mint.transformer';
+import {
+  BatchMintTransformer,
+  ClientSideBatchMintListWithStatus,
+  ClientSideBatchMintWithStatus,
+} from '../transformers/batch-mint.transformer';
 
 @Controller('batch-mint')
 @UseGuards(JwtWalletAuthGuard)
@@ -50,5 +54,11 @@ export class BatchMintController {
       success: true,
       isValid: await this.batchMintProvider.checkIfWalletHasValidKaspaAmount(id, authWalletInfo.walletAddress),
     };
+  }
+
+  @Get('list')
+  async getWalletBatchMints(@CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo): Promise<ClientSideBatchMintListWithStatus> {
+    const batchMints = await this.batchMintProvider.getBatchMintsByWallet(authWalletInfo.walletAddress);
+    return BatchMintTransformer.transformBatchMintListDataWithStatusToClientSide(batchMints);
   }
 }

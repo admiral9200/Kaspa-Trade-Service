@@ -33,8 +33,11 @@ export class BatchMintEntity {
   @Prop({ required: true })
   status: BatchMintStatus;
 
-  @Prop()
-  transactions?: KRC20ActionTransations[];
+  @Prop({ type: Array })
+  transactions?: Partial<KRC20ActionTransations>[];
+
+  @Prop({ type: Object })
+  transferTokenTransactions?: Partial<KRC20ActionTransations>;
 
   @Prop()
   refundTransactionId?: string;

@@ -25,5 +25,6 @@ export const ERROR_CODES = {
   },
   BATCH_MINT: {
     INVALID_KASPA_AMOUNT: 30001,
+    INVALID_BATCH_MINT_STATUS: 30002,
   },
 };

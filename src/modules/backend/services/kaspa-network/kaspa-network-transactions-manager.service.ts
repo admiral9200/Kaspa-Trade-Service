@@ -311,6 +311,93 @@ export class KaspaNetworkTransactionsManagerService {
     return revealTransactions;
   }
 
+  async doKaspaTransferTransactionWithUtxoProcessor(
+    privateKey: PrivateKey,
+    payments: IPaymentOutput[],
+    maxPriorityFee: bigint,
+    sendAll = false, // Sends all the remains to the first payment
+  ) {
+    return await this.connectAndDo<ICreateTransactions>(async () => {
+      return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
+        this.rpcService.getRpc(),
+        this.rpcService.getNetwork(),
+        this.convertPrivateKeyToPublicKey(privateKey),
+        async (context, utxoProcessonManager) => {
+          const totalPaymentAmountWithoutFirst = payments.slice(1).reduce((sum, payment) => sum + payment.amount, 0n);
+          const currentBalance = context.balance.mature;
+
+          if (sendAll) {
+            const availableToUse = context.balance.mature - totalPaymentAmountWithoutFirst;
+
+            if (availableToUse <= MINIMAL_AMOUNT_TO_SEND) {
+              throw new NotEnoughBalanceError();
+            }
+
+            payments[0].amount =
+              availableToUse > MINIMAL_AMOUNT_TO_SEND * 2n ? availableToUse / 2n : availableToUse - MINIMAL_AMOUNT_TO_SEND;
+          }
+
+          const baseTransactionData: IGeneratorSettingsObject = {
+            entries: context,
+            outputs: payments,
+            feeRate: 1.0,
+            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
+            priorityFee: 0n,
+            networkId: this.rpcService.getNetwork(),
+          };
+
+          const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
+          const priorityFeeToUse = transactionsFees.priorityFee > maxPriorityFee ? maxPriorityFee : transactionsFees.priorityFee;
+          baseTransactionData.priorityFee = priorityFeeToUse;
+
+          if (sendAll) {
+            const totalFees = priorityFeeToUse + transactionsFees.mass;
+            payments[0].amount = currentBalance - totalPaymentAmountWithoutFirst - totalFees;
+          }
+
+          if (payments[0].amount <= MINIMAL_AMOUNT_TO_SEND) {
+            throw new NotEnoughBalanceError();
+          }
+
+          return await this.utils.retryOnError(async () => {
+            return await this.connectAndDo(async () => {
+              const transaction = await createTransactions(baseTransactionData);
+
+              console.log('kaspa transfer transaction amount', transaction.transactions.length);
+              console.log('kaspa transfer transaction summry', transaction.summary);
+
+              for (let i = 0; i < transaction.transactions.length; i++) {
+                const currentTransaction = transaction.transactions[i];
+                currentTransaction.sign([privateKey]);
+
+                const transactionReciever = new TransacionReciever(
+                  this.rpcService.getRpc(),
+                  this.convertPrivateKeyToPublicKey(privateKey),
+                  transaction.summary.finalTransactionId,
+                  sendAll && i == transaction.transactions.length - 1,
+                );
+
+                await transactionReciever.registerEventHandlers();
+
+                try {
+                  await currentTransaction.submit(this.rpcService.getRpc());
+                  await transactionReciever.waitForTransactionCompletion();
+                  await utxoProcessonManager.waitForPendingUtxoToFinish();
+                } catch (error) {
+                  throw error;
+                } finally {
+                  await transactionReciever.dispose();
+                }
+              }
+
+              return transaction;
+            }, 1);
+          });
+        },
+      );
+    });
+  }
+
   async doKrc20CommitTransactionWithUtxoProcessor(
     privateKey: PrivateKey,
     krc20transactionData: KRC20OperationDataInterface,

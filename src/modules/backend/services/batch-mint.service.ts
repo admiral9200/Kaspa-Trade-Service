@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { BatchMintRepository } from '../repositories/batch-mint.repository';
-import { UtilsHelper } from '../helpers/utils.helper';
 import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
 import { KRC20ActionTransations } from './kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 
 @Injectable()
 export class BatchMintService {
-  constructor(
-    private readonly batchMintRepository: BatchMintRepository,
-    private readonly utils: UtilsHelper,
-  ) {}
+  constructor(private readonly batchMintRepository: BatchMintRepository) {}
 
   async getByIdAndWallet(id: string, wallet: string) {
     return this.batchMintRepository.findOne({ _id: id, ownerWallet: wallet });
@@ -29,7 +25,7 @@ export class BatchMintService {
       totalMints: amount,
       finishedMints: 0,
       maxPriorityFee,
-      status: BatchMintStatus.CREATED,
+      status: BatchMintStatus.CREATED_AND_WAITING_FOR_FEE,
       walletSequenceId,
     });
   }
@@ -42,11 +38,15 @@ export class BatchMintService {
     }
   }
 
-  async updateStatusToInProgress(id: string): Promise<BatchMintEntity> {
+  async updateTransferTokenTransactions(entity: BatchMintEntity, transactions: KRC20ActionTransations) {
+    return await this.batchMintRepository.updateTransferTokenTransactions(entity, transactions);
+  }
+
+  async updateStatusToInProgress(id: string, fromError = false): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateBatchmintByStatus(
       id,
       { status: BatchMintStatus.IN_PROGRESS },
-      BatchMintStatus.CREATED,
+      fromError ? BatchMintStatus.ERROR : BatchMintStatus.CREATED_AND_WAITING_FOR_FEE,
     );
   }
 
@@ -60,5 +60,13 @@ export class BatchMintService {
 
   async updateStatusToError(id: string, errorMessage: any): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateByOne('_id', id, { status: BatchMintStatus.ERROR, error: errorMessage });
+  }
+
+  async isBatchMintInvalidStatusUpdateError(error: any) {
+    return this.batchMintRepository.isBatchMintInvalidStatusUpdateError(error);
+  }
+
+  async getByWallet(walletAddress: string): Promise<BatchMintEntity[]> {
+    return await this.batchMintRepository.findByWallet(walletAddress);
   }
 }
