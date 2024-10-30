@@ -4,9 +4,7 @@ import { ServiceTypeEnum } from '../../enums/service-type.enum';
 
 @Injectable()
 export class AppConfigService {
-  constructor(readonly configService: ConfigService) {
-    console.log('All Environment Variables:', JSON.stringify(process.env));
-  }
+  constructor(readonly configService: ConfigService) {}
 
   get getServiceType(): ServiceTypeEnum {
     return this.configService.get('SERVICE_TYPE') as ServiceTypeEnum;
