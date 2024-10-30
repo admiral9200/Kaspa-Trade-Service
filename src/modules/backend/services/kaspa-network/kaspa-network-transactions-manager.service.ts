@@ -13,6 +13,8 @@ import {
   kaspaToSompi,
   PublicKey,
   verifyMessage,
+  FeeSource,
+  IFees,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -166,6 +168,8 @@ export class KaspaNetworkTransactionsManagerService {
   async calculateTransactionFeeAndLimitToMax(transactionData, maxPriorityFee): Promise<FeesCalculation> {
     const finalFees = await this.utils.retryOnError(async () => {
       const currentTransaction = await createTransactions(transactionData);
+
+      console.log('calculateTransactionFeeAndLimitToMax', currentTransaction.summary);
 
       const fees = await this.getTransactionFees(currentTransaction);
 
@@ -327,24 +331,24 @@ export class KaspaNetworkTransactionsManagerService {
 
           const totalPaymentAmountWithoutFirst = totalPaymentAmount - payments[0].amount;
           let currentBalance = context.balance.mature;
+          let availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
 
           if (sendAll) {
             await utxoProcessonManager.waitForPendingUtxoToFinish();
 
             currentBalance = context.balance.mature;
-
-            const availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
+            availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
 
             if (availableToUse <= MINIMAL_AMOUNT_TO_SEND) {
               throw new NotEnoughBalanceError();
             }
 
-            payments[0].amount =
-              availableToUse > MINIMAL_AMOUNT_TO_SEND * 2n ? availableToUse / 2n : availableToUse - MINIMAL_AMOUNT_TO_SEND;
+            payments[0].amount = availableToUse > MINIMAL_AMOUNT_TO_SEND * 2n ? availableToUse / 2n : MINIMAL_AMOUNT_TO_SEND;
           } else {
             if (currentBalance < totalPaymentAmount && context.balance.pending > 0n) {
               await utxoProcessonManager.waitForPendingUtxoToFinish();
               currentBalance = context.balance.mature;
+              availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
             }
           }
 
@@ -367,7 +371,7 @@ export class KaspaNetworkTransactionsManagerService {
 
           if (sendAll) {
             const totalFees = priorityFeeToUse + transactionsFees.mass;
-            payments[0].amount = currentBalance - totalPaymentAmountWithoutFirst - totalFees;
+            payments[0].amount = availableToUse - totalFees;
           }
 
           if (payments[0].amount <= MINIMAL_AMOUNT_TO_SEND) {
@@ -376,6 +380,11 @@ export class KaspaNetworkTransactionsManagerService {
 
           return await this.utils.retryOnError(async () => {
             return await this.connectAndDo(async () => {
+              console.log('trying to create transaction');
+              console.log('utxo balance mature', context.balance.mature);
+              console.log('utxo balance outgoing', context.balance.outgoing);
+              console.log('utxo balance pending', context.balance.pending);
+              console.log('baseTransactionData', baseTransactionData);
               const transaction = await createTransactions(baseTransactionData);
 
               console.log('kaspa transfer transaction amount', transaction.transactions.length);
@@ -395,7 +404,9 @@ export class KaspaNetworkTransactionsManagerService {
                 await transactionReciever.registerEventHandlers();
 
                 try {
+                  console.log('SYBMITING');
                   await currentTransaction.submit(this.rpcService.getRpc());
+                  console.log('SUBMUTTED');
                   await transactionReciever.waitForTransactionCompletion();
                 } catch (error) {
                   throw error;
@@ -624,7 +635,7 @@ export class KaspaNetworkTransactionsManagerService {
   async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
 
-    return estimatedFees.estimate.priorityBucket.feerate;
+    return estimatedFees.estimate.priorityBucket.feerate * 1000000000;
   }
 
   async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
