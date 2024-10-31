@@ -28,8 +28,6 @@ export class BatchMintController {
 
   @Post(':ticker/estimate')
   async estimateTokensAmount(
-    @Param('ticker') ticker: string,
-    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
     @Body() body: CreateBatchMintRequestDto,
   ): Promise<{ success: boolean; requiredKaspaAmount: number }> {
     return (await this.batchMintProvider.getBatchMintRequiredKaspa(body)) as { success: boolean; requiredKaspaAmount: number };

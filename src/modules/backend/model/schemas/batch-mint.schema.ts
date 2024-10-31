@@ -28,6 +28,9 @@ export class BatchMintEntity {
   maxPriorityFee: number;
 
   @Prop({ required: true })
+  stopMintsAtMintsLeft: number;
+
+  @Prop({ required: true })
   walletSequenceId: number;
 
   @Prop({ required: true })

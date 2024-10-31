@@ -10,6 +10,7 @@ export type ClientSideBatchMint = {
   finishedMints: number;
   maxPriorityFee: number;
   status: BatchMintStatus;
+  stopMintsAtMintsLeft: number;
   transactions?: Partial<KRC20ActionTransations>[];
   transferTokenTransactions?: Partial<KRC20ActionTransations>;
   refundTransactionId?: string;
@@ -24,6 +25,7 @@ export type ClientSideBatchMintListItem = {
   finishedMints: number;
   maxPriorityFee: number;
   status: BatchMintStatus;
+  stopMintsAtMintsLeft: number;
   createdAt: Date;
 };
 
@@ -57,6 +59,7 @@ export class BatchMintTransformer {
       refundTransactionId: data.refundTransactionId,
       batchMintWalletAddress: walletAddress,
       requiredKaspaAmount: requiredKaspaAmount,
+      stopMintsAtMintsLeft: data.stopMintsAtMintsLeft,
     };
   }
 
@@ -82,6 +85,7 @@ export class BatchMintTransformer {
             maxPriorityFee: batchMint.maxPriorityFee,
             status: batchMint.status,
             createdAt: batchMint.createdAt,
+            stopMintsAtMintsLeft: batchMint.stopMintsAtMintsLeft,
           }))
         : [],
     };

@@ -9,6 +9,7 @@ import { TelegramBotService } from 'src/modules/shared/telegram-notifier/service
 import { BatchMintDataWithErrors, BatchMintListDataWithErrors } from '../model/dtos/batch-mint/batch-mint-data-with-wallet';
 import { ERROR_CODES } from '../constants';
 import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
+import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 
 @Injectable()
 export class BatchMintProvider {
@@ -32,6 +33,7 @@ export class BatchMintProvider {
       ownerWalletAddress,
       walletSequenceId,
       batchMintRequestDto.maxPriorityFee,
+      batchMintRequestDto.stopMintsAtMintsLeft,
     );
 
     return {
@@ -132,6 +134,9 @@ export class BatchMintProvider {
         },
         async (transactions: KRC20ActionTransations) => {
           updatedBatchMint = await this.batchMintService.updateTransferTokenTransactions(updatedBatchMint, transactions);
+        },
+        (): BatchMintEntity => {
+          return updatedBatchMint;
         },
       );
 

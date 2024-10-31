@@ -18,6 +18,7 @@ export class BatchMintService {
     ownerWallet: string,
     walletSequenceId: number,
     maxPriorityFee: number,
+    stopMintsAtMintsLeft: number,
   ): Promise<BatchMintEntity> {
     return await this.batchMintRepository.create({
       ticker,
@@ -27,6 +28,7 @@ export class BatchMintService {
       maxPriorityFee,
       status: BatchMintStatus.CREATED_AND_WAITING_FOR_FEE,
       walletSequenceId,
+      stopMintsAtMintsLeft,
     });
   }
 
@@ -53,7 +55,7 @@ export class BatchMintService {
   async updateStatusToCompleted(id: string, refundTransactionId: string, isMintOver: boolean = false): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateBatchmintByStatus(
       id,
-      { status: isMintOver ? BatchMintStatus.MINT_ENDED : BatchMintStatus.COMPLETED, refundTransactionId },
+      { status: isMintOver ? BatchMintStatus.REACHED_LOW_MINT_LIMIT : BatchMintStatus.COMPLETED, refundTransactionId },
       BatchMintStatus.IN_PROGRESS,
     );
   }

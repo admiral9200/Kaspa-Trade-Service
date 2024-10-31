@@ -18,7 +18,6 @@ import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/erro
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
 import { UtilsHelper } from '../helpers/utils.helper';
 
-const MIN_MINTS_FOR_BATCH_MINTS = 5;
 @Injectable()
 export class KaspaFacade {
   constructor(
@@ -206,6 +205,7 @@ export class KaspaFacade {
     batchMintEntity: BatchMintEntity,
     notifyUpdate: (result: Partial<Krc20TransactionsResult>) => Promise<void>,
     notifyUpdateTransferTransaction: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    getUpdatedBatchMintEntity: () => BatchMintEntity,
   ): Promise<{
     isMintOver: boolean;
     refundTransactionId: string;
@@ -228,15 +228,16 @@ export class KaspaFacade {
       lastTransactions = {};
     }
 
-    for (let i = 0; i < timesLeftToRun; i++) {
-      console.log('timesLeftToRun i', i);
+    for (let completedRuns = 0; completedRuns < timesLeftToRun; completedRuns++) {
+      console.log('completedRuns', completedRuns);
 
       if (Object.keys(lastTransactions).length == 0) {
         const mintsLeft = await this.kasplexApiService.getTokenRemainingMints(batchMintEntity.ticker);
 
         console.log('REMAINING MINTS', mintsLeft);
 
-        if (mintsLeft <= MIN_MINTS_FOR_BATCH_MINTS) {
+        if (mintsLeft <= batchMintEntity.stopMintsAtMintsLeft) {
+          console.log('BREAKING');
           isMintOver = true;
           break;
         }
@@ -253,44 +254,62 @@ export class KaspaFacade {
       lastTransactions = {};
     }
 
-    const tokenAmountToSend = await this.kasplexApiService.getTokenMintsAmount(
-      batchMintEntity.ticker,
-      batchMintEntity.totalMints,
-    );
+    const updatedBatchMintEntity = getUpdatedBatchMintEntity();
 
-    if (!batchMintEntity.transferTokenTransactions?.commitTransactionId) {
+    console.log('TOTAL COMPLETED MINTS', updatedBatchMintEntity.finishedMints);
+
+    if (updatedBatchMintEntity.finishedMints > 0) {
+      if (!(updatedBatchMintEntity.transactions && updatedBatchMintEntity.transactions.length)) {
+        throw new Error('No transactions for batch mint while finished mints > 0');
+      }
+
+      const lastTransactionReveal =
+        updatedBatchMintEntity.transactions[updatedBatchMintEntity.transactions.length - 1].revealTransactionId;
+
+      if (!lastTransactionReveal) {
+        throw new Error('No last reveal transaction for batch mint');
+      }
+
+      await this.kasplexApiService.waitForIndexerToBeSynced();
+
       await this.utils.retryOnError(
         async () => {
-          const walletTokenAmount = await this.kasplexApiService.fetchWalletBalance(
-            batchMintWallet.address,
-            batchMintEntity.ticker,
-          );
+          const verifyLastTransactionAtKasplexData = await this.kasplexApiService.fetchOperationResults(lastTransactionReveal);
 
-          if (walletTokenAmount != tokenAmountToSend) {
-            throw new Error('Tokens not received yet');
+          if (!verifyLastTransactionAtKasplexData) {
+            throw new Error('Operation not found at kasplex');
           }
         },
-        10,
-        5000,
+        30,
+        2000,
         true,
       );
-    }
 
-    await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
-      batchMintWallet.privateKey,
-      batchMintEntity.ownerWallet,
-      batchMintEntity.ticker,
-      tokenAmountToSend,
-      batchMintEntity.transferTokenTransactions || {},
-      KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
-      notifyUpdateTransferTransaction,
-    );
+      const tokenAmountToSend = await this.kasplexApiService.fetchWalletBalance(
+        batchMintWallet.address,
+        updatedBatchMintEntity.ticker,
+      );
+
+      if (tokenAmountToSend > 0n) {
+        await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+          batchMintWallet.privateKey,
+          batchMintEntity.ownerWallet,
+          batchMintEntity.ticker,
+          tokenAmountToSend,
+          batchMintEntity.transferTokenTransactions || {},
+          KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+          notifyUpdateTransferTransaction,
+        );
+      }
+    }
 
     const refundTransaction = await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
       batchMintWallet.privateKey,
       KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
       batchMintEntity.ownerWallet,
-      this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(batchMintEntity.totalMints),
+      updatedBatchMintEntity.finishedMints > 0
+        ? this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(updatedBatchMintEntity.finishedMints)
+        : null,
     );
 
     return { isMintOver, refundTransactionId: refundTransaction.summary.finalTransactionId };

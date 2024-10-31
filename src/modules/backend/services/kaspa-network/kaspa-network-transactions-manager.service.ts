@@ -169,7 +169,7 @@ export class KaspaNetworkTransactionsManagerService {
     const finalFees = await this.utils.retryOnError(async () => {
       const currentTransaction = await createTransactions(transactionData);
 
-      console.log('calculateTransactionFeeAndLimitToMax', currentTransaction.summary);
+      // console.log('calculateTransactionFeeAndLimitToMax', currentTransaction.summary);
 
       const fees = await this.getTransactionFees(currentTransaction);
 
@@ -331,24 +331,22 @@ export class KaspaNetworkTransactionsManagerService {
 
           const totalPaymentAmountWithoutFirst = totalPaymentAmount - payments[0].amount;
           let currentBalance = context.balance.mature;
-          let availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
 
           if (sendAll) {
             await utxoProcessonManager.waitForPendingUtxoToFinish();
 
             currentBalance = context.balance.mature;
-            availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
+            const remeaingAmountToSend = currentBalance - totalPaymentAmountWithoutFirst;
 
-            if (availableToUse <= MINIMAL_AMOUNT_TO_SEND) {
+            if (remeaingAmountToSend <= MINIMAL_AMOUNT_TO_SEND) {
               throw new NotEnoughBalanceError();
             }
 
-            payments[0].amount = availableToUse > MINIMAL_AMOUNT_TO_SEND * 2n ? availableToUse / 2n : MINIMAL_AMOUNT_TO_SEND;
+            payments[0].amount = remeaingAmountToSend;
           } else {
             if (currentBalance < totalPaymentAmount && context.balance.pending > 0n) {
               await utxoProcessonManager.waitForPendingUtxoToFinish();
               currentBalance = context.balance.mature;
-              availableToUse = currentBalance - totalPaymentAmountWithoutFirst;
             }
           }
 
@@ -361,18 +359,16 @@ export class KaspaNetworkTransactionsManagerService {
             outputs: payments,
             feeRate: 1.0,
             changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-            priorityFee: 0n,
+            priorityFee: {
+              amount: 0n,
+              source: sendAll ? FeeSource.ReceiverPays : FeeSource.SenderPays,
+            },
             networkId: this.rpcService.getNetwork(),
           };
 
           const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
           const priorityFeeToUse = transactionsFees.priorityFee > maxPriorityFee ? maxPriorityFee : transactionsFees.priorityFee;
-          baseTransactionData.priorityFee = priorityFeeToUse;
-
-          if (sendAll) {
-            const totalFees = priorityFeeToUse + transactionsFees.mass;
-            payments[0].amount = availableToUse - totalFees;
-          }
+          (baseTransactionData.priorityFee as IFees).amount = priorityFeeToUse;
 
           if (payments[0].amount <= MINIMAL_AMOUNT_TO_SEND) {
             throw new NotEnoughBalanceError();
@@ -380,11 +376,11 @@ export class KaspaNetworkTransactionsManagerService {
 
           return await this.utils.retryOnError(async () => {
             return await this.connectAndDo(async () => {
-              console.log('trying to create transaction');
-              console.log('utxo balance mature', context.balance.mature);
-              console.log('utxo balance outgoing', context.balance.outgoing);
-              console.log('utxo balance pending', context.balance.pending);
-              console.log('baseTransactionData', baseTransactionData);
+              // console.log('trying to create transaction');
+              // console.log('utxo balance mature', context.balance.mature);
+              // console.log('utxo balance outgoing', context.balance.outgoing);
+              // console.log('utxo balance pending', context.balance.pending);
+              // console.log('baseTransactionData', baseTransactionData);
               const transaction = await createTransactions(baseTransactionData);
 
               console.log('kaspa transfer transaction amount', transaction.transactions.length);
@@ -404,9 +400,7 @@ export class KaspaNetworkTransactionsManagerService {
                 await transactionReciever.registerEventHandlers();
 
                 try {
-                  console.log('SYBMITING');
                   await currentTransaction.submit(this.rpcService.getRpc());
-                  console.log('SUBMUTTED');
                   await transactionReciever.waitForTransactionCompletion();
                 } catch (error) {
                   throw error;
@@ -635,7 +629,7 @@ export class KaspaNetworkTransactionsManagerService {
   async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
 
-    return estimatedFees.estimate.priorityBucket.feerate * 1000000000;
+    return estimatedFees.estimate.priorityBucket.feerate;
   }
 
   async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {

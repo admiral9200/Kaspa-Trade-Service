@@ -11,6 +11,7 @@ import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaResponse } from '../model/kaspa-response.interface';
 import { IBalanceArray } from '../model/balance-array.interface';
 import { ITokenDetailsWithHolders } from '../model/token-details-with-holders.interface';
+import { IndexerStatus, IndexerStatusMessage } from '../model/indexer-status.interface';
 
 @Injectable()
 export class KasplexApiService {
@@ -81,6 +82,25 @@ export class KasplexApiService {
   //     return { result: [], next: '', prev: '' };
   //   }
   // }
+
+  async getIndexerStatus(): Promise<IndexerStatus> {
+    const response = await firstValueFrom(this.httpService.get<any>(`info`));
+    return response.data;
+  }
+
+  async waitForIndexerToBeSynced(maxRetries: number = 30): Promise<void> {
+    return await this.utils.retryOnError(
+      async () => {
+        const indexerStatus = await this.getIndexerStatus();
+        if (indexerStatus.message != IndexerStatusMessage.Synced) {
+          throw new Error('Indexer not synced');
+        }
+      },
+      maxRetries,
+      1000,
+      true,
+    );
+  }
 
   async getAddressTokenList(address: string): Promise<IKaspaResponse<IBalanceArray[]>> {
     const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/tokenlist`));
