@@ -8,6 +8,10 @@ import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 export class BatchMintService {
   constructor(private readonly batchMintRepository: BatchMintRepository) {}
 
+  async getById(id: string) {
+    return this.batchMintRepository.findOne({ _id: id });
+  }
+
   async getByIdAndWallet(id: string, wallet: string) {
     return this.batchMintRepository.findOne({ _id: id, ownerWallet: wallet });
   }
@@ -26,7 +30,7 @@ export class BatchMintService {
       totalMints: amount,
       finishedMints: 0,
       maxPriorityFee,
-      status: BatchMintStatus.CREATED_AND_WAITING_FOR_FEE,
+      status: BatchMintStatus.CREATED_AND_WAITING_FOR_KAS,
       walletSequenceId,
       stopMintsAtMintsLeft,
     });
@@ -44,11 +48,19 @@ export class BatchMintService {
     return await this.batchMintRepository.updateTransferTokenTransactions(entity, transactions);
   }
 
+  async updateStatusToWaitingForJob(id: string, fromError = false): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateBatchmintByStatus(
+      id,
+      { status: BatchMintStatus.WAITING_FOR_JOB },
+      fromError ? BatchMintStatus.ERROR : BatchMintStatus.CREATED_AND_WAITING_FOR_KAS,
+    );
+  }
+
   async updateStatusToInProgress(id: string, fromError = false): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateBatchmintByStatus(
       id,
       { status: BatchMintStatus.IN_PROGRESS },
-      fromError ? BatchMintStatus.ERROR : BatchMintStatus.CREATED_AND_WAITING_FOR_FEE,
+      fromError ? BatchMintStatus.ERROR : BatchMintStatus.WAITING_FOR_JOB,
     );
   }
 
@@ -62,6 +74,13 @@ export class BatchMintService {
 
   async updateStatusToError(id: string, errorMessage: any): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateByOne('_id', id, { status: BatchMintStatus.ERROR, error: errorMessage });
+  }
+
+  async updateStatusToPodNotInitializedError(id: string, errorMessage: any): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateByOne('_id', id, {
+      status: BatchMintStatus.POD_NOT_INITIALIZED_ERROR,
+      error: errorMessage,
+    });
   }
 
   async isBatchMintInvalidStatusUpdateError(error: any) {

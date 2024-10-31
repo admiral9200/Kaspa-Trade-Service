@@ -3,11 +3,12 @@ import { NestFactory } from '@nestjs/core';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as WebSocket from 'websocket';
-import { AppModule } from './app.module';
 import { SERVICE_TYPE } from './modules/backend/constants';
 import { ServiceTypeEnum } from './modules/core/enums/service-type.enum';
 import { AppConfigService } from './modules/core/modules/config/app-config.service';
 import { AppGlobalLoggerService } from './modules/core/modules/logger/app-global-logger.service';
+import { AppModule } from './app.module';
+import { CliJobManager } from './modules/backend/cli-job-manager/cli-job.manager';
 
 // Needed for Wasm
 globalThis.WebSocket = WebSocket.w3cwebsocket;
@@ -55,10 +56,26 @@ async function bootstrap() {
 
     console.log(`app running on port:::`, port);
     await app.listen(port);
-  } else if (SERVICE_TYPE == ServiceTypeEnum.CRON) {
-    console.log('starting cron instance');
+  } else if (SERVICE_TYPE == ServiceTypeEnum.CRON || SERVICE_TYPE == ServiceTypeEnum.JOB) {
+    console.log(`starting ${SERVICE_TYPE} instance`);
 
     app = await NestFactory.createApplicationContext(AppModule);
+
+    if (SERVICE_TYPE == ServiceTypeEnum.JOB) {
+      const jobManager = app.get(CliJobManager);
+
+      let hasError = false;
+      try {
+        await jobManager.handleJob();
+      } catch (error) {
+        hasError = true;
+        console.error(error);
+      }
+
+      await app.close();
+
+      process.exit(hasError ? 1 : 0);
+    }
   }
 
   const logError = async (error: any) => {
@@ -69,9 +86,11 @@ async function bootstrap() {
     logger.error(error, error?.stack, error?.meta);
   };
 
-  process.on('unhandledRejection', logError);
-  process.on('unhandledException', logError);
-  process.on('uncaughtException', logError);
+  if ((SERVICE_TYPE as ServiceTypeEnum) != ServiceTypeEnum.JOB) {
+    process.on('unhandledRejection', logError);
+    process.on('unhandledException', logError);
+    process.on('uncaughtException', logError);
+  }
 
   ['SIGINT', 'SIGTERM'].forEach((signal) => {
     process.on(signal, async () => {

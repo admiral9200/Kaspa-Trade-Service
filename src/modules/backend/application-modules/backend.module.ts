@@ -1,4 +1,4 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { P2pController } from '../controllers/p2p.controller';
 import { OrdersManagementProvider } from '../providers/orders-management.provider';
 import { OrdersManagementController } from '../controllers/orders-management.controller';
@@ -32,6 +32,4 @@ import { BatchMintController } from '../controllers/batch-mint.controller';
   ],
   exports: [],
 })
-export class BackendModule implements OnModuleInit {
-  onModuleInit() {}
-}
+export class BackendModule {}

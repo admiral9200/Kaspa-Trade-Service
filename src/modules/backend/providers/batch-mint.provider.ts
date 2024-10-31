@@ -7,9 +7,11 @@ import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { BatchMintDataWithErrors, BatchMintListDataWithErrors } from '../model/dtos/batch-mint/batch-mint-data-with-wallet';
-import { ERROR_CODES } from '../constants';
 import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
 import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
+import { ERROR_CODES } from '../constants';
+import { PodJobProvider } from './pod-job-provider';
+import { PodNotInitializedError } from '../services/kaspa-network/errors/PodNotInitializedError';
 
 @Injectable()
 export class BatchMintProvider {
@@ -19,6 +21,7 @@ export class BatchMintProvider {
     private readonly kaspaFacade: KaspaFacade,
     private readonly logger: AppLogger,
     private readonly telegramBotService: TelegramBotService,
+    private readonly podJobProvider: PodJobProvider,
   ) {}
   async createBatchMint(
     ticker: string,
@@ -75,15 +78,77 @@ export class BatchMintProvider {
     }
   }
 
-  async doBatchMint(id: string, ownerWalletAddress: string): Promise<BatchMintDataWithErrors> {
+  async validateAndStartBatchMintPod(id: string, ownerWalletAddress: string): Promise<BatchMintDataWithErrors> {
     const batchMintEntity = await this.batchMintService.getByIdAndWallet(id, ownerWalletAddress);
 
     if (!batchMintEntity) {
       return {
         success: false,
-        batchMint: null,
         errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
       };
+    }
+
+    if (batchMintEntity.status != BatchMintStatus.CREATED_AND_WAITING_FOR_KAS) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.BATCH_MINT.INVALID_BATCH_MINT_STATUS,
+      };
+    }
+
+    let isValidated = false;
+    try {
+      isValidated = await this.kaspaFacade.validateBatchMintWalletAmount(batchMintEntity);
+    } catch (error) {
+      this.logger.error(error?.message || error, error?.stack, error?.meta);
+      this.telegramBotService.sendErrorToErrorsChannel(error);
+    }
+
+    if (!isValidated) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.BATCH_MINT.INVALID_KASPA_AMOUNT,
+      };
+    }
+
+    try {
+      await this.batchMintService.updateStatusToWaitingForJob(batchMintEntity._id);
+    } catch {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.BATCH_MINT.INVALID_BATCH_MINT_STATUS,
+      };
+    }
+
+    try {
+      await this.podJobProvider.startBatchMintingJob(batchMintEntity._id);
+    } catch (error) {
+      this.logger.error(error?.message || error, error?.stack, error?.meta);
+      this.telegramBotService.sendErrorToErrorsChannel(new PodNotInitializedError(error, batchMintEntity));
+
+      try {
+        await this.batchMintService.updateStatusToPodNotInitializedError(batchMintEntity._id, error.toString());
+      } catch {
+        this.logger.error(error?.message || error, error?.stack, error?.meta);
+      }
+
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+      };
+    }
+
+    return {
+      success: true,
+      batchMint: batchMintEntity,
+    };
+  }
+
+  // This is what the pod should run
+  async startBatchMintJob(id: string): Promise<void> {
+    const batchMintEntity = await this.batchMintService.getById(id);
+
+    if (!batchMintEntity) {
+      throw new Error('Batch mint not found');
     }
 
     if (batchMintEntity.status != BatchMintStatus.ERROR) {
@@ -94,14 +159,11 @@ export class BatchMintProvider {
       } catch (error) {
         this.logger.error(error?.message || error, error?.stack, error?.meta);
         this.telegramBotService.sendErrorToErrorsChannel(error);
+        throw error;
       }
 
       if (!isValidated) {
-        return {
-          success: false,
-          batchMint: null,
-          errorCode: ERROR_CODES.BATCH_MINT.INVALID_KASPA_AMOUNT,
-        };
+        throw new Error('Invalid batch mint wallet amount');
       }
     }
 
@@ -119,11 +181,7 @@ export class BatchMintProvider {
         this.logger.error(error?.message || error, error?.stack, error?.meta);
       }
 
-      return {
-        success: false,
-        batchMint: updatedBatchMint,
-        errorCode: isStatusError ? ERROR_CODES.BATCH_MINT.INVALID_BATCH_MINT_STATUS : ERROR_CODES.GENERAL.UNKNOWN_ERROR,
-      };
+      throw error;
     }
 
     try {
@@ -145,21 +203,12 @@ export class BatchMintProvider {
         result.refundTransactionId,
         result.isMintOver,
       );
-
-      return {
-        success: true,
-        batchMint: updatedBatchMint,
-      };
     } catch (error) {
       await this.batchMintService.updateStatusToError(updatedBatchMint._id, error.toString());
       this.logger.error(error?.message || error, error?.stack, error?.meta);
       this.telegramBotService.sendErrorToErrorsChannel(error);
 
-      return {
-        success: false,
-        batchMint: updatedBatchMint,
-        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
-      };
+      throw error;
     }
   }
 

@@ -38,7 +38,7 @@ export class BatchMintController {
     @Param('id') id: string,
     @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
   ): Promise<ClientSideBatchMintWithStatus> {
-    const result = await this.batchMintProvider.doBatchMint(id, authWalletInfo.walletAddress);
+    const result = await this.batchMintProvider.validateAndStartBatchMintPod(id, authWalletInfo.walletAddress);
 
     return BatchMintTransformer.transformBatchMintDataWithStatusToClientSide(result);
   }

@@ -35,12 +35,14 @@ import { BatchMintRepository } from '../repositories/batch-mint.repository';
 import { BatchMintEntity, BatchMintEntitySchema } from '../model/schemas/batch-mint.schema';
 import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
 import { UserRoleService } from '../services/user-role.service';
+import { PodJobProvider } from '../providers/pod-job-provider';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
   P2pProvider,
   LunchpadProvider,
   BatchMintProvider,
+  PodJobProvider,
 
   // Facades
   KaspaFacade,
