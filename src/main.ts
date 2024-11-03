@@ -86,11 +86,9 @@ async function bootstrap() {
     logger.error(error, error?.stack, error?.meta);
   };
 
-  if ((SERVICE_TYPE as ServiceTypeEnum) != ServiceTypeEnum.JOB) {
-    process.on('unhandledRejection', logError);
-    process.on('unhandledException', logError);
-    process.on('uncaughtException', logError);
-  }
+  process.on('unhandledRejection', logError);
+  process.on('unhandledException', logError);
+  process.on('uncaughtException', logError);
 
   ['SIGINT', 'SIGTERM'].forEach((signal) => {
     process.on(signal, async () => {

@@ -29,7 +29,6 @@ export class TelegramBotService {
   }
 
   async sendFormattedMessage(channelId: string, message: string, apiKey?: string): Promise<void> {
-    return;
     const url = `${this.baseUrl}${apiKey || this.apiKey}/sendMessage`;
     const envTag = `[${this.configService.isProduction ? 'PROD' : 'DEV'}]`;
     const text = `${envTag} \\- ${message}`;

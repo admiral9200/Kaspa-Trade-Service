@@ -423,32 +423,6 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     }
   }
 
-  // private applySort(
-  //   query: Query<P2pOrderEntity[], P2pOrderEntity>,
-  //   sort: SortDto = { direction: SortDirection.DESC },
-  //   defaultSortField: string = 'createdAt',
-  // ): Query<P2pOrderEntity[], P2pOrderEntity> {
-  //   if (!sort || isEmpty(sort)) {
-  //     sort = { direction: SortDirection.DESC };
-  //   }
-  //   const sortField = sort.field || defaultSortField;
-  //   const sortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
-  //   return query.sort({ [sortField]: sortOrder } as any);
-  // }
-
-  // private applyPagination(
-  //   query: Query<P2pOrderEntity[], P2pOrderEntity>,
-  //   pagination?: PaginationDto,
-  // ): Query<P2pOrderEntity[], P2pOrderEntity> {
-  //   if (!pagination || isEmpty(pagination)) {
-  //     pagination = { limit: 10, offset: 0 };
-  //   }
-
-  //   query = query.skip(pagination.offset);
-  //   query = query.limit(pagination.limit);
-  //   return query;
-  // }
-
   async updateOrderFromOrdersManagement(
     orderId: string,
     updateSellOrderDto: OrdersManagementUpdateSellOrderDto,
