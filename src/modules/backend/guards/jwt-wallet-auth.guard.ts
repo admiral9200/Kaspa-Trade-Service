@@ -15,11 +15,6 @@ export class JwtWalletAuthGuard extends AuthGuard('jwt-wallet') {
       return true;
     }
 
-    // console.log('cookies', context.switchToHttp().getRequest().cookies);
-    // walletInfo = {
-    //   walletAddress: `kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2`,
-    // };
-
     const request = context.switchToHttp().getRequest();
 
     if (err || !walletInfo) {

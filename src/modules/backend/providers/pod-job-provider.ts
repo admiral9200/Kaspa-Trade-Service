@@ -31,6 +31,6 @@ export class PodJobProvider {
   }
 
   async startBatchMintingJob(id: string): Promise<void> {
-    return await this.startPodJob({ 'batch-mint': id }, true);
+    return await this.startPodJob({ 'batch-mint': id });
   }
 }
