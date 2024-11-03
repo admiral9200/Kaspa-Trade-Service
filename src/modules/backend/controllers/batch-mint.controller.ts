@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { BatchMintProvider } from '../providers/batch-mint.provider';
 import { CreateBatchMintRequestDto } from '../model/dtos/batch-mint/create-batch-mint-request.dto';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
@@ -9,13 +9,14 @@ import {
   ClientSideBatchMintListWithStatus,
   ClientSideBatchMintWithStatus,
 } from '../transformers/batch-mint.transformer';
+import { GetBatchMintUserListDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
 
 @Controller('batch-mint')
 @UseGuards(JwtWalletAuthGuard)
 export class BatchMintController {
   constructor(private readonly batchMintProvider: BatchMintProvider) {}
 
-  @Post(':ticker')
+  @Post(':ticker/create')
   async createBatchMint(
     @Param('ticker') ticker: string,
     @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
@@ -54,9 +55,22 @@ export class BatchMintController {
     };
   }
 
-  @Get('list')
-  async getWalletBatchMints(@CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo): Promise<ClientSideBatchMintListWithStatus> {
-    const batchMints = await this.batchMintProvider.getBatchMintsByWallet(authWalletInfo.walletAddress);
+  @Post(':id/cancel')
+  async cancelBatchMint(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+  ): Promise<ClientSideBatchMintWithStatus> {
+    const result = await this.batchMintProvider.cancelBatchMint(id, authWalletInfo.walletAddress);
+
+    return BatchMintTransformer.transformBatchMintDataWithStatusToClientSide(result);
+  }
+
+  @Post('list')
+  async getWalletBatchMints(
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() getBatchMintUserListDto: GetBatchMintUserListDto,
+  ): Promise<ClientSideBatchMintListWithStatus> {
+    const batchMints = await this.batchMintProvider.getBatchMintsByWallet(authWalletInfo.walletAddress, getBatchMintUserListDto);
     return BatchMintTransformer.transformBatchMintListDataWithStatusToClientSide(batchMints);
   }
 }

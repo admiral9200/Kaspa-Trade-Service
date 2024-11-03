@@ -12,4 +12,6 @@ export interface BatchMintListDataWithErrors {
   success: boolean;
   errorCode?: number;
   batchMints?: BatchMintEntity[];
+  totalCount?: number;
+  allTickers?: string[];
 }

@@ -3,6 +3,9 @@ import { BatchMintRepository } from '../repositories/batch-mint.repository';
 import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
 import { KRC20ActionTransations } from './kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
+import { GetBatchMintUserListFiltersDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
 @Injectable()
 export class BatchMintService {
@@ -67,7 +70,11 @@ export class BatchMintService {
   async updateStatusToCompleted(id: string, refundTransactionId: string, isMintOver: boolean = false): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateBatchmintByStatus(
       id,
-      { status: isMintOver ? BatchMintStatus.REACHED_LOW_MINT_LIMIT : BatchMintStatus.COMPLETED, refundTransactionId },
+      {
+        status: BatchMintStatus.COMPLETED,
+        refundTransactionId,
+        isReachedMintLimit: isMintOver,
+      },
       BatchMintStatus.IN_PROGRESS,
     );
   }
@@ -89,5 +96,18 @@ export class BatchMintService {
 
   async getByWallet(walletAddress: string): Promise<BatchMintEntity[]> {
     return await this.batchMintRepository.findByWallet(walletAddress);
+  }
+
+  async cancelBatchMint(id: string): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateByOne('_id', id, { isUserCanceled: true });
+  }
+
+  async getWalletBatchMintHistory(
+    filters: GetBatchMintUserListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+    walletAddress: string,
+  ): Promise<{ batchMints: BatchMintEntity[]; totalCount: number; allTickers: string[] }> {
+    return await this.batchMintRepository.getWalletBatchMintHistory(filters, sort, pagination, walletAddress);
   }
 }

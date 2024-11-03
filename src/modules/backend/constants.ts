@@ -6,6 +6,9 @@ export const MONGO_DATABASE_CONNECTIONS = {
 
 export const SERVICE_TYPE: ServiceTypeEnum = (process.env.SERVICE_TYPE || ServiceTypeEnum.API).trim() as ServiceTypeEnum;
 
+export const PAGINATION_LIMIT_DEFAULT = 10;
+export const PAGINATION_LIMIT_MAX = 50;
+
 export const ERROR_CODES = {
   GENERAL: {
     UNKNOWN_ERROR: -1,

@@ -16,6 +16,8 @@ export type ClientSideBatchMint = {
   refundTransactionId?: string;
   batchMintWalletAddress?: string;
   requiredKaspaAmount?: number;
+  isReachedMintLimit?: boolean;
+  isUserCanceled?: boolean;
 };
 
 export type ClientSideBatchMintListItem = {
@@ -26,6 +28,8 @@ export type ClientSideBatchMintListItem = {
   maxPriorityFee: number;
   status: BatchMintStatus;
   stopMintsAtMintsLeft: number;
+  isReachedMintLimit: boolean;
+  isUserCanceled: boolean;
   createdAt: Date;
 };
 
@@ -39,6 +43,8 @@ export type ClientSideBatchMintListWithStatus = {
   success: boolean;
   errorCode?: number;
   batchMints: ClientSideBatchMintListItem[];
+  totalCount?: number;
+  allTickers?: string[];
 };
 
 export class BatchMintTransformer {
@@ -60,6 +66,8 @@ export class BatchMintTransformer {
       batchMintWalletAddress: walletAddress,
       requiredKaspaAmount: requiredKaspaAmount,
       stopMintsAtMintsLeft: data.stopMintsAtMintsLeft,
+      isReachedMintLimit: data.isReachedMintLimit,
+      isUserCanceled: data.isUserCanceled,
     };
   }
 
@@ -76,6 +84,8 @@ export class BatchMintTransformer {
     return {
       success: data.success,
       errorCode: data.errorCode,
+      allTickers: data.allTickers,
+      totalCount: data.totalCount,
       batchMints: data.batchMints
         ? data.batchMints.map((batchMint) => ({
             id: batchMint._id,
@@ -86,6 +96,8 @@ export class BatchMintTransformer {
             status: batchMint.status,
             createdAt: batchMint.createdAt,
             stopMintsAtMintsLeft: batchMint.stopMintsAtMintsLeft,
+            isReachedMintLimit: batchMint.isReachedMintLimit,
+            isUserCanceled: batchMint.isUserCanceled,
           }))
         : [],
     };

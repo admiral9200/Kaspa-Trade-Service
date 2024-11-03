@@ -12,6 +12,7 @@ import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 import { ERROR_CODES } from '../constants';
 import { PodJobProvider } from './pod-job-provider';
 import { PodNotInitializedError } from '../services/kaspa-network/errors/PodNotInitializedError';
+import { GetBatchMintUserListDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
 
 @Injectable()
 export class BatchMintProvider {
@@ -212,14 +213,60 @@ export class BatchMintProvider {
     }
   }
 
-  async getBatchMintsByWallet(walletAddress: string): Promise<BatchMintListDataWithErrors> {
-    const batchMints = await this.batchMintService.getByWallet(walletAddress);
-
-    console.log('batchMints', batchMints);
+  async getBatchMintsByWallet(
+    walletAddress: string,
+    getBatchMintUserListDto: GetBatchMintUserListDto,
+  ): Promise<BatchMintListDataWithErrors> {
+    const batchMintsData = await this.batchMintService.getWalletBatchMintHistory(
+      getBatchMintUserListDto.filters,
+      getBatchMintUserListDto.sort,
+      getBatchMintUserListDto.pagination,
+      walletAddress,
+    );
 
     return {
       success: true,
-      batchMints,
+      batchMints: batchMintsData.batchMints,
+      totalCount: batchMintsData.totalCount,
+      allTickers: batchMintsData.allTickers,
+    };
+  }
+
+  async cancelBatchMint(id: string, walletAddress: string): Promise<BatchMintDataWithErrors> {
+    const batchMintEntity = await this.batchMintService.getByIdAndWallet(id, walletAddress);
+
+    if (!batchMintEntity) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+      };
+    }
+
+    if (batchMintEntity.status == BatchMintStatus.COMPLETED) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.BATCH_MINT.INVALID_BATCH_MINT_STATUS,
+        batchMint: batchMintEntity,
+      };
+    }
+
+    let result = null;
+
+    try {
+      result = await this.batchMintService.cancelBatchMint(batchMintEntity._id);
+    } catch (error) {
+      this.logger.error(error?.message || error, error?.stack, error?.meta);
+
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        batchMint: batchMintEntity,
+      };
+    }
+
+    return {
+      success: true,
+      batchMint: result,
     };
   }
 }

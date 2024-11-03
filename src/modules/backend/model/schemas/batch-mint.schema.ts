@@ -36,6 +36,12 @@ export class BatchMintEntity {
   @Prop({ required: true })
   status: BatchMintStatus;
 
+  @Prop()
+  isReachedMintLimit?: boolean;
+
+  @Prop()
+  isUserCanceled?: boolean;
+
   @Prop({ type: Array })
   transactions?: Partial<KRC20ActionTransations>[];
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BatchMintProvider } from '../providers/batch-mint.provider';
 
-interface JobParams {
+export interface CliJobParams {
   'batch-mint'?: string;
 }
 
@@ -11,13 +11,13 @@ export class CliJobManager {
 
   async handleJob() {
     const args = process.argv.slice(2);
-    const params: JobParams = args.reduce((acc, arg) => {
+    const params: CliJobParams = args.reduce((acc, arg) => {
       const [key, value] = arg.split('=');
       if (key) {
         acc[key] = value || null;
       }
       return acc;
-    }, {} as JobParams);
+    }, {} as CliJobParams);
 
     if (params['batch-mint']) {
       await this.bacthMintProvider.startBatchMintJob(params['batch-mint']);

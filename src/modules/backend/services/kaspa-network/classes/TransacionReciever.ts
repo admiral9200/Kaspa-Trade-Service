@@ -95,10 +95,11 @@ export class TransacionReciever {
   }
 
   async waitForTransactionCompletion() {
-    setTimeout(() => {
-      this.reject('Timeout on Transaction completion');
-      this.clearEventListener();
-    }, WAIT_TIMEOUT);
+    // I'm afraid it will make bugs on high network traffic
+    // setTimeout(() => {
+    //   this.reject('Timeout on Transaction completion');
+    //   this.clearEventListener();
+    // }, WAIT_TIMEOUT);
     return this.promise;
   }
 }

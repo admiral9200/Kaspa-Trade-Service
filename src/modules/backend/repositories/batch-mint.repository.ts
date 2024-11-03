@@ -7,6 +7,9 @@ import { ClientSession, Model } from 'mongoose';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { BatchMintStatus } from '../model/enums/batch-mint-statuses.enum';
 import { InvalidStatusForBatchMintUpdateError } from '../services/kaspa-network/errors/batch-mint/InvalidStatusForBatchMintUpdateError';
+import { GetBatchMintUserListFiltersDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
 @Injectable()
 export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
@@ -104,5 +107,64 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
         },
       )
       .exec();
+  }
+
+  async getWalletBatchMintHistory(
+    filters: GetBatchMintUserListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+    walletAddress: string,
+  ): Promise<{ batchMints: BatchMintEntity[]; totalCount: number; allTickers: string[] }> {
+    const filterQuery: any = { ownerWallet: walletAddress };
+    const tickerQuery: any = { ownerWallet: walletAddress };
+    // filterQuery.$or = []; // Initialize the $or array
+    // tickerQuery.$or = [];
+    // Filters
+    if (filters) {
+      if (filters.statuses && filters.statuses.length > 0) {
+        filterQuery.status = { $in: filters.statuses };
+      }
+
+      if (filters.tickers && filters.tickers.length > 0) {
+        filterQuery.ticker = { $in: filters.tickers };
+      }
+
+      if (filters.isReachedMintLimit) {
+        filterQuery.isReachedMintLimit = true;
+      }
+
+      if (filters.isUserCanceled) {
+        filterQuery.isUserCanceled = true;
+      }
+
+      if (filters.startDateTimestamp || filters.endDateTimestamp) {
+        filterQuery.createdAt = {};
+        if (filters.startDateTimestamp) {
+          filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
+        }
+        if (filters.endDateTimestamp) {
+          filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
+        }
+      }
+    }
+
+    // Create the base query
+    let query: any = this.batchMintModel.find(filterQuery);
+
+    console.log(filterQuery);
+
+    // Apply sorting
+    query = this.applySort(query, sort);
+
+    // Get total count before pagination
+    const totalCount = await this.batchMintModel.countDocuments(filterQuery);
+    const allTickers = await this.batchMintModel.distinct('ticker', tickerQuery);
+    // Apply pagination
+    query = this.applyPagination(query, pagination);
+
+    // Execute the query
+    const batchMints = await query.exec();
+
+    return { batchMints, totalCount, allTickers };
   }
 }

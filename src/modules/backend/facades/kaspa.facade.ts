@@ -228,10 +228,19 @@ export class KaspaFacade {
       lastTransactions = {};
     }
 
+    let updatedBatchMintEntity = getUpdatedBatchMintEntity();
+
     for (let completedRuns = 0; completedRuns < timesLeftToRun; completedRuns++) {
       console.log('completedRuns', completedRuns);
 
       if (Object.keys(lastTransactions).length == 0) {
+        updatedBatchMintEntity = getUpdatedBatchMintEntity();
+
+        if (updatedBatchMintEntity.isUserCanceled) {
+          console.log('USER CANCELLED BREAK');
+          break;
+        }
+
         const mintsLeft = await this.kasplexApiService.getTokenRemainingMints(batchMintEntity.ticker);
 
         console.log('REMAINING MINTS', mintsLeft);
@@ -254,7 +263,7 @@ export class KaspaFacade {
       lastTransactions = {};
     }
 
-    const updatedBatchMintEntity = getUpdatedBatchMintEntity();
+    updatedBatchMintEntity = getUpdatedBatchMintEntity();
 
     console.log('TOTAL COMPLETED MINTS', updatedBatchMintEntity.finishedMints);
 

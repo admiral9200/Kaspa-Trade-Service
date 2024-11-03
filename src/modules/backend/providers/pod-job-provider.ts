@@ -1,33 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import * as childProcess from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import { CliJobParams } from '../cli-job-manager/cli-job.manager';
 
 @Injectable()
 export class PodJobProvider {
   constructor() {}
 
-  async startBatchMintingJob(id: string): Promise<void> {
-    const podProcess = childProcess.spawn(
-      'npm',
-      ['run', process.platform === 'win32' ? 'start:job-win' : 'start:job', 'batch-mint=' + id],
-      {
-        cwd: process.cwd(),
-        shell: true,
-        detached: true,
-        stdio: 'ignore', // This makes it fully detached by ignoring stdio
-      },
-    );
+  private async startPodJob(jobParams: CliJobParams, keepOpen = false): Promise<void> {
+    const jobName = Object.keys(jobParams)[0];
+    const isWindows = process.platform === 'win32';
+
+    if (!jobName) {
+      throw new Error('Job name not found');
+    }
+
+    let command = `npm run ${isWindows ? 'start:job-win' : 'start:job'} ${jobName}=${jobParams[jobName]}`;
+
+    if (keepOpen) {
+      command = isWindows ? `cmd.exe /k "${command}"` : `bash -c "${command} && read -p 'Press Enter to continue...'"`;
+    }
+
+    const podProcess = childProcess.spawn(command, {
+      cwd: process.cwd(),
+      shell: true,
+      detached: true,
+      stdio: 'ignore', // This makes it fully detached by ignoring stdio
+    });
 
     podProcess.unref(); // Allow the child process to continue running after the parent exits
+  }
 
-    // const logDir = path.join(process.cwd(), 'podLogs');
-    // if (!fs.existsSync(logDir)) {
-    //   fs.mkdirSync(logDir);
-    // }
-    // const logFile = path.join(logDir, `batch-mint-${id}.log`);
-    // const logStream = fs.createWriteStream(logFile);
-    // podProcess.stdout.pipe(logStream);
-    // podProcess.stderr.pipe(logStream);
+  async startBatchMintingJob(id: string): Promise<void> {
+    return await this.startPodJob({ 'batch-mint': id }, true);
   }
 }
