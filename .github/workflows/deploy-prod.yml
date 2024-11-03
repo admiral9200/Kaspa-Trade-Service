@@ -81,6 +81,6 @@ jobs:
             --region $AWS_REGION
         
         aws elasticbeanstalk update-environment \
-            --environment-name kaspiano-p2p-trade-service-prod \
+            --environment-name kaspiano-p2p-trade-service-production \
             --version-label ${VERSION_LABEL} \
             --region $AWS_REGION
