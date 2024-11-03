@@ -60,7 +60,6 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
       const result = await super.updateByOne('_id', id, data, { status: requiredStatus }, session);
 
       if (!result) {
-        console.log('Failed assigning status, already in progress');
         throw new InvalidStatusForBatchMintUpdateError();
       }
 
@@ -117,8 +116,7 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
   ): Promise<{ batchMints: BatchMintEntity[]; totalCount: number; allTickers: string[] }> {
     const filterQuery: any = { ownerWallet: walletAddress };
     const tickerQuery: any = { ownerWallet: walletAddress };
-    // filterQuery.$or = []; // Initialize the $or array
-    // tickerQuery.$or = [];
+
     // Filters
     if (filters) {
       if (filters.statuses && filters.statuses.length > 0) {
