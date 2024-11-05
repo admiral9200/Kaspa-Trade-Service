@@ -7,7 +7,6 @@ export class PodJobProvider {
   constructor() {}
 
   private async startPodJob(jobParams: CliJobParams, keepOpen = false): Promise<void> {
-    return;
     const jobName = Object.keys(jobParams)[0];
     const isWindows = process.platform === 'win32';
 
