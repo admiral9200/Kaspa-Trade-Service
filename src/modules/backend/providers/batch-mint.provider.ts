@@ -13,6 +13,7 @@ import { ERROR_CODES } from '../constants';
 import { PodJobProvider } from './pod-job-provider';
 import { PodNotInitializedError } from '../services/kaspa-network/errors/PodNotInitializedError';
 import { GetBatchMintUserListDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
+import { StuckOnWaitingForJobBatchMints } from '../services/kaspa-network/errors/batch-mint/StuckOnWaitingForJobBatchMints';
 
 @Injectable()
 export class BatchMintProvider {
@@ -268,5 +269,54 @@ export class BatchMintProvider {
       success: true,
       batchMint: result,
     };
+  }
+
+  // ===============================================================
+  // CRON JOB ACTIONS
+  // ===============================================================
+
+  async handleWaitingKasMints() {
+    const batchMints = await this.batchMintService.getWaitingForKasTooLongMints();
+
+    if (batchMints.length > 0) {
+      this.logger.info(`Handling waiting for kas batch mints - ${batchMints.length} batchMint found`);
+    }
+
+    for (const batchMint of batchMints) {
+      try {
+        await this.handleWaitingKasBatchMint(batchMint);
+      } catch (error) {
+        console.error('Failed in handling waiting for token orders', error);
+      }
+    }
+  }
+
+  async handleWaitingKasBatchMint(batchMint: BatchMintEntity) {
+    const walletBalance = await this.kaspaFacade.getWalletBalanceAndUtxos(batchMint.walletSequenceId);
+
+    if (walletBalance.totalBalance > 0n) {
+      try {
+        const result = await this.validateAndStartBatchMintPod(batchMint._id, batchMint.ownerWallet);
+
+        if (result.errorCode == ERROR_CODES.BATCH_MINT.INVALID_KASPA_AMOUNT) {
+          await this.batchMintService.updateStatusToUnkownMoneyError(batchMint._id);
+        }
+      } catch (error) {
+        this.logger.error(error.toString(), error?.stack);
+      }
+    } else {
+      await this.batchMintService.updateStatusToKasNotSend(batchMint._id);
+    }
+  }
+
+  async notifyStuckOnWaitingForJobMints() {
+    const batchMints = await this.batchMintService.getStuckWaitingForJobMints();
+
+    if (batchMints.length > 0) {
+      this.logger.error(`Handling waiting for job batch mints - ${batchMints.length} batchMint found`);
+      this.telegramBotService.sendErrorToErrorsChannel(
+        new StuckOnWaitingForJobBatchMints(batchMints.map((batchMint) => batchMint._id)),
+      );
+    }
   }
 }

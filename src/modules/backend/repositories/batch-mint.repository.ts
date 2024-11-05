@@ -11,6 +11,8 @@ import { GetBatchMintUserListFiltersDto } from '../model/dtos/batch-mint/get-bat
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
+const WAITING_FOR_KAS_TOO_LONG_TIME = 10 * 60 * 1000;
+const WAITING_FOR_JOB_TOO_LONG_TIME = 10 * 60 * 1000;
 @Injectable()
 export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
   constructor(
@@ -164,5 +166,23 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
     const batchMints = await query.exec();
 
     return { batchMints, totalCount, allTickers };
+  }
+
+  async getWaitingForKasTooLongMints(): Promise<BatchMintEntity[]> {
+    return await this.batchMintModel
+      .find({
+        status: BatchMintStatus.CREATED_AND_WAITING_FOR_KAS,
+        createdAt: { $lt: new Date(Date.now() - WAITING_FOR_KAS_TOO_LONG_TIME) },
+      })
+      .exec();
+  }
+
+  async getStuckWaitingForJobMints(): Promise<BatchMintEntity[]> {
+    return await this.batchMintModel
+      .find({
+        status: BatchMintStatus.WAITING_FOR_JOB,
+        createdAt: { $lt: new Date(Date.now() - WAITING_FOR_JOB_TOO_LONG_TIME) },
+      })
+      .exec();
   }
 }

@@ -194,7 +194,7 @@ export class KaspaFacade {
           requiredKaspaAmount,
         ))
       ) {
-        throw new BatchMintUnknownMoneyError(walletUtxoData.totalBalance, batchMintEntity);
+        throw new BatchMintUnknownMoneyError(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
       }
     }
 

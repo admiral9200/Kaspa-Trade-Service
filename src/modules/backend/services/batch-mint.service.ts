@@ -110,4 +110,34 @@ export class BatchMintService {
   ): Promise<{ batchMints: BatchMintEntity[]; totalCount: number; allTickers: string[] }> {
     return await this.batchMintRepository.getWalletBatchMintHistory(filters, sort, pagination, walletAddress);
   }
+
+  async getWaitingForKasTooLongMints(): Promise<BatchMintEntity[]> {
+    return await this.batchMintRepository.getWaitingForKasTooLongMints();
+  }
+
+  async updateStatusToKasNotSend(id: string): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateByOne(
+      '_id',
+      id,
+      { status: BatchMintStatus.KAS_NOT_SENT },
+      {
+        status: BatchMintStatus.CREATED_AND_WAITING_FOR_KAS,
+      },
+    );
+  }
+
+  async updateStatusToUnkownMoneyError(id: string): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateByOne(
+      '_id',
+      id,
+      { status: BatchMintStatus.UNKOWN_MONEY_ERROR },
+      {
+        status: BatchMintStatus.CREATED_AND_WAITING_FOR_KAS,
+      },
+    );
+  }
+
+  async getStuckWaitingForJobMints(): Promise<BatchMintEntity[]> {
+    return await this.batchMintRepository.getStuckWaitingForJobMints();
+  }
 }

@@ -58,9 +58,10 @@ export class TelegramBotService {
     }
   }
 
-  async sendError(channelId: string, error: any): Promise<void> {
+  async sendError(channelId: string, error: any, skipStack = false): Promise<void> {
     try {
-      const message = `Error:\n**__Name:__** ${TelegramBotService.escapeMarkdown(error?.name || '')}\n**__Message:__** ${TelegramBotService.escapeMarkdown(error?.message || error.toString())}\n**__Stack:__** ${TelegramBotService.escapeMarkdown(error?.stack || '')}, \n**__additionalData:__** ${TelegramBotService.escapeMarkdown(
+      const stackText = skipStack ? '' : `**__Stack:__** ${TelegramBotService.escapeMarkdown(error?.stack || '')}, \n`;
+      const message = `Error:\n**__Name:__** ${TelegramBotService.escapeMarkdown(error?.name || '')}\n**__Message:__** ${TelegramBotService.escapeMarkdown(error?.message || error.toString())}\n${stackText}**__additionalData:__** ${TelegramBotService.escapeMarkdown(
         JSON.stringify(error, (key, value) => (typeof value === 'bigint' ? value.toString() + 'n' : value)),
       )}`;
 
@@ -100,8 +101,8 @@ export class TelegramBotService {
     }
   }
 
-  async sendErrorToErrorsChannel(error: any): Promise<void> {
-    return await this.sendError(this.configService.getTelegramErrorsChannelId, error);
+  async sendErrorToErrorsChannel(error: any, skipStack = false): Promise<void> {
+    return await this.sendError(this.configService.getTelegramErrorsChannelId, error, skipStack);
   }
 
   static escapeMarkdown(text: string): string {

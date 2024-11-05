@@ -359,6 +359,40 @@ export class P2pProvider {
     await this.p2pOrderBookService.relistSellOrder(sellOrderId);
   }
 
+  async handleOrderWithMoneyAndNoBuyer(order: P2pOrderEntity) {
+    try {
+      const walletTotalBalanceAndUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (
+        walletTotalBalanceAndUtxos.utxoEntries.length == 1 &&
+        (await this.kaspaFacade.checkIfWalletHasValidKaspaAmountForSwap(order))
+      ) {
+        const senderAddr = await this.kaspaFacade.getUtxoSenderWallet(
+          await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId),
+          walletTotalBalanceAndUtxos.utxoEntries[0],
+        );
+
+        if (senderAddr) {
+          await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
+          await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
+          return;
+        }
+      }
+
+      await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
+      const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
+      this.logger.error(unknownMoneyError.message, unknownMoneyError.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(unknownMoneyError);
+    } catch (error) {
+      this.logger.error(error?.message, error?.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(error);
+    }
+  }
+
+  // ===============================================================
+  // CRON JOB ACTIONS
+  // ===============================================================
+
   async handleExpiredOrders() {
     const orders = await this.p2pOrderBookService.getExpiredOrders();
 
@@ -499,36 +533,6 @@ export class P2pProvider {
       console.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       this.logger.error(`STUCK ORDERS - ${orders.length} orders found: ${orders.map((order) => order._id).join(', ')}`);
       await this.telegramBotService.sendErrorToErrorsChannel(new StuckOrdersError(orders));
-    }
-  }
-
-  async handleOrderWithMoneyAndNoBuyer(order: P2pOrderEntity) {
-    try {
-      const walletTotalBalanceAndUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
-
-      if (
-        walletTotalBalanceAndUtxos.utxoEntries.length == 1 &&
-        (await this.kaspaFacade.checkIfWalletHasValidKaspaAmountForSwap(order))
-      ) {
-        const senderAddr = await this.kaspaFacade.getUtxoSenderWallet(
-          await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId),
-          walletTotalBalanceAndUtxos.utxoEntries[0],
-        );
-
-        if (senderAddr) {
-          await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
-          await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
-          return;
-        }
-      }
-
-      await this.p2pOrderBookService.setUnknownMoneyErrorStatus(order._id);
-      const unknownMoneyError = new UnknownMoneyError(walletTotalBalanceAndUtxos.totalBalance, order);
-      this.logger.error(unknownMoneyError.message, unknownMoneyError.stack);
-      this.telegramBotService.sendErrorToErrorsChannel(unknownMoneyError);
-    } catch (error) {
-      this.logger.error(error?.message, error?.stack);
-      this.telegramBotService.sendErrorToErrorsChannel(error);
     }
   }
 }
