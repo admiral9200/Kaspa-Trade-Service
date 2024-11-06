@@ -82,11 +82,11 @@ export class AppConfigService {
   }
 
   get swapCommissionPercentage(): number {
-    return Number(this.configService.get('SWAP_COMMISSION_PERCANTAGE'));
+    return Number(this.configService.get('SWAP_COMMISSION_PERCANTAGE') || '2.5');
   }
 
   get batchMintCommissionPercentage(): number {
-    return Number(this.configService.get('BATCH_MINT_COMMISSION_PERCANTAGE'));
+    return Number(this.configService.get('BATCH_MINT_COMMISSION_PERCANTAGE') || '5');
   }
 
   get commitionWalletAddress(): string {
