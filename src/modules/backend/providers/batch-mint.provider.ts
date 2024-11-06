@@ -212,6 +212,13 @@ export class BatchMintProvider {
       );
 
       updatedBatchMint = await this.batchMintService.updateStatusToCompleted(updatedBatchMint._id, result.isMintOver);
+
+      try {
+        await this.telegramBotService.notifyBatchMintCompleted(updatedBatchMint, result.commission);
+      } catch (error) {
+        this.logger.error('Error notifying batch mint completed');
+        this.logger.error(error?.message || error, error?.stack, error?.meta);
+      }
     } catch (error) {
       await this.batchMintService.updateStatusToError(updatedBatchMint._id, error.toString());
       this.logger.error(error?.message || error, error?.stack, error?.meta);

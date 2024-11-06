@@ -210,6 +210,7 @@ export class KaspaFacade {
   ): Promise<{
     isMintOver: boolean;
     refundTransactionId: string;
+    commission: number;
   }> {
     const batchMintWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(batchMintEntity.walletSequenceId);
 
@@ -313,16 +314,23 @@ export class KaspaFacade {
       }
     }
 
+    const commission =
+      updatedBatchMintEntity.finishedMints > 0
+        ? this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(updatedBatchMintEntity.finishedMints)
+        : null;
+
     const refundTransaction = await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
       batchMintWallet.privateKey,
       KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
       batchMintEntity.ownerWallet,
       notifyUpdateKasRefundTransaction,
-      updatedBatchMintEntity.finishedMints > 0
-        ? this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(updatedBatchMintEntity.finishedMints)
-        : null,
+      commission,
     );
 
-    return { isMintOver, refundTransactionId: refundTransaction.summary.finalTransactionId };
+    return {
+      isMintOver,
+      refundTransactionId: refundTransaction.summary.finalTransactionId,
+      commission: KaspaNetworkActionsService.SompiToNumber(commission),
+    };
   }
 }

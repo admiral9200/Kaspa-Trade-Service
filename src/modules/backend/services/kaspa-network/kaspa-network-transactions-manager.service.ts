@@ -450,8 +450,6 @@ export class KaspaNetworkTransactionsManagerService {
                 await transaction.submit(this.rpcService.getRpc());
                 transactionsLeftToSend.shift();
 
-                this.rpcService.getRpc().disconnect();
-
                 if (isFinalTransaction) {
                   try {
                     await transactionReciever.waitForTransactionCompletion();
