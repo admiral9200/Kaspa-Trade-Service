@@ -22,6 +22,14 @@ export class AppConfigService {
     return this.configService.get('CURRENT_ENV') === 'prod';
   }
 
+  get isDevEnv(): boolean {
+    return this.configService.get('CURRENT_ENV') === 'dev';
+  }
+
+  get isLocalEnv(): boolean {
+    return this.configService.get('CURRENT_ENV') === 'local';
+  }
+
   get getServiceName(): string {
     return this.configService.get('name') || 'default-service';
   }

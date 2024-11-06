@@ -160,7 +160,7 @@ export class KaspaFacade {
     return KaspaNetworkActionsService.SompiToNumber(
       this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
         totalMints,
-        KaspaNetworkActionsService.KaspaToSompi(String(maxPriorityFee)),
+        KaspaNetworkActionsService.KaspaToSompi(maxPriorityFee.toFixed(8)),
       ),
     );
   }
@@ -174,16 +174,16 @@ export class KaspaFacade {
 
     const requiredKaspaAmount = this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
       batchMintEntity.totalMints,
-      KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+      KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
     );
 
     if (requiredKaspaAmount > walletUtxoData.totalBalance) {
-      throw new IncorrectKaspaAmountForBatchMint(walletUtxoData.totalBalance, requiredKaspaAmount);
+      throw new IncorrectKaspaAmountForBatchMint(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
     }
 
     if (batchMintEntity.finishedMints == 0) {
       if (walletUtxoData.utxoEntries.length != 1) {
-        throw new IncorrectUtxoAmountForBatchMint(walletUtxoData.utxoEntries.length, 1);
+        throw new IncorrectUtxoAmountForBatchMint(walletUtxoData.utxoEntries.length, 1, batchMintEntity);
       }
 
       if (
@@ -205,6 +205,7 @@ export class KaspaFacade {
     batchMintEntity: BatchMintEntity,
     notifyUpdate: (result: Partial<Krc20TransactionsResult>) => Promise<void>,
     notifyUpdateTransferTransaction: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void>,
     getUpdatedBatchMintEntity: () => BatchMintEntity,
   ): Promise<{
     isMintOver: boolean;
@@ -255,7 +256,7 @@ export class KaspaFacade {
       await this.kaspaNetworkActionsService.mintAndNotify(
         batchMintWallet.privateKey,
         batchMintEntity.ticker,
-        KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+        KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
         lastTransactions,
         notifyUpdate,
       );
@@ -306,7 +307,7 @@ export class KaspaFacade {
           batchMintEntity.ticker,
           tokenAmountToSend,
           batchMintEntity.transferTokenTransactions || {},
-          KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+          KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
           notifyUpdateTransferTransaction,
         );
       }
@@ -314,8 +315,9 @@ export class KaspaFacade {
 
     const refundTransaction = await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
       batchMintWallet.privateKey,
-      KaspaNetworkActionsService.KaspaToSompi(String(batchMintEntity.maxPriorityFee)),
+      KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
       batchMintEntity.ownerWallet,
+      notifyUpdateKasRefundTransaction,
       updatedBatchMintEntity.finishedMints > 0
         ? this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(updatedBatchMintEntity.finishedMints)
         : null,

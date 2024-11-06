@@ -15,6 +15,9 @@ import {
   verifyMessage,
   FeeSource,
   IFees,
+  IUtxoEntry,
+  PendingTransaction,
+  IGetUtxosByAddressesResponse,
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -26,8 +29,19 @@ import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtx
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
 import { UtxoProcessorManager } from './classes/UnxoProcessorManager';
+import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 
 export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
+const TIME_TO_WAIT_BEFORE_TRANSACTION_RECEIVED_CHECK = 120 * 1000;
+const NUMBER_OF_MINUTES_TO_KEEP_CHECKING_TRANSACTION_RECEIVED = 25 * 12;
+
+type DoTransactionOptions = {
+  notifyCreatedTransactions?: (transactionId: string) => Promise<any>;
+  specialSignTransactionFunc?: (transaction: PendingTransaction) => Promise<any>;
+  additionalKrc20TransactionPriorityFee?: bigint;
+  priorityEntries?: IUtxoEntry[];
+  sendAll?: boolean;
+};
 
 @Injectable()
 export class KaspaNetworkTransactionsManagerService {
@@ -35,6 +49,7 @@ export class KaspaNetworkTransactionsManagerService {
     private rpcService: RpcService,
     private readonly connectionManager: KaspaNetworkConnectionManagerService,
     private readonly utils: UtilsHelper,
+    private readonly kaspaApiService: KaspaApiService,
   ) {}
 
   async signAndSubmitTransactions(transactionsData: ICreateTransactions, privateKey: PrivateKey): Promise<string[]> {
@@ -315,105 +330,173 @@ export class KaspaNetworkTransactionsManagerService {
     return revealTransactions;
   }
 
-  async doKaspaTransferTransactionWithUtxoProcessor(
+  // ================================================================
+  // DO TRANSACTIONS WITH UTXOS PROCESSOR
+  // ================================================================
+
+  private async doTransactionWithUtxoProcessor(
     privateKey: PrivateKey,
-    payments: IPaymentOutput[],
     maxPriorityFee: bigint,
-    sendAll = false, // Sends all the remains to the first payment
+    outputs: IPaymentOutput[],
+    additionalOptions: DoTransactionOptions = {},
   ) {
+    const additionalKrc20TransactionPriorityFee = additionalOptions.additionalKrc20TransactionPriorityFee || 0n;
+    const sendAll = additionalOptions.sendAll || false;
+    let totalPaymentsAmount = outputs.reduce((previousValue, currentValue) => previousValue + currentValue.amount, 0n);
+
     return await this.connectAndDo<ICreateTransactions>(async () => {
       return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
         this.rpcService.getRpc(),
         this.rpcService.getNetwork(),
         this.convertPrivateKeyToPublicKey(privateKey),
         async (context, utxoProcessonManager) => {
-          const totalPaymentAmount = payments.reduce((sum, payment) => sum + payment.amount, 0n);
-
-          const totalPaymentAmountWithoutFirst = totalPaymentAmount - payments[0].amount;
-          let currentBalance = context.balance.mature;
-
           if (sendAll) {
             await utxoProcessonManager.waitForPendingUtxoToFinish();
-
-            currentBalance = context.balance.mature;
-            const remeaingAmountToSend = currentBalance - totalPaymentAmountWithoutFirst;
+            const remeaingAmountToSend = context.balance.mature - (totalPaymentsAmount - outputs[0].amount);
 
             if (remeaingAmountToSend <= MINIMAL_AMOUNT_TO_SEND) {
               throw new NotEnoughBalanceError();
             }
 
-            payments[0].amount = remeaingAmountToSend;
+            outputs[0].amount = remeaingAmountToSend;
+            totalPaymentsAmount = outputs.reduce((previousValue, currentValue) => previousValue + currentValue.amount, 0n);
           } else {
-            if (currentBalance < totalPaymentAmount && context.balance.pending > 0n) {
+            if (
+              context.balance.mature < totalPaymentsAmount + additionalKrc20TransactionPriorityFee + MINIMAL_AMOUNT_TO_SEND &&
+              context.balance.pending > 0n
+            ) {
               await utxoProcessonManager.waitForPendingUtxoToFinish();
-              currentBalance = context.balance.mature;
+            }
+
+            if (context.balance.mature < totalPaymentsAmount) {
+              throw new NotEnoughBalanceError();
             }
           }
 
-          if (currentBalance < totalPaymentAmount) {
-            throw new NotEnoughBalanceError();
-          }
-
           const baseTransactionData: IGeneratorSettingsObject = {
+            priorityEntries: additionalOptions.priorityEntries || [],
             entries: context,
-            outputs: payments,
+            outputs,
             feeRate: 1.0,
             changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
             priorityFee: {
-              amount: 0n,
+              amount: additionalKrc20TransactionPriorityFee,
               source: sendAll ? FeeSource.ReceiverPays : FeeSource.SenderPays,
             },
             networkId: this.rpcService.getNetwork(),
           };
 
-          const transactionsFees = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
-          const priorityFeeToUse = transactionsFees.priorityFee > maxPriorityFee ? maxPriorityFee : transactionsFees.priorityFee;
-          (baseTransactionData.priorityFee as IFees).amount = priorityFeeToUse;
+          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
+          const currentNeededPriorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
 
-          if (payments[0].amount <= MINIMAL_AMOUNT_TO_SEND) {
+          (baseTransactionData.priorityFee as IFees).amount =
+            currentNeededPriorityFee > additionalKrc20TransactionPriorityFee
+              ? currentNeededPriorityFee
+              : additionalKrc20TransactionPriorityFee;
+
+          if (
+            !sendAll &&
+            context.balance.mature <
+              totalPaymentsAmount + MINIMAL_AMOUNT_TO_SEND + (baseTransactionData.priorityFee as IFees).amount &&
+            context.balance.pending > 0n
+          ) {
+            await utxoProcessonManager.waitForPendingUtxoToFinish();
+          }
+
+          if (context.balance.mature < totalPaymentsAmount || (outputs.length && outputs[0].amount <= MINIMAL_AMOUNT_TO_SEND)) {
             throw new NotEnoughBalanceError();
           }
 
-          return await this.utils.retryOnError(async () => {
-            return await this.connectAndDo(async () => {
-              // console.log('trying to create transaction');
-              // console.log('utxo balance mature', context.balance.mature);
-              // console.log('utxo balance outgoing', context.balance.outgoing);
-              // console.log('utxo balance pending', context.balance.pending);
-              // console.log('baseTransactionData', baseTransactionData);
-              const transaction = await createTransactions(baseTransactionData);
+          const currentTransactions = await this.utils.retryOnError(async () => {
+            return await createTransactions(baseTransactionData);
+          });
 
-              console.log('kaspa transfer transaction amount', transaction.transactions.length);
-              console.log('kaspa transfer transaction summry', transaction.summary);
+          console.log('current transaction amount', currentTransactions.transactions.length);
+          console.log('current transaction summry', currentTransactions.summary);
 
-              for (let i = 0; i < transaction.transactions.length; i++) {
-                const currentTransaction = transaction.transactions[i];
-                currentTransaction.sign([privateKey]);
+          if (additionalOptions.notifyCreatedTransactions) {
+            await additionalOptions.notifyCreatedTransactions(currentTransactions.summary.finalTransactionId);
+          }
 
-                const transactionReciever = new TransacionReciever(
+          const transactionsLeftToSend: PendingTransaction[] = [...currentTransactions.transactions];
+
+          while (transactionsLeftToSend.length > 0) {
+            const transaction = transactionsLeftToSend[0];
+            const isFinalTransaction = transactionsLeftToSend.length == 1;
+
+            if (additionalOptions.specialSignTransactionFunc && isFinalTransaction) {
+              await additionalOptions.specialSignTransactionFunc(transaction);
+            } else {
+              transaction.sign([privateKey]);
+            }
+
+            await this.connectAndDo(async () => {
+              let transactionReciever = null;
+
+              if (isFinalTransaction) {
+                transactionReciever = new TransacionReciever(
                   this.rpcService.getRpc(),
                   this.convertPrivateKeyToPublicKey(privateKey),
-                  transaction.summary.finalTransactionId,
-                  sendAll && i == transaction.transactions.length - 1,
+                  transaction.id,
+                  sendAll,
                 );
 
                 await transactionReciever.registerEventHandlers();
+              }
 
-                try {
-                  await currentTransaction.submit(this.rpcService.getRpc());
-                  await transactionReciever.waitForTransactionCompletion();
-                } catch (error) {
-                  throw error;
-                } finally {
+              let isTransactionRecieverDisposed = false;
+
+              try {
+                await transaction.submit(this.rpcService.getRpc());
+                transactionsLeftToSend.shift();
+
+                this.rpcService.getRpc().disconnect();
+
+                if (isFinalTransaction) {
+                  try {
+                    await transactionReciever.waitForTransactionCompletion();
+                  } catch (error) {
+                    isTransactionRecieverDisposed = true;
+                    await transactionReciever.dispose();
+
+                    console.log(`Transaction ${transaction.id} not received, trying to get from api...`, new Date());
+
+                    await this.utils.retryOnError(
+                      async () => {
+                        return await this.kaspaApiService.getTxnInfo(transaction.id);
+                      },
+                      NUMBER_OF_MINUTES_TO_KEEP_CHECKING_TRANSACTION_RECEIVED,
+                      TIME_TO_WAIT_BEFORE_TRANSACTION_RECEIVED_CHECK,
+                      true,
+                    );
+                  }
+                }
+              } catch (error) {
+                throw error;
+              } finally {
+                if (isFinalTransaction && !isTransactionRecieverDisposed) {
                   await transactionReciever.dispose();
                 }
               }
+            });
+          }
 
-              return transaction;
-            }, 1);
-          });
+          return currentTransactions;
         },
       );
+    });
+  }
+
+  async doKaspaTransferTransactionWithUtxoProcessor(
+    privateKey: PrivateKey,
+    payments: IPaymentOutput[],
+    maxPriorityFee: bigint,
+    sendAll = false, // Sends all the remains to the first payment
+    notifyCreatedTransactions: (transactionId: string) => Promise<any> = null,
+  ) {
+    return await this.doTransactionWithUtxoProcessor(privateKey, maxPriorityFee, payments, {
+      notifyCreatedTransactions,
+      sendAll,
     });
   }
 
@@ -422,76 +505,19 @@ export class KaspaNetworkTransactionsManagerService {
     krc20transactionData: KRC20OperationDataInterface,
     maxPriorityFee: bigint = 0n,
     baseTransactionAmount = KRC20_BASE_TRANSACTION_AMOUNT,
+    notifyCreatedTransactions: (transactionId: string) => Promise<any> = null,
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
-    return await this.connectAndDo<ICreateTransactions>(async () => {
-      return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
-        this.rpcService.getRpc(),
-        this.rpcService.getNetwork(),
-        this.convertPrivateKeyToPublicKey(privateKey),
-        async (context, utxoProcessonManager) => {
-          const baseTransactionData: IGeneratorSettingsObject = {
-            priorityEntries: [],
-            entries: context,
-            outputs: [
-              {
-                address: scriptAndScriptAddress.p2shaAddress.toString(),
-                amount: baseTransactionAmount,
-              },
-            ],
-            feeRate: 1.0,
-            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-            priorityFee: 0n,
-            networkId: this.rpcService.getNetwork(),
-          };
 
-          if (context.balance.mature < baseTransactionAmount + MINIMAL_AMOUNT_TO_SEND && context.balance.pending > 0n) {
-            await utxoProcessonManager.waitForPendingUtxoToFinish();
-          }
+    const outputs = [
+      {
+        address: scriptAndScriptAddress.p2shaAddress.toString(),
+        amount: baseTransactionAmount,
+      },
+    ];
 
-          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
-          baseTransactionData.priorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
-
-          if (
-            context.balance.mature < baseTransactionAmount + MINIMAL_AMOUNT_TO_SEND + baseTransactionData.priorityFee &&
-            context.balance.pending > 0n
-          ) {
-            await utxoProcessonManager.waitForPendingUtxoToFinish();
-          }
-
-          const commitTransaction = await this.utils.retryOnError(async () => {
-            const transaction = await createTransactions(baseTransactionData);
-
-            console.log('commit transaction amount', transaction.transactions.length);
-            console.log('commit transaction summry', transaction.summary);
-
-            for (const currentTransaction of transaction.transactions) {
-              currentTransaction.sign([privateKey]);
-
-              const transactionReciever = new TransacionReciever(
-                this.rpcService.getRpc(),
-                this.convertPrivateKeyToPublicKey(privateKey),
-                transaction.summary.finalTransactionId,
-              );
-
-              await transactionReciever.registerEventHandlers();
-
-              try {
-                await currentTransaction.submit(this.rpcService.getRpc());
-                await transactionReciever.waitForTransactionCompletion();
-              } catch (error) {
-                throw error;
-              } finally {
-                await transactionReciever.dispose();
-              }
-            }
-
-            return transaction;
-          });
-
-          return commitTransaction;
-        },
-      );
+    return await this.doTransactionWithUtxoProcessor(privateKey, maxPriorityFee, outputs, {
+      notifyCreatedTransactions,
     });
   }
 
@@ -500,90 +526,42 @@ export class KaspaNetworkTransactionsManagerService {
     krc20transactionData: KRC20OperationDataInterface,
     transactionFeeAmount: bigint,
     maxPriorityFee: bigint = 0n,
+    notifyCreatedTransactions: (transactionId: string) => Promise<any> = null,
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
-    return await this.connectAndDo<ICreateTransactions>(async () => {
-      const revealUTXOs = await this.rpcService.getRpc().getUtxosByAddresses({
+    const revealUTXOs = await this.connectAndDo<IGetUtxosByAddressesResponse>(async () => {
+      return await this.rpcService.getRpc().getUtxosByAddresses({
         addresses: [scriptAndScriptAddress.p2shaAddress.toString()],
       });
+    });
 
-      return await UtxoProcessorManager.useUtxoProcessorManager<ICreateTransactions>(
-        this.rpcService.getRpc(),
-        this.rpcService.getNetwork(),
-        this.convertPrivateKeyToPublicKey(privateKey),
-        async (context, utxoProcessonManager) => {
-          const baseTransactionData: IGeneratorSettingsObject = {
-            priorityEntries: [revealUTXOs.entries[0]],
-            entries: context,
-            outputs: [],
-            feeRate: 1.0,
-            changeAddress: this.convertPrivateKeyToPublicKey(privateKey),
-            priorityFee: transactionFeeAmount,
-            networkId: this.rpcService.getNetwork(),
-          };
+    const priorityEntries = [revealUTXOs.entries[0]];
 
-          if (context.balance.mature < transactionFeeAmount + MINIMAL_AMOUNT_TO_SEND && context.balance.pending > 0n) {
-            await utxoProcessonManager.waitForPendingUtxoToFinish();
-          }
+    const specialSignTransactionFunc = async (transaction: PendingTransaction) => {
+      transaction.sign([privateKey], false);
+      const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
 
-          const { priorityFee } = await this.calculateTransactionFeeAndLimitToMax(baseTransactionData, Infinity);
-          const currentNeededPriorityFee = priorityFee > maxPriorityFee ? maxPriorityFee : priorityFee;
+      if (ourOutput !== -1) {
+        const signature = await transaction.createInputSignature(ourOutput, privateKey);
 
-          baseTransactionData.priorityFee =
-            currentNeededPriorityFee > transactionFeeAmount ? currentNeededPriorityFee : transactionFeeAmount;
+        transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
+      }
+    };
 
-          if (
-            context.balance.mature < transactionFeeAmount + MINIMAL_AMOUNT_TO_SEND + baseTransactionData.priorityFee &&
-            context.balance.pending > 0n
-          ) {
-            await utxoProcessonManager.waitForPendingUtxoToFinish();
-          }
+    const outputs = [];
 
-          const revealTransactions = await this.utils.retryOnError(async () => {
-            const currentTransactions = await createTransactions(baseTransactionData);
-
-            console.log('reveal transaction amount', currentTransactions.transactions.length);
-
-            for (const transaction of currentTransactions.transactions) {
-              transaction.sign([privateKey], false);
-              const ourOutput = transaction.transaction.inputs.findIndex((input) => input.signatureScript === '');
-
-              if (ourOutput !== -1) {
-                const signature = await transaction.createInputSignature(ourOutput, privateKey);
-
-                transaction.fillInput(ourOutput, scriptAndScriptAddress.script.encodePayToScriptHashSignatureScript(signature));
-              }
-
-              const revealTransactionReciever = new TransacionReciever(
-                this.rpcService.getRpc(),
-                this.convertPrivateKeyToPublicKey(privateKey),
-                currentTransactions.summary.finalTransactionId,
-              );
-
-              console.log('reveal transaction summry', currentTransactions.summary);
-
-              await revealTransactionReciever.registerEventHandlers();
-
-              try {
-                await transaction.submit(this.rpcService.getRpc());
-
-                await revealTransactionReciever.waitForTransactionCompletion();
-              } catch (error) {
-                throw error;
-              } finally {
-                await revealTransactionReciever.dispose();
-              }
-            }
-
-            return currentTransactions;
-          });
-
-          return revealTransactions;
-        },
-      );
+    return await this.doTransactionWithUtxoProcessor(privateKey, maxPriorityFee, outputs, {
+      notifyCreatedTransactions,
+      specialSignTransactionFunc,
+      additionalKrc20TransactionPriorityFee: transactionFeeAmount,
+      priorityEntries,
     });
   }
+
+  // ================================================================
+  // OTHER
+  // ================================================================
 
   /**
    *
@@ -629,7 +607,7 @@ export class KaspaNetworkTransactionsManagerService {
   async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
 
-    return estimatedFees.estimate.priorityBucket.feerate;
+    return estimatedFees.estimate.priorityBucket.feerate * 1000000000;
   }
 
   async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {

@@ -60,22 +60,6 @@ async function bootstrap() {
     console.log(`starting ${SERVICE_TYPE} instance`);
 
     app = await NestFactory.createApplicationContext(AppModule);
-
-    if (SERVICE_TYPE == ServiceTypeEnum.JOB) {
-      const jobManager = app.get(CliJobManager);
-
-      let hasError = false;
-      try {
-        await jobManager.handleJob();
-      } catch (error) {
-        hasError = true;
-        console.error(error);
-      }
-
-      await app.close();
-
-      process.exit(hasError ? 1 : 0);
-    }
   }
 
   const logError = async (error: any) => {
@@ -111,6 +95,22 @@ async function bootstrap() {
       }
     });
   });
+
+  if (SERVICE_TYPE == ServiceTypeEnum.JOB) {
+    const jobManager = app.get(CliJobManager);
+
+    let hasError = false;
+    try {
+      await jobManager.handleJob();
+    } catch (error) {
+      hasError = true;
+      console.error(error);
+    }
+
+    await app.close();
+
+    process.exit(hasError ? 1 : 0);
+  }
 }
 
 bootstrap();

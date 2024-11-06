@@ -67,12 +67,15 @@ export class BatchMintService {
     );
   }
 
-  async updateStatusToCompleted(id: string, refundTransactionId: string, isMintOver: boolean = false): Promise<BatchMintEntity> {
+  async updateRefundTransactionId(id: string, refundTransactionId: string): Promise<BatchMintEntity> {
+    return await this.batchMintRepository.updateByOne('_id', id, { refundTransactionId });
+  }
+
+  async updateStatusToCompleted(id: string, isMintOver: boolean = false): Promise<BatchMintEntity> {
     return await this.batchMintRepository.updateBatchmintByStatus(
       id,
       {
         status: BatchMintStatus.COMPLETED,
-        refundTransactionId,
         isReachedMintLimit: isMintOver,
       },
       BatchMintStatus.IN_PROGRESS,

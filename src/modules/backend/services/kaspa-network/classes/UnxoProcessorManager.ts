@@ -29,9 +29,7 @@ export class UtxoProcessorManager {
     await trxManager.registerEventHandlers();
 
     try {
-      const result = await func(trxManager.getContext(), trxManager);
-
-      return result;
+      return await func(trxManager.getContext(), trxManager);
     } catch (error) {
       throw error;
     } finally {
@@ -118,7 +116,7 @@ export class UtxoProcessorManager {
   private async registerProcessor() {
     this.processorEventListenerTimeout = setTimeout(() => {
       this.processorEventListenerTimoutReached = true;
-      this.processorEventListenerReject('Timeout on Transaction completion');
+      this.processorEventListenerReject('Timeout on Transaction completion at registerProcessor()');
       this.dispose();
     }, WAIT_TIMEOUT);
 

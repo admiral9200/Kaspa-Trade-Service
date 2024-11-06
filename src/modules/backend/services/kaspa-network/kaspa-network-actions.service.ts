@@ -313,27 +313,29 @@ export class KaspaNetworkActionsService {
         const baseTransactionAmount =
           KRC20_BASE_TRANSACTION_AMOUNT > operationCost ? KRC20_BASE_TRANSACTION_AMOUNT : operationCost;
 
-        const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+        await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           operationData,
           maxPriorityFee,
           baseTransactionAmount,
+          async (transactionId) => {
+            resultTransactions.commitTransactionId = transactionId;
+            await notifyUpdate(resultTransactions);
+          },
         );
-
-        resultTransactions.commitTransactionId = commitTransaction.summary.finalTransactionId;
-        await notifyUpdate(resultTransactions);
       }
 
       if (!resultTransactions.revealTransactionId) {
-        const revealTransaction = await this.transactionsManagerService.doKrc20RevealTransactionWithUtxoProcessor(
+        await this.transactionsManagerService.doKrc20RevealTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           operationData,
           operationCost,
           maxPriorityFee,
+          async (transactionId) => {
+            resultTransactions.revealTransactionId = transactionId;
+            await notifyUpdate(resultTransactions);
+          },
         );
-
-        resultTransactions.revealTransactionId = revealTransaction.summary.finalTransactionId;
-        await notifyUpdate(resultTransactions);
       }
 
       return resultTransactions as KRC20ActionTransations;
@@ -386,7 +388,13 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async transferAllRemainingKaspa(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string, commission: bigint = 0n) {
+  async transferAllRemainingKaspa(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void> = null,
+    commission: bigint = 0n,
+  ) {
     const payments = [
       {
         address: targetWallet,
@@ -401,14 +409,13 @@ export class KaspaNetworkActionsService {
       });
     }
 
-    return await this.transactionsManagerService.connectAndDo(async () => {
-      return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
-        privateKey,
-        payments,
-        maxPriorityFee,
-        true,
-      );
-    });
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      payments,
+      maxPriorityFee,
+      true,
+      notifyUpdateKasRefundTransaction,
+    );
   }
 
   async transferKrc20Token(

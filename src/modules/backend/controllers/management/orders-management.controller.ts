@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { OrdersManagementProvider } from '../providers/orders-management.provider';
-import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
-import { AllowedRoles, RolesGuard } from '../guards/roles.guard';
-import { UserRoleEnum } from '../model/dtos/auth/auth-wallet-info';
+import { AllowedRoles, RolesGuard } from '../../guards/roles.guard';
+import { UserRoleEnum } from '../../model/dtos/auth/auth-wallet-info';
+import { OrdersManagementProvider } from '../../providers/management/orders-management.provider';
+import { OrdersManagementUpdateSellOrderDto } from '../../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 
 @Controller('orders-management')
 @UseGuards(RolesGuard)

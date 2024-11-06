@@ -1,6 +1,6 @@
 import { AppConfigService } from '../../../core/modules/config/app-config.service';
 import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { P2pOrderEntity } from 'src/modules/backend/model/schemas/p2p-order.schema';
@@ -44,7 +44,8 @@ export class TelegramBotService {
       };
 
       try {
-        const response = await lastValueFrom(this.httpService.post(url, data));
+        const response = await firstValueFrom(this.httpService.post(url, data));
+
         if (response.status === 200) {
           console.log('Formatted message sent successfully');
         } else {

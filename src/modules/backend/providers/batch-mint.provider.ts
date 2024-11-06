@@ -14,6 +14,7 @@ import { PodJobProvider } from './pod-job-provider';
 import { PodNotInitializedError } from '../services/kaspa-network/errors/PodNotInitializedError';
 import { GetBatchMintUserListDto } from '../model/dtos/batch-mint/get-batch-mint-user-list';
 import { StuckOnWaitingForJobBatchMints } from '../services/kaspa-network/errors/batch-mint/StuckOnWaitingForJobBatchMints';
+import { InvalidStatusForBatchMintUpdateError } from '../services/kaspa-network/errors/batch-mint/InvalidStatusForBatchMintUpdateError';
 
 @Injectable()
 export class BatchMintProvider {
@@ -102,7 +103,6 @@ export class BatchMintProvider {
       isValidated = await this.kaspaFacade.validateBatchMintWalletAmount(batchMintEntity);
     } catch (error) {
       this.logger.error(error?.message || error, error?.stack, error?.meta);
-      this.telegramBotService.sendErrorToErrorsChannel(error);
     }
 
     if (!isValidated) {
@@ -153,6 +153,14 @@ export class BatchMintProvider {
       throw new Error('Batch mint not found');
     }
 
+    if (![BatchMintStatus.ERROR, BatchMintStatus.WAITING_FOR_JOB].includes(batchMintEntity.status)) {
+      const statusError = new InvalidStatusForBatchMintUpdateError(id, batchMintEntity);
+      this.logger.error(statusError.message, statusError?.stack);
+      await this.telegramBotService.sendErrorToErrorsChannel(statusError);
+
+      throw statusError;
+    }
+
     if (batchMintEntity.status != BatchMintStatus.ERROR) {
       let isValidated = false;
 
@@ -160,7 +168,7 @@ export class BatchMintProvider {
         isValidated = await this.kaspaFacade.validateBatchMintWalletAmount(batchMintEntity);
       } catch (error) {
         this.logger.error(error?.message || error, error?.stack, error?.meta);
-        this.telegramBotService.sendErrorToErrorsChannel(error);
+        await this.telegramBotService.sendErrorToErrorsChannel(error);
         throw error;
       }
 
@@ -195,20 +203,19 @@ export class BatchMintProvider {
         async (transactions: KRC20ActionTransations) => {
           updatedBatchMint = await this.batchMintService.updateTransferTokenTransactions(updatedBatchMint, transactions);
         },
+        async (transactions: string) => {
+          updatedBatchMint = await this.batchMintService.updateRefundTransactionId(updatedBatchMint._id, transactions);
+        },
         (): BatchMintEntity => {
           return updatedBatchMint;
         },
       );
 
-      updatedBatchMint = await this.batchMintService.updateStatusToCompleted(
-        updatedBatchMint._id,
-        result.refundTransactionId,
-        result.isMintOver,
-      );
+      updatedBatchMint = await this.batchMintService.updateStatusToCompleted(updatedBatchMint._id, result.isMintOver);
     } catch (error) {
       await this.batchMintService.updateStatusToError(updatedBatchMint._id, error.toString());
       this.logger.error(error?.message || error, error?.stack, error?.meta);
-      this.telegramBotService.sendErrorToErrorsChannel(error);
+      await this.telegramBotService.sendErrorToErrorsChannel(error);
 
       throw error;
     }

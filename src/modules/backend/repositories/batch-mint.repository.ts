@@ -62,7 +62,7 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
       const result = await super.updateByOne('_id', id, data, { status: requiredStatus }, session);
 
       if (!result) {
-        throw new InvalidStatusForBatchMintUpdateError();
+        throw new InvalidStatusForBatchMintUpdateError(id);
       }
 
       return result;
