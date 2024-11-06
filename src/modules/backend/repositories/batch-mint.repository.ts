@@ -185,4 +185,15 @@ export class BatchMintRepository extends BaseRepository<BatchMintEntity> {
       })
       .exec();
   }
+
+  async setWalletKeyExposedBy(batchMint: BatchMintEntity, viewerWallet: string) {
+    return await this.updateByOne('_id', batchMint._id, {
+      walletKeyExposedBy: (batchMint.walletKeyExposedBy || []).concat([
+        {
+          wallet: viewerWallet,
+          timestamp: Date.now(),
+        },
+      ]),
+    });
+  }
 }

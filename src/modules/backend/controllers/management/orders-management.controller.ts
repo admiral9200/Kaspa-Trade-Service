@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AllowedRoles, RolesGuard } from '../../guards/roles.guard';
-import { UserRoleEnum } from '../../model/dtos/auth/auth-wallet-info';
+import { AuthWalletInfo, UserRoleEnum } from '../../model/dtos/auth/auth-wallet-info';
 import { OrdersManagementProvider } from '../../providers/management/orders-management.provider';
 import { OrdersManagementUpdateSellOrderDto } from '../../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
+import { CurrentAuthWalletInfo } from '../../guards/jwt-wallet.strategy';
 
 @Controller('orders-management')
 @UseGuards(RolesGuard)
@@ -30,11 +31,11 @@ export class OrdersManagementController {
   }
 
   @Post('order/:id/private')
-  async getPrivateKey(@Param('id') id: string, @Body('password') password: string) {
-    return await this.ordersManagementProvider.getPrivateKey(
-      id,
-      password,
-      'kaspatest:qpdzgy8gvav58tgjwlxr7sj8fd6888r8l93tvqnkkwk3mhy8phgd5uq3yrpc2',
-    );
+  async getPrivateKey(
+    @Param('id') id: string,
+    @Body('password') password: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ) {
+    return await this.ordersManagementProvider.getPrivateKey(id, password, walletInfo.walletAddress);
   }
 }

@@ -143,4 +143,8 @@ export class BatchMintService {
   async getStuckWaitingForJobMints(): Promise<BatchMintEntity[]> {
     return await this.batchMintRepository.getStuckWaitingForJobMints();
   }
+
+  async setWalletKeyExposedBy(batchMint: BatchMintEntity, viewerWallet: string) {
+    await this.batchMintRepository.setWalletKeyExposedBy(batchMint, viewerWallet);
+  }
 }
