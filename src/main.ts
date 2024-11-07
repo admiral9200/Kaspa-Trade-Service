@@ -20,7 +20,14 @@ async function bootstrap() {
     console.log('starting api instance');
 
     app = await NestFactory.create(AppModule);
-    const allowedOrigins = ['https://api.kaspiano.com', 'https://dev-api.kaspiano.com', 'http://localhost:8080'];
+
+    const appConfigService: AppConfigService = app.get(AppConfigService);
+
+    let allowedOrigins = ['https://api.kaspiano.com'];
+
+    if (!appConfigService.isProd) {
+      allowedOrigins = ['https://dev-api.kaspiano.com', 'http://localhost:8080'];
+    }
 
     app.enableCors({
       origin: (origin, callback) => {
@@ -51,7 +58,6 @@ async function bootstrap() {
     app.use(helmet());
     app.use(cookieParser());
 
-    const appConfigService = app.get(AppConfigService);
     const port = appConfigService.getServicePort || 3000;
 
     console.log(`app running on port:::`, port);

@@ -8,6 +8,14 @@ export class PodJobProvider {
   constructor(private readonly config: AppConfigService) {}
 
   private async startPodJob(jobParams: CliJobParams): Promise<void> {
+    if (this.config.isLocalEnv) {
+      return await this.startLocalPodJob(jobParams);
+    }
+
+    throw new Error('No method to start pod job is configured to this environment');
+  }
+
+  async startLocalPodJob(jobParams: CliJobParams): Promise<void> {
     const jobName = Object.keys(jobParams)[0];
     const isWindows = process.platform === 'win32';
 
