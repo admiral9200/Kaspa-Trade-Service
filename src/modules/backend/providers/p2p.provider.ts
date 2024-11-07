@@ -327,6 +327,16 @@ export class P2pProvider {
 
   async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<OffMarketplaceRequestResponseDto> {
     try {
+      const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+      const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+      if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
+        // no need to await to release user
+        this.handleOrderWithMoneyAndNoBuyer(order).catch((err) => this.logger.error(err));
+
+        return { success: false };
+      }
+
       const sellOrderDm: OrderDm = await this.p2pOrderBookService.removeSellOrderFromMarketplace(sellOrderId, walletAddress);
 
       return P2pOrderBookResponseTransformer.transformOrderDmToOffMerketplaceResponseDto(sellOrderDm);
@@ -341,6 +351,15 @@ export class P2pProvider {
 
   async updateSellOrder(sellOrderId: string, updateSellOrderDto: UpdateSellOrderDto, walletAddress: string): Promise<void> {
     const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+
+    const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
+
+    if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
+      // no need to await to release user
+      this.handleOrderWithMoneyAndNoBuyer(order).catch((err) => this.logger.error(err));
+
+      throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
+    }
 
     if (order.status !== SellOrderStatus.OFF_MARKETPLACE) {
       throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
