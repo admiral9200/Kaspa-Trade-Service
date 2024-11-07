@@ -22,7 +22,6 @@ export class LunchpadProvider {
     private readonly lunchpadService: LunchpadService,
     private readonly kaspaFacade: KaspaFacade,
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
-    private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly kaspaApiService: KaspaApiService,
     private readonly telegramBotService: TelegramBotService,
     private readonly logger: AppLogger,

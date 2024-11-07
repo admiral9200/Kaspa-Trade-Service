@@ -4,7 +4,10 @@ export const MONGO_DATABASE_CONNECTIONS = {
   P2P: 'p2p',
 };
 
-export const SERVICE_TYPE = (process.env.SERVICE_TYPE || ServiceTypeEnum.API).trim() as ServiceTypeEnum;
+export const SERVICE_TYPE: ServiceTypeEnum = (process.env.SERVICE_TYPE || ServiceTypeEnum.API).trim() as ServiceTypeEnum;
+
+export const PAGINATION_LIMIT_DEFAULT = 10;
+export const PAGINATION_LIMIT_MAX = 50;
 
 export const ERROR_CODES = {
   GENERAL: {
@@ -22,5 +25,9 @@ export const ERROR_CODES = {
     LUNCHPAD_UNITS_EXCEEDS: 20005,
     INVALID_ORDER_STATUS: 20006,
     TRANSACTION_VERIFICATION_FAILED: 20007,
+  },
+  BATCH_MINT: {
+    INVALID_KASPA_AMOUNT: 30001,
+    INVALID_BATCH_MINT_STATUS: 30002,
   },
 };

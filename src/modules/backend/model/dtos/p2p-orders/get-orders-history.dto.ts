@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 import { SortDto } from '../abstract/sort.dto';
 import { SortDirection } from '../../enums/sort-direction.enum';
 import { PaginationDto } from '../abstract/pagination.dto';
-import { PAGINATION_LIMIT_DEFAULT } from '../../../constants/p2p-order.constants';
 import { GetOrdersHistoryFiltersDto } from './get-orders-history-filters.dto';
+import { PAGINATION_LIMIT_DEFAULT } from 'src/modules/backend/constants';
 
 export class GetOrdersHistoryDto {
   @ValidateNested()

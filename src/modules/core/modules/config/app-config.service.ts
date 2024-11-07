@@ -22,6 +22,14 @@ export class AppConfigService {
     return this.configService.get('CURRENT_ENV') === 'prod';
   }
 
+  get isDevEnv(): boolean {
+    return this.configService.get('CURRENT_ENV') === 'dev';
+  }
+
+  get isLocalEnv(): boolean {
+    return this.configService.get('CURRENT_ENV') === 'local';
+  }
+
   get getServiceName(): string {
     return this.configService.get('name') || 'default-service';
   }
@@ -74,7 +82,11 @@ export class AppConfigService {
   }
 
   get swapCommissionPercentage(): number {
-    return Number(this.configService.get('SWAP_COMMISSION_PERCANTAGE'));
+    return Number(this.configService.get('SWAP_COMMISSION_PERCANTAGE') || '2.5');
+  }
+
+  get batchMintCommissionPercentage(): number {
+    return Number(this.configService.get('BATCH_MINT_COMMISSION_PERCANTAGE') || '5');
   }
 
   get commitionWalletAddress(): string {

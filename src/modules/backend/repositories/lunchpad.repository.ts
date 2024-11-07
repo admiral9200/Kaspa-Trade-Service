@@ -8,7 +8,7 @@ import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-sta
 import { InvalidStatusForLunchpadUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadUpdate';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadNotEnoughAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughAvailableQtyError';
-import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate copy';
+import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 
 @Injectable()
