@@ -33,7 +33,7 @@ export class BatchMintEntity {
   @Prop({ required: true })
   walletSequenceId: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   status: BatchMintStatus;
 
   @Prop()
