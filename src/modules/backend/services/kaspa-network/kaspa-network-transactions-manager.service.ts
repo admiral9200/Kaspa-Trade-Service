@@ -605,7 +605,7 @@ export class KaspaNetworkTransactionsManagerService {
   async getEstimatedPriorityFeeRate(): Promise<number> {
     const estimatedFees = await this.rpcService.getRpc().getFeeEstimate({});
 
-    return estimatedFees.estimate.priorityBucket.feerate * 1000000000;
+    return estimatedFees.estimate.priorityBucket.feerate;
   }
 
   async getTransactionFees(transactionData: ICreateTransactions): Promise<FeesCalculation> {
