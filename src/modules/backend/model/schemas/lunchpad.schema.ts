@@ -15,8 +15,7 @@ export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 export class LunchpadEntity {
   _id?: string;
 
-  // INDEX UNIQUE
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   ticker: string;
 
   @Prop({ required: true })

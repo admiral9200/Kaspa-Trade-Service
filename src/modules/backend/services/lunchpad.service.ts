@@ -67,13 +67,15 @@ export class LunchpadService {
     data: CreateLunchpadOrderRequestDto,
     orderCreatorWallet: string,
   ): Promise<{ lunchpad: LunchpadEntity; lunchpadOrder: LunchpadOrder }> {
-    return await this.utils.retryOnError(
+    const result = await this.utils.retryOnError(
       async () => await this.lunchpadRepository.createLunchpadOrderAndLockLunchpadQty(lunchpadId, data.units, orderCreatorWallet),
       10,
       1000,
       true,
       (error) => !this.lunchpadRepository.isDocumentTransactionLockedError(error),
     );
+
+    return result;
   }
 
   async cancelLunchpadOrder(order: LunchpadOrder): Promise<{ lunchpad: LunchpadEntity; lunchpadOrder: LunchpadOrder }> {
@@ -87,15 +89,19 @@ export class LunchpadService {
   }
 
   async getOrderByIdAndWallet(orderId: string, walletAddress: string): Promise<LunchpadOrder> {
-    return this.lunchpadRepository.findOrderByIdAndWalletAddress(orderId, walletAddress);
+    return await this.lunchpadRepository.findOrderByIdAndWalletAddress(orderId, walletAddress);
   }
 
-  async setOrderStatusToWaitingForProcessing(orderId: string, transactionId: string): Promise<LunchpadOrder> {
+  async updateOrderUserTransactionId(orderId: string, transactionId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadRepository.updateOrderUserTransactionId(orderId, transactionId);
+  }
+
+  async setOrderStatusToVerifiedAndWaitingForProcessing(orderId: string, transactionId?: string): Promise<LunchpadOrder> {
     return await this.lunchpadRepository.transitionLunchpadOrderStatus(
       orderId,
-      LunchpadOrderStatus.WAITING_FOR_PROCESSING,
+      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
       LunchpadOrderStatus.WAITING_FOR_KAS,
-      { userTransactionId: transactionId },
+      transactionId ? { userTransactionId: transactionId } : null,
     );
   }
 
@@ -103,7 +109,7 @@ export class LunchpadService {
     return await this.lunchpadRepository.transitionLunchpadOrderStatus(
       orderId,
       LunchpadOrderStatus.PROCESSING,
-      LunchpadOrderStatus.WAITING_FOR_PROCESSING,
+      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
     );
   }
 

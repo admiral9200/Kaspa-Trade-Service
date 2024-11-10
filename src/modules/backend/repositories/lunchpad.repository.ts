@@ -46,6 +46,12 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
+  async updateOrderUserTransactionId(lunchpadOrderId: string, transactionId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadOrderModel
+      .findOneAndUpdate({ _id: lunchpadOrderId }, { $set: { userTransactionId: transactionId } }, { new: true })
+      .exec();
+  }
+
   public isLunchpadInvalidStatusUpdateError(error) {
     return error instanceof InvalidStatusForLunchpadUpdateError || this.isDocumentTransactionLockedError(error);
   }
@@ -76,9 +82,15 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         throw new LunchpadNotEnoughAvailableQtyError(lockedLunchpad._id);
       }
 
+      const updateStatus = {};
+
+      if (lockedLunchpad.availabeUnits - amountToReduce === 0) {
+        updateStatus['$set'] = { status: LunchpadStatus.NO_UNITS_LEFT };
+      }
+
       const updatedLunchpad = await this.lunchpadModel.findOneAndUpdate(
         { _id: lockedLunchpad._id },
-        { $inc: { availabeUnits: -amountToReduce } }, // Decrease the quantity
+        { $inc: { availabeUnits: -amountToReduce }, ...updateStatus }, // Decrease the quantity
         { new: true, session }, // Use session for the transaction
       );
 
@@ -132,9 +144,15 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const amountToAdd = updatedOrder.totalUnits;
 
+      const updateStatus = {};
+
+      if (lockedLunchpad.availabeUnits == 0 && amountToAdd > 0) {
+        updateStatus['$set'] = { status: LunchpadStatus.ACTIVE };
+      }
+
       const updatedLunchpad = await this.lunchpadModel.findOneAndUpdate(
         { _id: lockedLunchpad._id },
-        { $inc: { availabeUnits: amountToAdd } }, // Decrease the quantity
+        { $inc: { availabeUnits: amountToAdd }, ...updateStatus }, // Decrease the quantity
         { new: true, session }, // Use session for the transaction
       );
 

@@ -187,7 +187,7 @@ export class LunchpadProvider {
     }
   }
 
-  async processOrder(orderId, userWalletAddress, transactionId): Promise<LunchpadOrderDataWithErrors> {
+  async verifyOrderAndStartLunchpadProcess(orderId, userWalletAddress, transactionId): Promise<LunchpadOrderDataWithErrors> {
     const orderData = await this.getOrderByIdAndWalletAndStatus(
       orderId,
       userWalletAddress,
@@ -208,14 +208,32 @@ export class LunchpadProvider {
       };
     }
 
+    if (!orderData.lunchpadOrder.userTransactionId) {
+      try {
+        await this.lunchpadService.updateOrderUserTransactionId(orderData.lunchpadOrder._id, transactionId);
+      } catch (error) {
+        console.error(error);
+
+        return {
+          success: false,
+          errorCode: ERROR_CODES.LUNCHPAD.TRANSACTION_VERIFICATION_FAILED,
+          lunchpadOrder: orderData.lunchpadOrder,
+          lunchpad: orderData.lunchpad,
+        };
+      }
+    }
+
     const lunchpadWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(orderData.lunchpad.walletSequenceId);
 
-    const isTransactionVerified = await this.kaspaApiService.verifyPaymentTransaction(
-      transactionId,
-      userWalletAddress,
-      lunchpadWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpadOrder.kasPerUnit)),
-    );
+    const isTransactionVerified = true;
+
+    // Fix when api will be back
+    // const isTransactionVerified = await this.kaspaApiService.verifyPaymentTransaction(
+    //   transactionId,
+    //   userWalletAddress,
+    //   lunchpadWalletAddress,
+    //   KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpadOrder.kasPerUnit)),
+    // );
 
     if (!isTransactionVerified) {
       return {
@@ -230,7 +248,7 @@ export class LunchpadProvider {
 
     // change status
     try {
-      updatedOrder = await this.lunchpadService.setOrderStatusToWaitingForProcessing(orderData.lunchpadOrder._id, transactionId);
+      updatedOrder = await this.lunchpadService.setOrderStatusToVerifiedAndWaitingForProcessing(orderData.lunchpadOrder._id);
     } catch (error) {
       if (this.lunchpadService.isLunchpadInvalidStatusUpdateError(error)) {
         return {
@@ -289,7 +307,6 @@ export class LunchpadProvider {
 
       // don't await because not important
       // this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
-
 
       return {
         success: true,

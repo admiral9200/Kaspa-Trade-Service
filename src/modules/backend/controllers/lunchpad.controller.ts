@@ -81,13 +81,17 @@ export class LunchpadController {
     };
   }
 
-  @Post(':orderId/process-order')
-  async startProcessingOrder(
+  @Post(':orderId/verify-process-order')
+  async startVerifyAndProcessOrder(
     @Param('orderId') orderId: string,
     @Body() body: ProcessLunchpadOrderRequestDto,
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.processOrder(orderId, walletInfo.walletAddress, body.transactionId);
+    const result = await this.lunchpadProvider.verifyOrderAndStartLunchpadProcess(
+      orderId,
+      walletInfo.walletAddress,
+      body.transactionId,
+    );
 
     return {
       success: result.success,
