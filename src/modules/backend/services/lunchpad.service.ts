@@ -70,15 +70,13 @@ export class LunchpadService {
   }
 
   async stopLunchpad(lunchpad: LunchpadEntity) {
-    const result = await this.lunchpadRepository.updateLunchpadByStatus(
+    const updatedLunchpad = await this.lunchpadRepository.updateLunchpadByStatus(
       lunchpad._id,
       { status: LunchpadStatus.STOPPING },
       LunchpadStatus.ACTIVE,
     );
 
-    const totalyStopped = await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpad._id);
-
-    return totalyStopped || result;
+    return await this.setLunchpadInactiveIfNoOrdersAndNotRunning(updatedLunchpad);
   }
 
   async createLunchpadOrder(
@@ -98,13 +96,19 @@ export class LunchpadService {
   }
 
   async cancelLunchpadOrder(order: LunchpadOrder): Promise<{ lunchpad: LunchpadEntity; lunchpadOrder: LunchpadOrder }> {
-    return await this.utils.retryOnError(
+    const result = await this.utils.retryOnError(
       async () => await this.lunchpadRepository.cancelLunchpadOrderAndLockLunchpadQty(order.lunchpadId, order._id),
       10,
       1000,
       true,
       (error) => !this.lunchpadRepository.isDocumentTransactionLockedError(error),
     );
+
+    if (result.lunchpad.status == LunchpadStatus.STOPPING) {
+      result.lunchpad = await this.setLunchpadInactiveIfNoOrdersAndNotRunning(result.lunchpad);
+    }
+
+    return result;
   }
 
   async getOrderByIdAndWallet(orderId: string, walletAddress: string): Promise<LunchpadOrder> {
@@ -179,25 +183,41 @@ export class LunchpadService {
     );
   }
 
-  async startRunningLunchpad(lunchpadId: string) {
-    return await this.lunchpadRepository.setLunchpadIsRunning(lunchpadId, true);
+  async startRunningLunchpad(lunchpad: LunchpadEntity) {
+    return await this.lunchpadRepository.setLunchpadIsRunning(lunchpad._id, true, lunchpad.status == LunchpadStatus.STOPPING);
   }
 
   async stopRunningLunchpad(lunchpadId: string) {
-    let result = await this.lunchpadRepository.setLunchpadIsRunning(lunchpadId, false);
+    const lunchpad = await this.lunchpadRepository.setLunchpadIsRunning(lunchpadId, false);
 
-    if (result.status == LunchpadStatus.STOPPING) {
-      result = await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpadId);
+    return await this.setLunchpadInactiveIfNoOrdersAndNotRunning(lunchpad);
+  }
+
+  async setLunchpadInactiveIfNoOrdersAndNotRunning(lunchpad: LunchpadEntity): Promise<LunchpadEntity> {
+    if (lunchpad.status == LunchpadStatus.STOPPING) {
+      const waitingOrders = await this.getLunchpadOpenOrders(lunchpad);
+
+      if (waitingOrders.length == 0) {
+        return await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpad._id);
+      }
     }
 
-    return result;
+    return lunchpad;
+  }
+
+  async getLunchpadOpenOrders(lunchpad: LunchpadEntity): Promise<LunchpadOrder[]> {
+    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad.roundNumber, [
+      LunchpadOrderStatus.WAITING_FOR_KAS,
+      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
+      LunchpadOrderStatus.PROCESSING,
+      LunchpadOrderStatus.ERROR,
+    ]);
   }
 
   async getReadyToProcessOrders(lunchpad: LunchpadEntity) {
-    return await this.lunchpadRepository.getOrdersByRoundAndStatus(
-      lunchpad.roundNumber,
+    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad.roundNumber, [
       LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
-    );
+    ]);
   }
 
   async setWalletKeyExposedBy(batchMint: LunchpadEntity, viewerWallet: string, walletType: string) {

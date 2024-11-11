@@ -12,6 +12,7 @@ import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
+import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -48,6 +49,7 @@ export class LunchpadController {
             result.senderWalletAddress,
             result.krc20TokensAmount,
             result.requiredKaspa,
+            result.openOrders,
           )
         : null,
       errorCode: result.errorCode,
@@ -103,6 +105,29 @@ export class LunchpadController {
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadWithStatus> {
     const result = await this.lunchpadProvider.stopLunchpad(id, walletInfo.walletAddress);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+          )
+        : null,
+    };
+  }
+
+  @Post(':id/retrieve-funds/:walletType')
+  async retrieveFunds(
+    @Param('id') id: string,
+    @Param('walletType') walletType: LunchpadWalletType,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.retreiveFunds(id, walletInfo.walletAddress, walletType);
 
     return {
       success: result.success,

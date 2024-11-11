@@ -55,9 +55,14 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     );
   }
 
-  async setLunchpadIsRunning(id: string, isRunning: boolean, session?: ClientSession): Promise<LunchpadEntity> {
+  async setLunchpadIsRunning(
+    id: string,
+    isRunning: boolean,
+    isStopping: boolean = false,
+    session?: ClientSession,
+  ): Promise<LunchpadEntity> {
     try {
-      const additionalData = isRunning ? { status: LunchpadStatus.ACTIVE } : {};
+      const additionalData = isRunning ? { status: isStopping ? LunchpadStatus.STOPPING : LunchpadStatus.ACTIVE } : {};
       const result = await super.updateByOne('_id', id, { isRunning }, { isRunning: !isRunning, ...additionalData }, session);
 
       if (!result) {
@@ -264,8 +269,8 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
-  async getOrdersByRoundAndStatus(roundNumber: number, status: LunchpadOrderStatus): Promise<LunchpadOrder[]> {
-    return await this.lunchpadOrderModel.find({ roundNumber, status }).exec();
+  async getOrdersByRoundAndStatuses(roundNumber: number, statuses: LunchpadOrderStatus[]): Promise<LunchpadOrder[]> {
+    return await this.lunchpadOrderModel.find({ roundNumber, status: { $in: statuses } }).exec();
   }
 
   async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {

@@ -5,6 +5,7 @@ import { TelegramBotService } from 'src/modules/shared/telegram-notifier/service
 import { KaspaNetworkActionsService } from '../../services/kaspa-network/kaspa-network-actions.service';
 import { LunchpadProvider } from '../lunchpad.provider';
 import { LunchpadService } from '../../services/lunchpad.service';
+import { LunchpadWalletType } from '../../model/enums/lunchpad-wallet-type.enum';
 
 @Injectable()
 export class LunchpadManagementProvider {
@@ -21,7 +22,7 @@ export class LunchpadManagementProvider {
     return await this.lunchpadProvider.startLunchpadProcessingOrdersIfNeeded(lunchpad);
   }
 
-  async getPrivateKey(id: string, password: string, walletType: string, viewerWallet: string) {
+  async getPrivateKey(id: string, password: string, walletType: LunchpadWalletType, viewerWallet: string) {
     if (isEmptyString(this.config.privateKeyViewingPassword)) {
       throw new UnauthorizedException();
     }
@@ -34,9 +35,9 @@ export class LunchpadManagementProvider {
 
     let walletSequenceId = null;
 
-    if (walletType == 'reciver') {
+    if (walletType == LunchpadWalletType.RECEIVER) {
       walletSequenceId = batchMint.receiverWalletSequenceId;
-    } else if (walletType == 'sender') {
+    } else if (walletType == LunchpadWalletType.SENDER) {
       walletSequenceId = batchMint.senderWalletSequenceId;
     } else {
       throw new Error('Wallet not found');

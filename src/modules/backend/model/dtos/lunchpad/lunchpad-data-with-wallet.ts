@@ -9,6 +9,7 @@ export interface LunchpadDataWithWallet {
   senderWalletAddress?: string;
   krc20TokensAmount?: number;
   requiredKaspa?: number;
+  openOrders?: number;
 }
 
 export interface LunchpadOrderDataWithErrors {

@@ -15,6 +15,7 @@ import { TelegramBotService } from 'src/modules/shared/telegram-notifier/service
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { ImportantPromisesManager } from '../important-promises-manager/important-promises-manager';
+import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 
 @Injectable()
 export class LunchpadProvider {
@@ -44,6 +45,7 @@ export class LunchpadProvider {
     let requiredKaspa = null;
     let senderWalletAddress = null;
     let krc20TokensAmount = null;
+    let openOrders = null;
 
     if (userWalletAddress) {
       if (userWalletAddress != lunchpad.ownerWallet) {
@@ -66,6 +68,8 @@ export class LunchpadProvider {
         lunchpad.minUnitsPerOrder || 1,
         lunchpad.maxFeeRatePerTransaction,
       );
+
+      openOrders = (await this.lunchpadService.getLunchpadOpenOrders(lunchpad)).length;
     }
 
     return {
@@ -75,6 +79,7 @@ export class LunchpadProvider {
       requiredKaspa,
       senderWalletAddress,
       krc20TokensAmount,
+      openOrders,
     };
   }
 
@@ -137,8 +142,6 @@ export class LunchpadProvider {
     const krc20TokenAmountBigint = await this.kaspaFacade.getKrc20TokenBalance(senderWalletAddress, lunchpad.ticker);
 
     const krc20TokenAmount = KaspaNetworkActionsService.SompiToNumber(krc20TokenAmountBigint);
-
-    console.log(krc20TokenAmount);
 
     if (!krc20TokenAmount || krc20TokenAmount < lunchpad.tokenPerUnit * lunchpad.minUnitsPerOrder) {
       return {
@@ -229,6 +232,7 @@ export class LunchpadProvider {
         errorCode: isStatusError ? ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS : ERROR_CODES.GENERAL.UNKNOWN_ERROR,
         lunchpad: lunchpad,
         walletAddress: null,
+        openOrders: (await this.lunchpadService.getLunchpadOpenOrders(lunchpad)).length,
       };
     }
 
@@ -411,7 +415,7 @@ export class LunchpadProvider {
   }
 
   async startLunchpadProcessingOrdersIfNeeded(lunchpad: LunchpadEntity) {
-    if (lunchpad.status != LunchpadStatus.ACTIVE) {
+    if (![LunchpadStatus.ACTIVE, LunchpadStatus.STOPPING].includes(lunchpad.status)) {
       return;
     }
 
@@ -428,7 +432,7 @@ export class LunchpadProvider {
       return;
     }
 
-    await this.lunchpadService.startRunningLunchpad(lunchpad._id);
+    await this.lunchpadService.startRunningLunchpad(lunchpad);
 
     let resolve = null;
 
@@ -539,6 +543,73 @@ export class LunchpadProvider {
       success: true,
       lunchpadOrder: order,
       lunchpad,
+    };
+  }
+
+  async retreiveFunds(
+    lunchpadId: string,
+    ownerWalletAddress: string,
+    walletType: LunchpadWalletType,
+  ): Promise<LunchpadDataWithWallet> {
+    const lunchpad = await this.lunchpadService.getByIdAndOwner(lunchpadId, ownerWalletAddress);
+
+    if (!lunchpad) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
+
+    if (lunchpad.status != LunchpadStatus.INACTIVE) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
+        lunchpad: lunchpad,
+        walletAddress: null,
+      };
+    }
+
+    const openOrders = await this.lunchpadService.getLunchpadOpenOrders(lunchpad);
+
+    if (openOrders.length > 0) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.LUNCHPAD_HAVE_OPEN_ORDERS,
+        lunchpad: lunchpad,
+        walletAddress: null,
+      };
+    }
+
+    try {
+      if (walletType === LunchpadWalletType.SENDER) {
+        // NEED TO IMPLENMTNT
+      } else if (walletType === LunchpadWalletType.RECEIVER) {
+        // NEED TO IMPLENMTNT
+      } else {
+        return {
+          success: false,
+          errorCode: ERROR_CODES.LUNCHPAD.INVALID_WALLET_TYPE,
+          lunchpad,
+          walletAddress: null,
+        };
+      }
+    } catch (error) {
+      console.error(error);
+
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        lunchpad,
+        walletAddress: null,
+      };
+    }
+
+    return {
+      success: true,
+      lunchpad,
+      walletAddress: null,
     };
   }
 }
