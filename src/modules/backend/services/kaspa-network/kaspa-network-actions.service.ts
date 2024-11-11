@@ -72,6 +72,22 @@ export class KaspaNetworkActionsService {
     return KaspaNetworkActionsService.KaspaToSompi(String(requiredAmountCeiled));
   }
 
+  getRequiredKaspaAmountForLunchpad(totalUnits: number, minUnits: number, maxPriorityFee: bigint): bigint {
+    const estimatedKrc20TransactionsMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
+
+    const requiredPriorityFeeForTransfer = maxPriorityFee * 2n;
+    const maximumPossibleTransactions = BigInt(Math.floor(totalUnits / minUnits));
+
+    const baseAmountForLunchpad =
+      (requiredPriorityFeeForTransfer + estimatedKrc20TransactionsMass) * BigInt(maximumPossibleTransactions) +
+      KRC20_BASE_TRANSACTION_AMOUNT +
+      MINIMAL_AMOUNT_TO_SEND;
+
+    const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(baseAmountForLunchpad));
+
+    return KaspaNetworkActionsService.KaspaToSompi(String(requiredAmountCeiled));
+  }
+
   async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
     return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
   }

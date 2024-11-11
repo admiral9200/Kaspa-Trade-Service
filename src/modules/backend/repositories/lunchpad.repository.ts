@@ -39,7 +39,36 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       return result;
     } catch (error) {
       if (!this.isLunchpadInvalidStatusUpdateError(error)) {
-        console.error(`Error updating to  for order by ID(${id}):`, error);
+        console.error(`Error updating to status for lunchpad by ID(${id}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
+  async stopLunchpadIfNotRunning(lunchpadId: string): Promise<LunchpadEntity> {
+    return await super.updateByOne(
+      '_id',
+      lunchpadId,
+      { status: LunchpadStatus.INACTIVE },
+      { isRunning: false, status: LunchpadStatus.STOPPING },
+    );
+  }
+
+  async setLunchpadIsRunning(id: string, isRunning: boolean, session?: ClientSession): Promise<LunchpadEntity> {
+    try {
+      const additionalData = isRunning ? { status: LunchpadStatus.ACTIVE } : {};
+      const result = await super.updateByOne('_id', id, { isRunning }, { isRunning: !isRunning, ...additionalData }, session);
+
+      if (!result) {
+        console.log('Failed assigning is running, already in progress');
+        throw new InvalidStatusForLunchpadUpdateError();
+      }
+
+      return result;
+    } catch (error) {
+      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+        console.error(`Error updating IsRunning to for Lunchpad id (${id}):`, error);
       }
 
       throw error;
@@ -84,7 +113,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const updateStatus = {};
 
-      if (lockedLunchpad.availabeUnits - amountToReduce === 0) {
+      if (lockedLunchpad.availabeUnits - amountToReduce < lockedLunchpad.minUnitsPerOrder * lockedLunchpad.tokenPerUnit) {
         updateStatus['$set'] = { status: LunchpadStatus.NO_UNITS_LEFT };
       }
 
@@ -233,5 +262,21 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getOrdersByRoundAndStatus(roundNumber: number, status: LunchpadOrderStatus): Promise<LunchpadOrder[]> {
+    return await this.lunchpadOrderModel.find({ roundNumber, status }).exec();
+  }
+
+  async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {
+    return await this.updateByOne('_id', lunchpad._id, {
+      walletKeyExposedBy: (lunchpad.walletKeyExposedBy || []).concat([
+        {
+          wallet: viewerWallet,
+          type: walletType,
+          timestamp: Date.now(),
+        },
+      ]),
+    });
   }
 }

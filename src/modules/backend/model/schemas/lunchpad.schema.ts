@@ -34,7 +34,10 @@ export class LunchpadEntity {
   maxFeeRatePerTransaction: number;
 
   @Prop({ required: true })
-  walletSequenceId: number;
+  senderWalletSequenceId: number;
+
+  @Prop({ required: true })
+  receiverWalletSequenceId: number;
 
   @Prop({ required: true })
   ownerWallet: string;
@@ -53,6 +56,9 @@ export class LunchpadEntity {
 
   @Prop()
   maxUnitsPerOrder?: number;
+
+  @Prop({ default: false })
+  isRunning: boolean;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];

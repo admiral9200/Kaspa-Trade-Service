@@ -16,12 +16,15 @@ import { RolesGuard } from '../guards/roles.guard';
 import { BatchMintController } from '../controllers/batch-mint.controller';
 import { BatchMintManagementController } from '../controllers/management/batch-mint-management.controller';
 import { BatchMintManagementProvider } from '../providers/management/batch-mint-management.provider';
+import { LunchpadManagementController } from '../controllers/management/lunchpad-management.controller';
+import { LunchpadManagementProvider } from '../providers/management/lunchpad-management.provider';
 
 @Module({
   controllers: [
     P2pController,
     OrdersManagementController,
     LunchpadController,
+    LunchpadManagementController,
     AuthController,
     BatchMintController,
     BatchMintManagementController,
@@ -31,6 +34,7 @@ import { BatchMintManagementProvider } from '../providers/management/batch-mint-
     JwtWalletStrategy,
     OrdersManagementProvider,
     BatchMintManagementProvider,
+    LunchpadManagementProvider,
     JwtWalletAuthGuard,
     SkipGuardsService,
     RolesGuard,

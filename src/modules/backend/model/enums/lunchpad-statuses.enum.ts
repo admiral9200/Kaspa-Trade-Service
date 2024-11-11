@@ -3,6 +3,7 @@ export enum LunchpadStatus {
   ACTIVE = 'ACTIVE',
   NO_UNITS_LEFT = 'NO_UNITS_LEFT', // Temporary status when there are no units left, but orders are not yet final
   SOLD_OUT = 'SOLD_OUT',
+  STOPPING = 'STOPPING',
 }
 
 export enum LunchpadOrderStatus {

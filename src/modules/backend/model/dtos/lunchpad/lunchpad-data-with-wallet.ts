@@ -6,7 +6,9 @@ export interface LunchpadDataWithWallet {
   errorCode?: number;
   lunchpad: LunchpadEntity;
   walletAddress: string;
+  senderWalletAddress?: string;
   krc20TokensAmount?: number;
+  requiredKaspa?: number;
 }
 
 export interface LunchpadOrderDataWithErrors {

@@ -23,13 +23,19 @@ export class LunchpadService {
     return await this.lunchpadRepository.findOne({ _id: id });
   }
 
-  async createLunchpad(createLunchpadDto: CreateLunchpadRequestDto, ownerWallet: string, walletSequenceId: number) {
+  async createLunchpad(
+    createLunchpadDto: CreateLunchpadRequestDto,
+    ownerWallet: string,
+    senderWalletSequenceId: number,
+    receiverWalletSequenceId: number,
+  ): Promise<LunchpadEntity> {
     return await this.lunchpadRepository.create({
       ticker: createLunchpadDto.ticker,
       kasPerUnit: createLunchpadDto.kasPerUnit,
       tokenPerUnit: createLunchpadDto.tokenPerUnit,
       maxFeeRatePerTransaction: createLunchpadDto.maxFeeRatePerTransaction,
-      walletSequenceId,
+      senderWalletSequenceId,
+      receiverWalletSequenceId,
       ownerWallet,
       status: LunchpadStatus.INACTIVE,
       minUnitsPerOrder: createLunchpadDto.minUnitsPerOrder,
@@ -38,6 +44,7 @@ export class LunchpadService {
       totalUnits: 0,
       roundNumber: 0,
       currentTokensAmount: 0,
+      isRunning: false,
     });
   }
 
@@ -60,6 +67,18 @@ export class LunchpadService {
     );
 
     return result;
+  }
+
+  async stopLunchpad(lunchpad: LunchpadEntity) {
+    const result = await this.lunchpadRepository.updateLunchpadByStatus(
+      lunchpad._id,
+      { status: LunchpadStatus.STOPPING },
+      LunchpadStatus.ACTIVE,
+    );
+
+    const totalyStopped = await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpad._id);
+
+    return totalyStopped || result;
   }
 
   async createLunchpadOrder(
@@ -139,7 +158,17 @@ export class LunchpadService {
   }
 
   async reduceLunchpadTokenCurrentAmount(lunchpad: LunchpadEntity, amount: number): Promise<LunchpadEntity> {
-    return await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
+    let result = await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
+
+    if (result.availabeUnits < lunchpad.minUnitsPerOrder * lunchpad.tokenPerUnit) {
+      result = await this.lunchpadRepository.updateLunchpadByStatus(
+        lunchpad._id,
+        { status: LunchpadStatus.SOLD_OUT },
+        LunchpadStatus.NO_UNITS_LEFT,
+      );
+    }
+
+    return result;
   }
 
   async setOrderCompleted(orderId: string): Promise<LunchpadOrder> {
@@ -148,5 +177,30 @@ export class LunchpadService {
       LunchpadOrderStatus.COMPLETED,
       LunchpadOrderStatus.PROCESSING,
     );
+  }
+
+  async startRunningLunchpad(lunchpadId: string) {
+    return await this.lunchpadRepository.setLunchpadIsRunning(lunchpadId, true);
+  }
+
+  async stopRunningLunchpad(lunchpadId: string) {
+    let result = await this.lunchpadRepository.setLunchpadIsRunning(lunchpadId, false);
+
+    if (result.status == LunchpadStatus.STOPPING) {
+      result = await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpadId);
+    }
+
+    return result;
+  }
+
+  async getReadyToProcessOrders(lunchpad: LunchpadEntity) {
+    return await this.lunchpadRepository.getOrdersByRoundAndStatus(
+      lunchpad.roundNumber,
+      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
+    );
+  }
+
+  async setWalletKeyExposedBy(batchMint: LunchpadEntity, viewerWallet: string, walletType: string) {
+    await this.lunchpadRepository.setWalletKeyExposedBy(batchMint, viewerWallet, walletType);
   }
 }

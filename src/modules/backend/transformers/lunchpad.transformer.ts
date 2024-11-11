@@ -11,7 +11,9 @@ export type ClientSideLunchpad = {
   tokenPerUnit: number;
   minUnitsPerOrder?: number;
   walletAddress?: string;
+  senderWalletAddress?: string;
   krc20TokensAmount?: number;
+  requiredKaspa?: number;
 };
 
 export type ClientSideLunchpadWithStatus = {
@@ -40,7 +42,9 @@ export class LunchpadTransformer {
   static transformLunchpadDataToClientSide(
     data: LunchpadEntity,
     walletAddress?: string,
+    senderWalletAddress?: string,
     krc20TokensAmount?: number,
+    requiredKaspa?: number,
   ): ClientSideLunchpad {
     return {
       id: data._id,
@@ -51,7 +55,9 @@ export class LunchpadTransformer {
       tokenPerUnit: data.tokenPerUnit,
       minUnitsPerOrder: data.minUnitsPerOrder,
       walletAddress,
+      senderWalletAddress,
       krc20TokensAmount: krc20TokensAmount,
+      requiredKaspa,
     };
   }
 
