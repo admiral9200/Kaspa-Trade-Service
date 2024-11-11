@@ -7,6 +7,9 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
 import { UtilsHelper } from '../helpers/utils.helper';
 import { KRC20ActionTransations } from './kaspa-network/interfaces/Krc20ActionTransactions.interface';
+import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-list';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
 @Injectable()
 export class LunchpadService {
@@ -222,5 +225,14 @@ export class LunchpadService {
 
   async setWalletKeyExposedBy(batchMint: LunchpadEntity, viewerWallet: string, walletType: string) {
     await this.lunchpadRepository.setWalletKeyExposedBy(batchMint, viewerWallet, walletType);
+  }
+
+  async getLunchpadList(
+    filters: GetLunchpadListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+    walletAddress: string,
+  ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
+    return await this.lunchpadRepository.getLunchpadList(filters, sort, pagination, walletAddress);
   }
 }

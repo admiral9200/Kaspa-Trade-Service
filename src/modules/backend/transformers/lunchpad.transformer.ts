@@ -40,6 +40,24 @@ export type ClientSideLunchpadOrderWithStatus = {
   lunchpadOrder: ClientSideLunchpadOrder;
 };
 
+export type ClientSideLunchpadListItem = {
+  id: string;
+  ticker: string;
+  availabeUnits: number;
+  status: LunchpadStatus;
+  kasPerUnit: number;
+  tokenPerUnit: number;
+  roundNumber: number;
+};
+
+export type ClientSideLunchpadListWithStatus = {
+  success: boolean;
+  errorCode?: number;
+  lunchpads: ClientSideLunchpadListItem[];
+  totalCount?: number;
+  allTickers?: string[];
+};
+
 export class LunchpadTransformer {
   static transformLunchpadDataToClientSide(
     data: LunchpadEntity,
@@ -74,6 +92,25 @@ export class LunchpadTransformer {
       tokenPerUnit: data.tokenPerUnit,
       status: data.status,
       createdAt: data.createdAt,
+    };
+  }
+
+  static transformLunchpadListDataWithStatusToClientSide(
+    data: LunchpadEntity[],
+    totalCount?: number,
+  ): ClientSideLunchpadListWithStatus {
+    return {
+      success: true,
+      lunchpads: data.map((lunchpad) => ({
+        id: lunchpad._id,
+        ticker: lunchpad.ticker,
+        availabeUnits: lunchpad.availabeUnits,
+        status: lunchpad.status,
+        kasPerUnit: lunchpad.kasPerUnit,
+        tokenPerUnit: lunchpad.tokenPerUnit,
+        roundNumber: lunchpad.roundNumber,
+      })),
+      totalCount,
     };
   }
 }

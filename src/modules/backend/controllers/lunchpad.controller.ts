@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadProvider } from '../providers/lunchpad.provider';
 import {
+  ClientSideLunchpadListWithStatus,
   ClientSideLunchpadOrderWithStatus,
   ClientSideLunchpadWithStatus,
   LunchpadTransformer,
@@ -13,6 +14,7 @@ import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
+import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -31,6 +33,18 @@ export class LunchpadController {
         : null,
       errorCode: result.errorCode,
     };
+  }
+
+  @Post('list')
+  async getLucnhpads(
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() getBatchMintUserListDto: GetLunchpadListDto,
+  ): Promise<ClientSideLunchpadListWithStatus> {
+    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getBatchMintUserListDto, authWalletInfo.walletAddress);
+    return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
+      lunchpadListData.lunchpads,
+      lunchpadListData.totalCount,
+    );
   }
 
   @Post(':ticker/owner-info')

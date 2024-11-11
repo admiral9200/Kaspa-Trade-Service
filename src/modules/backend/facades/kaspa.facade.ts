@@ -215,6 +215,44 @@ export class KaspaFacade {
     return true;
   }
 
+  async getLunchpadComission(walletSequenceId: number): Promise<bigint> {
+    return await this.kaspaNetworkActionsService.getLunchpadCommissionInSompi(walletSequenceId);
+  }
+
+  async transferAllKrc20AndKaspaTokens(
+    walletSequenceId: number,
+    targetWallet: string,
+    maxPriorityFee: bigint,
+    commission: bigint = 0n,
+  ) {
+    await this.kasplexApiService.waitForIndexerToBeSynced();
+    const originWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
+
+    const walletKrc20Tokens = await this.kasplexApiService.getAddressTokenList(originWallet.address);
+
+    console.log('walletKrc20Tokens', walletKrc20Tokens);
+
+    for (const krc20Token of walletKrc20Tokens.result) {
+      await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+        originWallet.privateKey,
+        targetWallet,
+        krc20Token.tick,
+        BigInt(krc20Token.balance),
+        {},
+        maxPriorityFee,
+        async () => {},
+      );
+    }
+
+    await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
+      originWallet.privateKey,
+      maxPriorityFee,
+      targetWallet,
+      async () => {},
+      commission,
+    );
+  }
+
   async doBatchMint(
     batchMintEntity: BatchMintEntity,
     notifyUpdate: (result: Partial<Krc20TransactionsResult>) => Promise<void>,

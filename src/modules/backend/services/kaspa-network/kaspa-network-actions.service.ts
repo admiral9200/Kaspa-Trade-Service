@@ -43,6 +43,19 @@ export class KaspaNetworkActionsService {
     return mintsComission < MIMINAL_COMMITION ? MIMINAL_COMMITION : mintsComission;
   }
 
+  async getLunchpadCommissionInSompi(walletSequenceId: number): Promise<bigint> {
+    const wallet = await this.getWalletAccountAtIndex(walletSequenceId);
+    const totalBalance = await this.getWalletTotalBalance(wallet.address);
+
+    if (totalBalance == 0n) {
+      return 0n;
+    }
+
+    const commission = (BigInt(this.config.lunchpadCommissionPercentage) * totalBalance) / 100n;
+
+    return commission > MIMINAL_COMMITION ? commission : MIMINAL_COMMITION;
+  }
+
   getRequiredKaspaAmountForBatchMint(amountToMint: number, maxPriorityFee: bigint): bigint {
     let maxPriortyFeeWithMintAmount = maxPriorityFee - KRC20_TRANSACTIONS_AMOUNTS.MINT;
     const estimatedKrc20TransactionsMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
@@ -379,14 +392,14 @@ export class KaspaNetworkActionsService {
 
   async transferKrc20TokenAndNotify(
     holderWalletPrivateKey: PrivateKey,
-    sellerAddress: string,
+    targetAddress: string,
     krc20tokenTicker: string,
     krc20TokenAmount: bigint,
     alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
     maxPriorityFee: bigint,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
   ): Promise<KRC20ActionTransations> {
-    const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, sellerAddress);
+    const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, targetAddress);
 
     return await this.doKrc20TransactionAndNotifyWithUtxoProcessor(
       holderWalletPrivateKey,

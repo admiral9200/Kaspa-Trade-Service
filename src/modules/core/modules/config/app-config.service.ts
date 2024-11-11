@@ -89,6 +89,10 @@ export class AppConfigService {
     return Number(this.configService.get('BATCH_MINT_COMMISSION_PERCANTAGE') || '5');
   }
 
+  get lunchpadCommissionPercentage(): number {
+    return Number(this.configService.get('LUNCHPAD_COMMISSION_PERCANTAGE') || '5');
+  }
+
   get commitionWalletAddress(): string {
     return this.configService.get('COMMISSION_WALLET_ADDRESS');
   }

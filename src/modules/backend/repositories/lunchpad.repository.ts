@@ -10,6 +10,9 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadNotEnoughAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughAvailableQtyError';
 import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
+import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-list';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
@@ -283,5 +286,58 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         },
       ]),
     });
+  }
+
+  async getLunchpadList(
+    filters: GetLunchpadListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+    walletAddress: string,
+  ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
+    const filterQuery: any = {};
+
+    // Filters
+    if (filters) {
+      if (filters.ownerOnly && walletAddress) {
+        filterQuery.ownerWallet = walletAddress;
+      }
+
+      if (filters.statuses && filters.statuses.length > 0) {
+        filterQuery.status = { $in: filters.statuses };
+      }
+
+      if (filters.tickers && filters.tickers.length > 0) {
+        filterQuery.ticker = { $in: filters.tickers };
+      }
+
+      // if (filters.startDateTimestamp || filters.endDateTimestamp) {
+      //   filterQuery.createdAt = {};
+      //   if (filters.startDateTimestamp) {
+      //     filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
+      //   }
+      //   if (filters.endDateTimestamp) {
+      //     filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
+      //   }
+      // }
+    }
+
+    // Create the base query
+    let query: any = this.lunchpadModel.find(filterQuery);
+
+    console.log(filterQuery);
+
+    // Apply sorting
+    query = this.applySort(query, sort);
+
+    // Get total count before pagination
+    const totalCount = await this.lunchpadModel.countDocuments(filterQuery);
+
+    // Apply pagination
+    query = this.applyPagination(query, pagination);
+
+    // Execute the query
+    const lunchpads = await query.exec();
+
+    return { lunchpads, totalCount };
   }
 }

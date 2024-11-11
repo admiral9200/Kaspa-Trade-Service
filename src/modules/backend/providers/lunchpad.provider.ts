@@ -16,6 +16,7 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { ImportantPromisesManager } from '../important-promises-manager/important-promises-manager';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
+import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 
 @Injectable()
 export class LunchpadProvider {
@@ -562,7 +563,7 @@ export class LunchpadProvider {
       };
     }
 
-    if (lunchpad.status != LunchpadStatus.INACTIVE) {
+    if (![LunchpadStatus.INACTIVE, LunchpadStatus.SOLD_OUT].includes(lunchpad.status)) {
       return {
         success: false,
         errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
@@ -584,9 +585,20 @@ export class LunchpadProvider {
 
     try {
       if (walletType === LunchpadWalletType.SENDER) {
-        // NEED TO IMPLENMTNT
+        await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
+          lunchpad.senderWalletSequenceId,
+          lunchpad.ownerWallet,
+          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+        );
       } else if (walletType === LunchpadWalletType.RECEIVER) {
-        // NEED TO IMPLENMTNT
+        const commission = await this.kaspaFacade.getLunchpadComission(lunchpad.receiverWalletSequenceId);
+
+        await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
+          lunchpad.receiverWalletSequenceId,
+          lunchpad.ownerWallet,
+          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+          commission,
+        );
       } else {
         return {
           success: false,
@@ -611,5 +623,17 @@ export class LunchpadProvider {
       lunchpad,
       walletAddress: null,
     };
+  }
+
+  async getLunchpadList(
+    lunchpadListDto: GetLunchpadListDto,
+    walletAddress: string,
+  ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
+    return await this.lunchpadService.getLunchpadList(
+      lunchpadListDto.filters,
+      lunchpadListDto.sort,
+      lunchpadListDto.pagination,
+      walletAddress,
+    );
   }
 }
