@@ -535,7 +535,12 @@ export class P2pProvider {
         );
 
         if (senderAddr) {
+          if (order.status == SellOrderStatus.OFF_MARKETPLACE) {
+            await this.p2pOrderBookService.relistSellOrder(order._id);
+          }
+
           await this.p2pOrderBookService.assignBuyerToOrder(order._id, senderAddr);
+
           await this.confirmBuy(order._id, { transactionId: walletTotalBalanceAndUtxos.utxoEntries[0].outpoint.transactionId });
           return;
         }
