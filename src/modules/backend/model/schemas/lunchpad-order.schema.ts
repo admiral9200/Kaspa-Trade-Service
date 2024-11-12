@@ -31,10 +31,10 @@ export class LunchpadOrder {
   userWalletAddress: string;
 
   @Prop({ required: true })
-  roundNumber: number; // Index with lunchpadId
+  roundNumber: number;
 
-  @Prop()
-  userTransactionId?: string; // Unique index - important
+  @Prop({ unique: true, sparse: true }) // Unique for not null
+  userTransactionId?: string;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];

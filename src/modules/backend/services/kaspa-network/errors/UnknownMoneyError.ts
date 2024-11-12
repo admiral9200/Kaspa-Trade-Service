@@ -6,6 +6,6 @@ export class UnknownMoneyError extends Error {
     public readonly order: P2pOrderEntity,
   ) {
     super(`Unknown money for order ${order._id}. Wallet amount is ${walletAmount}.`);
-    this.name = 'IncorrectKaspaAmountForSwap';
+    this.name = 'UnknownMoneyError';
   }
 }

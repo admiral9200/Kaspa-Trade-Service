@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadProvider } from '../providers/lunchpad.provider';
 import {
+  ClientSideLunchpadListWithStatus,
   ClientSideLunchpadOrderWithStatus,
   ClientSideLunchpadWithStatus,
   LunchpadTransformer,
@@ -12,6 +13,8 @@ import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
+import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
+import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -32,6 +35,41 @@ export class LunchpadController {
     };
   }
 
+  @Post('list')
+  async getLucnhpads(
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() getBatchMintUserListDto: GetLunchpadListDto,
+  ): Promise<ClientSideLunchpadListWithStatus> {
+    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getBatchMintUserListDto, authWalletInfo.walletAddress);
+    return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
+      lunchpadListData.lunchpads,
+      lunchpadListData.totalCount,
+    );
+  }
+
+  @Post(':ticker/owner-info')
+  async getLunchpadForOwner(
+    @Param('ticker') ticker: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.getLunchpadByTicker(ticker, walletInfo.walletAddress);
+
+    return {
+      success: result.success,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+            result.openOrders,
+          )
+        : null,
+      errorCode: result.errorCode,
+    };
+  }
+
   @Post('create')
   async createLunchpadOrder(
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
@@ -42,7 +80,13 @@ export class LunchpadController {
     return {
       success: result.success,
       lunchpad: result.lunchpad
-        ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad, result.walletAddress)
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            null,
+            result.requiredKaspa,
+          )
         : null,
     };
   }
@@ -58,7 +102,58 @@ export class LunchpadController {
       success: result.success,
       errorCode: result.errorCode,
       lunchpad: result.lunchpad
-        ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad, result.walletAddress, result.krc20TokensAmount)
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+          )
+        : null,
+    };
+  }
+
+  @Post(':id/stop')
+  async stopLunchpad(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.stopLunchpad(id, walletInfo.walletAddress);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+          )
+        : null,
+    };
+  }
+
+  @Post(':id/retrieve-funds/:walletType')
+  async retrieveFunds(
+    @Param('id') id: string,
+    @Param('walletType') walletType: LunchpadWalletType,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.retreiveFunds(id, walletInfo.walletAddress, walletType);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+          )
         : null,
     };
   }
@@ -81,13 +176,17 @@ export class LunchpadController {
     };
   }
 
-  @Post(':orderId/process-order')
-  async startProcessingOrder(
+  @Post(':orderId/verify-process-order')
+  async startVerifyAndProcessOrder(
     @Param('orderId') orderId: string,
     @Body() body: ProcessLunchpadOrderRequestDto,
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.processOrder(orderId, walletInfo.walletAddress, body.transactionId);
+    const result = await this.lunchpadProvider.verifyOrderAndStartLunchpadProcess(
+      orderId,
+      walletInfo.walletAddress,
+      body.transactionId,
+    );
 
     return {
       success: result.success,

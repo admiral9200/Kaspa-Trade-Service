@@ -8,8 +8,11 @@ import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-sta
 import { InvalidStatusForLunchpadUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadUpdate';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadNotEnoughAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughAvailableQtyError';
-import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate copy';
+import { InvalidStatusForLunchpadOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForLunchpadOrderUpdate';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
+import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-list';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
@@ -39,11 +42,51 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       return result;
     } catch (error) {
       if (!this.isLunchpadInvalidStatusUpdateError(error)) {
-        console.error(`Error updating to  for order by ID(${id}):`, error);
+        console.error(`Error updating to status for lunchpad by ID(${id}):`, error);
       }
 
       throw error;
     }
+  }
+
+  async stopLunchpadIfNotRunning(lunchpadId: string): Promise<LunchpadEntity> {
+    return await super.updateByOne(
+      '_id',
+      lunchpadId,
+      { status: LunchpadStatus.INACTIVE },
+      { isRunning: false, status: LunchpadStatus.STOPPING },
+    );
+  }
+
+  async setLunchpadIsRunning(
+    id: string,
+    isRunning: boolean,
+    isStopping: boolean = false,
+    session?: ClientSession,
+  ): Promise<LunchpadEntity> {
+    try {
+      const additionalData = isRunning ? { status: isStopping ? LunchpadStatus.STOPPING : LunchpadStatus.ACTIVE } : {};
+      const result = await super.updateByOne('_id', id, { isRunning }, { isRunning: !isRunning, ...additionalData }, session);
+
+      if (!result) {
+        console.log('Failed assigning is running, already in progress');
+        throw new InvalidStatusForLunchpadUpdateError();
+      }
+
+      return result;
+    } catch (error) {
+      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+        console.error(`Error updating IsRunning to for Lunchpad id (${id}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
+  async updateOrderUserTransactionId(lunchpadOrderId: string, transactionId: string): Promise<LunchpadOrder> {
+    return await this.lunchpadOrderModel
+      .findOneAndUpdate({ _id: lunchpadOrderId }, { $set: { userTransactionId: transactionId } }, { new: true })
+      .exec();
   }
 
   public isLunchpadInvalidStatusUpdateError(error) {
@@ -76,9 +119,15 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         throw new LunchpadNotEnoughAvailableQtyError(lockedLunchpad._id);
       }
 
+      const updateStatus = {};
+
+      if (lockedLunchpad.availabeUnits - amountToReduce < lockedLunchpad.minUnitsPerOrder * lockedLunchpad.tokenPerUnit) {
+        updateStatus['$set'] = { status: LunchpadStatus.NO_UNITS_LEFT };
+      }
+
       const updatedLunchpad = await this.lunchpadModel.findOneAndUpdate(
         { _id: lockedLunchpad._id },
-        { $inc: { availabeUnits: -amountToReduce } }, // Decrease the quantity
+        { $inc: { availabeUnits: -amountToReduce }, ...updateStatus }, // Decrease the quantity
         { new: true, session }, // Use session for the transaction
       );
 
@@ -132,9 +181,15 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const amountToAdd = updatedOrder.totalUnits;
 
+      const updateStatus = {};
+
+      if (lockedLunchpad.availabeUnits == 0 && amountToAdd > 0) {
+        updateStatus['$set'] = { status: LunchpadStatus.ACTIVE };
+      }
+
       const updatedLunchpad = await this.lunchpadModel.findOneAndUpdate(
         { _id: lockedLunchpad._id },
-        { $inc: { availabeUnits: amountToAdd } }, // Decrease the quantity
+        { $inc: { availabeUnits: amountToAdd }, ...updateStatus }, // Decrease the quantity
         { new: true, session }, // Use session for the transaction
       );
 
@@ -215,5 +270,74 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getOrdersByRoundAndStatuses(roundNumber: number, statuses: LunchpadOrderStatus[]): Promise<LunchpadOrder[]> {
+    return await this.lunchpadOrderModel.find({ roundNumber, status: { $in: statuses } }).exec();
+  }
+
+  async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {
+    return await this.updateByOne('_id', lunchpad._id, {
+      walletKeyExposedBy: (lunchpad.walletKeyExposedBy || []).concat([
+        {
+          wallet: viewerWallet,
+          type: walletType,
+          timestamp: Date.now(),
+        },
+      ]),
+    });
+  }
+
+  async getLunchpadList(
+    filters: GetLunchpadListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+    walletAddress: string,
+  ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
+    const filterQuery: any = {};
+
+    // Filters
+    if (filters) {
+      if (filters.ownerOnly && walletAddress) {
+        filterQuery.ownerWallet = walletAddress;
+      }
+
+      if (filters.statuses && filters.statuses.length > 0) {
+        filterQuery.status = { $in: filters.statuses };
+      }
+
+      if (filters.tickers && filters.tickers.length > 0) {
+        filterQuery.ticker = { $in: filters.tickers };
+      }
+
+      // if (filters.startDateTimestamp || filters.endDateTimestamp) {
+      //   filterQuery.createdAt = {};
+      //   if (filters.startDateTimestamp) {
+      //     filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
+      //   }
+      //   if (filters.endDateTimestamp) {
+      //     filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
+      //   }
+      // }
+    }
+
+    // Create the base query
+    let query: any = this.lunchpadModel.find(filterQuery);
+
+    console.log(filterQuery);
+
+    // Apply sorting
+    query = this.applySort(query, sort);
+
+    // Get total count before pagination
+    const totalCount = await this.lunchpadModel.countDocuments(filterQuery);
+
+    // Apply pagination
+    query = this.applyPagination(query, pagination);
+
+    // Execute the query
+    const lunchpads = await query.exec();
+
+    return { lunchpads, totalCount };
   }
 }
