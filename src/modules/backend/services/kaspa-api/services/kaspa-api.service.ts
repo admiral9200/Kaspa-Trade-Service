@@ -44,7 +44,12 @@ export class KaspaApiService {
       return null;
     }
 
-    const inputWallets = Object.keys(groupBy(txnInfo.inputs, (input) => input.previous_outpoint_address));
+    const inputWallets = Object.keys(
+      groupBy(
+        txnInfo.inputs.filter((input) => input.previous_outpoint_address),
+        (input) => input.previous_outpoint_address,
+      ),
+    );
 
     if (inputWallets.length != 1) {
       console.error('Incorrect inputs amount on getTransactionSender');
