@@ -23,7 +23,7 @@ export class AppConfigService {
   }
 
   get isDevEnv(): boolean {
-    return this.configService.get('CURRENT_ENV') === 'dev';
+    return this.configService.get('CURRENT_ENV') === 'develop';
   }
 
   get isLocalEnv(): boolean {
