@@ -15,8 +15,7 @@ export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 export class LunchpadEntity {
   _id?: string;
 
-  // INDEX UNIQUE
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   ticker: string;
 
   @Prop({ required: true })
@@ -35,7 +34,10 @@ export class LunchpadEntity {
   maxFeeRatePerTransaction: number;
 
   @Prop({ required: true })
-  walletSequenceId: number;
+  senderWalletSequenceId: number;
+
+  @Prop({ required: true })
+  receiverWalletSequenceId: number;
 
   @Prop({ required: true })
   ownerWallet: string;
@@ -54,6 +56,9 @@ export class LunchpadEntity {
 
   @Prop()
   maxUnitsPerOrder?: number;
+
+  @Prop({ default: false })
+  isRunning: boolean;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];

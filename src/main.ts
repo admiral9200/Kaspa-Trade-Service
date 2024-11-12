@@ -9,6 +9,7 @@ import { AppConfigService } from './modules/core/modules/config/app-config.servi
 import { AppGlobalLoggerService } from './modules/core/modules/logger/app-global-logger.service';
 import { AppModule } from './app.module';
 import { CliJobManager } from './modules/backend/cli-job-manager/cli-job.manager';
+import { ImportantPromisesManager } from './modules/backend/important-promises-manager/important-promises-manager';
 
 // Needed for Wasm
 globalThis.WebSocket = WebSocket.w3cwebsocket;
@@ -84,13 +85,18 @@ async function bootstrap() {
     process.on(signal, async () => {
       console.log(`${signal} received. Starting graceful shutdown.`);
 
-      const shutdownTimeout = setTimeout(() => {
-        console.log('Graceful shutdown timed out. Forcing exit.');
-        process.exit(1);
-      }, 300_000); // 5 minutes timeout
+      const shutdownTimeout = setTimeout(
+        () => {
+          console.log('Graceful shutdown timed out. Forcing exit.');
+          process.exit(1);
+        },
+        60 * 60 * 1000,
+      ); // 1 hour timeout
 
       try {
+        await ImportantPromisesManager.waitForAllPromisesToResolveIfAny(); // need to be on fargate
         await app.close();
+        await ImportantPromisesManager.waitForAllPromisesToResolveIfAny(); // need to be on fargate
 
         console.log('Graceful shutdown completed.');
         clearTimeout(shutdownTimeout);

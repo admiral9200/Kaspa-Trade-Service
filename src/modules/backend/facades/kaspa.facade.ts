@@ -124,29 +124,33 @@ export class KaspaFacade {
     );
   }
 
-  async verifyTokensAndProcessLunchpadOrder(
+  async verifyLunchpadTokensAmount(lunchpad: LunchpadEntity) {
+    const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
+
+    const lunchpadSenderWalletTokensAmount = KaspaNetworkActionsService.SompiToNumber(
+      await this.getKrc20TokenBalance(lunchpadSenderWallet.address, lunchpad.ticker),
+    );
+
+    if (lunchpadSenderWalletTokensAmount != lunchpad.currentTokensAmount) {
+      throw new LunchpadWalletTokenBalanceIncorrect(
+        lunchpad.ticker,
+        lunchpadSenderWallet.address,
+        lunchpad.currentTokensAmount,
+        lunchpadSenderWalletTokensAmount,
+      );
+    }
+  }
+
+  async processLunchpadOrder(
     lunchpadOrder: LunchpadOrder,
     lunchpad: LunchpadEntity,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
   ): Promise<KRC20ActionTransations> {
     // Verify wallet amount
-    const lunchpadWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.walletSequenceId);
-
-    const lunchpadWalletTokensAmount = KaspaNetworkActionsService.SompiToNumber(
-      await this.getKrc20TokenBalance(lunchpadWallet.address, lunchpad.ticker),
-    );
-
-    if (lunchpadWalletTokensAmount != lunchpad.currentTokensAmount) {
-      throw new LunchpadWalletTokenBalanceIncorrect(
-        lunchpad.ticker,
-        lunchpadWallet.address,
-        lunchpad.currentTokensAmount,
-        lunchpadWalletTokensAmount,
-      );
-    }
+    const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
 
     return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
-      lunchpadWallet.privateKey,
+      lunchpadSenderWallet.privateKey,
       lunchpadOrder.userWalletAddress,
       lunchpad.ticker,
       KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpadOrder.tokenPerUnit)),
@@ -160,6 +164,16 @@ export class KaspaFacade {
     return KaspaNetworkActionsService.SompiToNumber(
       this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
         totalMints,
+        KaspaNetworkActionsService.KaspaToSompi(maxPriorityFee.toFixed(8)),
+      ),
+    );
+  }
+
+  getRequiredKaspaAmountForLunchpad(totalUnits: number, minUnits: number, maxPriorityFee: number): number {
+    return KaspaNetworkActionsService.SompiToNumber(
+      this.kaspaNetworkActionsService.getRequiredKaspaAmountForLunchpad(
+        totalUnits,
+        minUnits,
         KaspaNetworkActionsService.KaspaToSompi(maxPriorityFee.toFixed(8)),
       ),
     );
@@ -199,6 +213,44 @@ export class KaspaFacade {
     }
 
     return true;
+  }
+
+  async getLunchpadComission(walletSequenceId: number): Promise<bigint> {
+    return await this.kaspaNetworkActionsService.getLunchpadCommissionInSompi(walletSequenceId);
+  }
+
+  async transferAllKrc20AndKaspaTokens(
+    walletSequenceId: number,
+    targetWallet: string,
+    maxPriorityFee: bigint,
+    commission: bigint = 0n,
+  ) {
+    await this.kasplexApiService.waitForIndexerToBeSynced();
+    const originWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
+
+    const walletKrc20Tokens = await this.kasplexApiService.getAddressTokenList(originWallet.address);
+
+    console.log('walletKrc20Tokens', walletKrc20Tokens);
+
+    for (const krc20Token of walletKrc20Tokens.result) {
+      await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+        originWallet.privateKey,
+        targetWallet,
+        krc20Token.tick,
+        BigInt(krc20Token.balance),
+        {},
+        maxPriorityFee,
+        async () => {},
+      );
+    }
+
+    await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
+      originWallet.privateKey,
+      maxPriorityFee,
+      targetWallet,
+      async () => {},
+      commission,
+    );
   }
 
   async doBatchMint(
