@@ -13,17 +13,18 @@ export class CreateLunchpadRequestDto {
   @Min(MIN_TOKEN_PER_UNIT)
   tokenPerUnit: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(MIN_FEE_RATE_PER_TRANSACTION)
-  maxFeeRatePerTransaction: number;
+  maxFeeRatePerTransaction?: number = MIN_FEE_RATE_PER_TRANSACTION;
 
   @IsOptional()
   @IsNumber()
   @IsInt()
-  minUnitsPerOrder?: number;
+  minUnitsPerOrder: number = 1;
 
   @IsOptional()
   @IsNumber()
   @IsInt()
-  maxUnitsPerOrder?: number;
+  maxUnitsPerOrder: number = 10;
 }

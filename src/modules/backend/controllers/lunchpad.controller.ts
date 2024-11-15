@@ -38,9 +38,9 @@ export class LunchpadController {
   @Post('list')
   async getLucnhpads(
     @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
-    @Body() getBatchMintUserListDto: GetLunchpadListDto,
+    @Body() getLaunchpadUserListDto: GetLunchpadListDto,
   ): Promise<ClientSideLunchpadListWithStatus> {
-    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getBatchMintUserListDto, authWalletInfo.walletAddress);
+    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getLaunchpadUserListDto, authWalletInfo.walletAddress);
     return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
       lunchpadListData.lunchpads,
       lunchpadListData.totalCount,
