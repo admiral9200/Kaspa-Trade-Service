@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
-import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
+import { LunchpadEntity, LunchpadRound } from '../model/schemas/lunchpad.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { ClientSession, FilterQuery, Model } from 'mongoose';
@@ -49,11 +49,11 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
-  async stopLunchpadIfNotRunning(lunchpadId: string): Promise<LunchpadEntity> {
+  async stopLunchpadIfNotRunning(lunchpadId: string, roundsData: LunchpadRound[]): Promise<LunchpadEntity> {
     return await super.updateByOne(
       '_id',
       lunchpadId,
-      { status: LunchpadStatus.INACTIVE },
+      { status: LunchpadStatus.INACTIVE, rounds: roundsData },
       { isRunning: false, status: LunchpadStatus.STOPPING },
     );
   }

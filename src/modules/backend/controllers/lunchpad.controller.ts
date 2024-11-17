@@ -170,7 +170,11 @@ export class LunchpadController {
       success: result.success,
       errorCode: result.errorCode,
       lunchpadOrder: result.lunchpadOrder
-        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(result.lunchpadOrder)
+        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(
+            result.lunchpadOrder,
+            result.lunchpad.kasPerUnit,
+            result.lunchpad.tokenPerUnit,
+          )
         : null,
       lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
     };
@@ -192,7 +196,11 @@ export class LunchpadController {
       success: result.success,
       errorCode: result.errorCode,
       lunchpadOrder: result.lunchpadOrder
-        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(result.lunchpadOrder)
+        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(
+            result.lunchpadOrder,
+            result.lunchpad.kasPerUnit,
+            result.lunchpad.tokenPerUnit,
+          )
         : null,
       lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
     };
@@ -209,7 +217,11 @@ export class LunchpadController {
       success: result.success,
       errorCode: result.errorCode,
       lunchpadOrder: result.lunchpadOrder
-        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(result.lunchpadOrder)
+        ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(
+            result.lunchpadOrder,
+            result.lunchpad.kasPerUnit,
+            result.lunchpad.tokenPerUnit,
+          )
         : null,
       lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
     };

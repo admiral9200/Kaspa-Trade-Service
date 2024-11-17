@@ -84,12 +84,16 @@ export class LunchpadTransformer {
     };
   }
 
-  static transformLunchpadOrderDataToClientSide(data: LunchpadOrder): ClientSideLunchpadOrder {
+  static transformLunchpadOrderDataToClientSide(
+    data: LunchpadOrder,
+    kasPerUnit: number,
+    tokenPerUnit: number,
+  ): ClientSideLunchpadOrder {
     return {
       id: data._id,
       totalUnits: data.totalUnits,
-      kasPerUnit: data.kasPerUnit,
-      tokenPerUnit: data.tokenPerUnit,
+      kasPerUnit,
+      tokenPerUnit,
       status: data.status,
       createdAt: data.createdAt,
     };

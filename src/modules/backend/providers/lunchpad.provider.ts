@@ -356,7 +356,7 @@ export class LunchpadProvider {
       transactionId,
       userWalletAddress,
       lunchpadReceiverWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpadOrder.kasPerUnit)),
+      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit)),
     );
 
     if (!isTransactionVerified) {
@@ -477,10 +477,7 @@ export class LunchpadProvider {
     await this.kaspaFacade.processLunchpadOrder(updatedOrder, lunchpad, async (result) => {
       updatedOrder = await this.lunchpadService.updateOrderTransactionsResult(updatedOrder._id, result);
       if (result.commitTransactionId != updatedOrder.transactions?.commitTransactionId) {
-        await this.lunchpadService.reduceLunchpadTokenCurrentAmount(
-          lunchpad,
-          updatedOrder.totalUnits * updatedOrder.tokenPerUnit,
-        );
+        await this.lunchpadService.reduceLunchpadTokenCurrentAmount(lunchpad, updatedOrder.totalUnits * lunchpad.tokenPerUnit);
       }
     });
 

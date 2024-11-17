@@ -48,6 +48,7 @@ export class LunchpadService {
       roundNumber: 0,
       currentTokensAmount: 0,
       isRunning: false,
+      rounds: [],
     });
   }
 
@@ -57,14 +58,28 @@ export class LunchpadService {
 
   async startLunchpad(lunchpad: LunchpadEntity, totalTokens: number) {
     const totalUnits = Math.floor(totalTokens / lunchpad.tokenPerUnit);
+
+    const lunchpadRounds = lunchpad.rounds;
+    const currentRound = lunchpad.roundNumber + 1;
+
+    lunchpadRounds.push({
+      roundNumber: currentRound,
+      kasPerUnit: lunchpad.kasPerUnit,
+      tokenPerUnit: lunchpad.tokenPerUnit,
+      maxFeeRatePerTransaction: lunchpad.maxFeeRatePerTransaction,
+      tokensAmount: totalTokens,
+      totalUnits,
+    });
+
     const result = await this.lunchpadRepository.updateLunchpadByStatus(
       lunchpad._id,
       {
         status: LunchpadStatus.ACTIVE,
         availabeUnits: totalUnits,
         totalUnits: totalUnits,
-        roundNumber: lunchpad.roundNumber + 1,
+        roundNumber: currentRound,
         currentTokensAmount: totalTokens,
+        rounds: lunchpadRounds,
       },
       LunchpadStatus.INACTIVE,
     );
@@ -168,9 +183,19 @@ export class LunchpadService {
     let result = await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
 
     if (result.availabeUnits < lunchpad.minUnitsPerOrder * lunchpad.tokenPerUnit) {
+      const roundsData = lunchpad.rounds;
+
+      const currentRound = lunchpad.rounds[lunchpad.roundNumber - 1];
+
+      if (!currentRound || currentRound.roundNumber != lunchpad.roundNumber) {
+        throw new Error('Lunchpad round number mismatch');
+      }
+
+      currentRound.unitsLeft = lunchpad.availabeUnits;
+
       result = await this.lunchpadRepository.updateLunchpadByStatus(
         lunchpad._id,
-        { status: LunchpadStatus.SOLD_OUT },
+        { status: LunchpadStatus.SOLD_OUT, rounds: roundsData },
         LunchpadStatus.NO_UNITS_LEFT,
       );
     }
@@ -201,7 +226,17 @@ export class LunchpadService {
       const waitingOrders = await this.getLunchpadOpenOrders(lunchpad);
 
       if (waitingOrders.length == 0) {
-        return await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpad._id);
+        const roundsData = lunchpad.rounds;
+
+        const currentRound = lunchpad.rounds[lunchpad.roundNumber - 1];
+
+        if (!currentRound || currentRound.roundNumber != lunchpad.roundNumber) {
+          throw new Error('Lunchpad round number mismatch');
+        }
+
+        currentRound.unitsLeft = lunchpad.availabeUnits;
+
+        return await this.lunchpadRepository.stopLunchpadIfNotRunning(lunchpad._id, roundsData);
       }
     }
 
