@@ -116,7 +116,7 @@ export class LunchpadProvider {
     };
   }
 
-  async startLunchpad(id: string, ownerWalletAddress: string): Promise<LunchpadDataWithWallet> {
+  async startLunchpad(id: string, ownerWalletAddress: string, estimateOnly: boolean = false): Promise<LunchpadDataWithWallet> {
     const lunchpad = await this.lunchpadService.getByIdAndOwner(id, ownerWalletAddress);
 
     if (!lunchpad) {
@@ -161,6 +161,17 @@ export class LunchpadProvider {
       lunchpad.minUnitsPerOrder || 1,
       lunchpad.maxFeeRatePerTransaction,
     );
+
+    if (estimateOnly) {
+      return {
+        success: true,
+        walletAddress: receiverWalletAddress,
+        senderWalletAddress,
+        lunchpad,
+        krc20TokensAmount: krc20TokenAmount,
+        requiredKaspa,
+      };
+    }
 
     if (KaspaNetworkActionsService.SompiToNumber(senderWalletKaspaAmount.totalBalance) < requiredKaspa) {
       return {

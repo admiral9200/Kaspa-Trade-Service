@@ -91,6 +91,28 @@ export class LunchpadController {
     };
   }
 
+  @Get(':id/estimate-kas')
+  async estimateKasRequirement(
+    @Param('id') id: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.startLunchpad(id, walletInfo.walletAddress, true);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            result.krc20TokensAmount,
+            result.requiredKaspa,
+          )
+        : null,
+    };
+  }
+
   @Post(':id/start')
   async startLunchpad(
     @Param('id') id: string,
