@@ -131,7 +131,7 @@ export class KaspaFacade {
       await this.getKrc20TokenBalance(lunchpadSenderWallet.address, lunchpad.ticker),
     );
 
-    if (lunchpadSenderWalletTokensAmount != lunchpad.currentTokensAmount) {
+    if (lunchpadSenderWalletTokensAmount < lunchpad.currentTokensAmount) {
       throw new LunchpadWalletTokenBalanceIncorrect(
         lunchpad.ticker,
         lunchpadSenderWallet.address,
@@ -153,7 +153,7 @@ export class KaspaFacade {
       lunchpadSenderWallet.privateKey,
       lunchpadOrder.userWalletAddress,
       lunchpad.ticker,
-      KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpadOrder.tokenPerUnit)),
+      KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpad.tokenPerUnit)),
       lunchpadOrder.transactions || {},
       KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
       notifyUpdate,

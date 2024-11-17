@@ -18,12 +18,6 @@ export class LunchpadOrder {
   @Prop({ required: true })
   totalUnits: number;
 
-  @Prop({ required: true })
-  kasPerUnit: number;
-
-  @Prop({ required: true })
-  tokenPerUnit: number;
-
   @Prop({ required: true, default: LunchpadOrderStatus.WAITING_FOR_KAS })
   status: LunchpadOrderStatus;
 

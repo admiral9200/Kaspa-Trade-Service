@@ -2,6 +2,11 @@ import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-sta
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 
+export type LunchpadWalletsInfo = {
+  receiverWalletKaspa: number;
+  senderWalletKaspa: number;
+};
+
 export type ClientSideLunchpad = {
   id: string;
   ticker: string;
@@ -18,6 +23,7 @@ export type ClientSideLunchpad = {
   krc20TokensAmount?: number;
   requiredKaspa?: number;
   openOrders?: number;
+  walletsInfo?: LunchpadWalletsInfo;
 };
 
 export type ClientSideLunchpadWithStatus = {
@@ -88,12 +94,16 @@ export class LunchpadTransformer {
     };
   }
 
-  static transformLunchpadOrderDataToClientSide(data: LunchpadOrder): ClientSideLunchpadOrder {
+  static transformLunchpadOrderDataToClientSide(
+    data: LunchpadOrder,
+    kasPerUnit: number,
+    tokenPerUnit: number,
+  ): ClientSideLunchpadOrder {
     return {
       id: data._id,
       totalUnits: data.totalUnits,
-      kasPerUnit: data.kasPerUnit,
-      tokenPerUnit: data.tokenPerUnit,
+      kasPerUnit,
+      tokenPerUnit,
       status: data.status,
       createdAt: data.createdAt,
     };

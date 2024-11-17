@@ -10,6 +10,7 @@ import { AppGlobalLoggerService } from './modules/core/modules/logger/app-global
 import { AppModule } from './app.module';
 import { CliJobManager } from './modules/backend/cli-job-manager/cli-job.manager';
 import { ImportantPromisesManager } from './modules/backend/important-promises-manager/important-promises-manager';
+import mongoose from 'mongoose';
 
 // Needed for Wasm
 globalThis.WebSocket = WebSocket.w3cwebsocket;
@@ -60,6 +61,10 @@ async function bootstrap() {
     app.use(cookieParser());
 
     const port = appConfigService.getServicePort || 3000;
+
+    if (appConfigService.isLocalEnv) {
+      mongoose.set('debug', true);
+    }
 
     console.log(`app running on port:::`, port);
     await app.listen(port);

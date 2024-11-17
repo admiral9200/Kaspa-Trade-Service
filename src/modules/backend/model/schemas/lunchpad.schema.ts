@@ -7,6 +7,16 @@ export const MIN_KAS_PER_UNIT = 1;
 export const MIN_TOKEN_PER_UNIT = 1;
 export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 
+export type LunchpadRound = {
+  roundNumber: number;
+  tokensAmount: number;
+  totalUnits: number;
+  unitsLeft?: number;
+  kasPerUnit: number;
+  tokenPerUnit: number;
+  maxFeeRatePerTransaction: number;
+};
+
 @Schema({
   versionKey: false,
   collection: 'lunchpads',
@@ -56,6 +66,9 @@ export class LunchpadEntity {
 
   @Prop()
   maxUnitsPerOrder?: number;
+
+  @Prop({ type: Array })
+  rounds: LunchpadRound[];
 
   @Prop({ default: false })
   isRunning: boolean;
