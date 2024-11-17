@@ -35,7 +35,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       const result = await super.updateByOne('_id', id, data, { status: requiredStatus }, session);
 
       if (!result) {
-        console.log('Failed assigning status, already in progress');
+        console.log('Failed assigning lunchpad status, requested stats: ' + requiredStatus);
         throw new InvalidStatusForLunchpadUpdateError();
       }
 
@@ -61,11 +61,14 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
   async setLunchpadIsRunning(
     id: string,
     isRunning: boolean,
-    isStopping: boolean = false,
+    lunchpadStatus: LunchpadStatus = LunchpadStatus.ACTIVE,
     session?: ClientSession,
   ): Promise<LunchpadEntity> {
+    if (isRunning && ![LunchpadStatus.ACTIVE, LunchpadStatus.STOPPING, LunchpadStatus.NO_UNITS_LEFT].includes(lunchpadStatus)) {
+      throw new InvalidStatusForLunchpadUpdateError();
+    }
     try {
-      const additionalData = isRunning ? { status: isStopping ? LunchpadStatus.STOPPING : LunchpadStatus.ACTIVE } : {};
+      const additionalData = isRunning ? { status: lunchpadStatus } : {};
       const result = await super.updateByOne('_id', id, { isRunning }, { isRunning: !isRunning, ...additionalData }, session);
 
       if (!result) {
@@ -121,7 +124,9 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const updateStatus = {};
 
-      if (lockedLunchpad.availabeUnits - amountToReduce < lockedLunchpad.minUnitsPerOrder * lockedLunchpad.tokenPerUnit) {
+      console.log({ lunchpadId, units, orderCreatorWallet, lockedLunchpad, amountToReduce });
+
+      if (lockedLunchpad.availabeUnits - amountToReduce < lockedLunchpad.minUnitsPerOrder) {
         updateStatus['$set'] = { status: LunchpadStatus.NO_UNITS_LEFT };
       }
 
@@ -183,7 +188,10 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const updateStatus = {};
 
-      if (lockedLunchpad.availabeUnits == 0 && amountToAdd > 0) {
+      if (
+        lockedLunchpad.status == LunchpadStatus.NO_UNITS_LEFT &&
+        lockedLunchpad.availabeUnits + amountToAdd >= lockedLunchpad.minUnitsPerOrder
+      ) {
         updateStatus['$set'] = { status: LunchpadStatus.ACTIVE };
       }
 
@@ -272,8 +280,12 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
-  async getOrdersByRoundAndStatuses(roundNumber: number, statuses: LunchpadOrderStatus[]): Promise<LunchpadOrder[]> {
-    return await this.lunchpadOrderModel.find({ roundNumber, status: { $in: statuses } }).exec();
+  async getOrdersByRoundAndStatuses(
+    lunchpadId: string,
+    roundNumber: number,
+    statuses: LunchpadOrderStatus[],
+  ): Promise<LunchpadOrder[]> {
+    return await this.lunchpadOrderModel.find({ lunchpadId, roundNumber, status: { $in: statuses } }).exec();
   }
 
   async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {

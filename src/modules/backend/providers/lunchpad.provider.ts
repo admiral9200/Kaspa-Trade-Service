@@ -416,7 +416,7 @@ export class LunchpadProvider {
   }
 
   async startLunchpadProcessingOrdersIfNeeded(lunchpad: LunchpadEntity) {
-    if (![LunchpadStatus.ACTIVE, LunchpadStatus.STOPPING].includes(lunchpad.status)) {
+    if (![LunchpadStatus.ACTIVE, LunchpadStatus.STOPPING, LunchpadStatus.NO_UNITS_LEFT].includes(lunchpad.status)) {
       return;
     }
 
@@ -473,13 +473,19 @@ export class LunchpadProvider {
 
   private async processOrderAfterStatusChange(order: LunchpadOrder, lunchpad: LunchpadEntity): Promise<LunchpadOrder> {
     let updatedOrder = await this.lunchpadService.setOrderStatusToProcessing(order._id);
+    let updatedLunchpad = lunchpad;
 
     await this.kaspaFacade.processLunchpadOrder(updatedOrder, lunchpad, async (result) => {
       updatedOrder = await this.lunchpadService.updateOrderTransactionsResult(updatedOrder._id, result);
-      if (result.commitTransactionId != updatedOrder.transactions?.commitTransactionId) {
-        await this.lunchpadService.reduceLunchpadTokenCurrentAmount(lunchpad, updatedOrder.totalUnits * lunchpad.tokenPerUnit);
+      if (result.commitTransactionId && !updatedOrder.transactions?.commitTransactionId) {
+        updatedLunchpad = await this.lunchpadService.reduceLunchpadTokenCurrentAmount(
+          updatedLunchpad,
+          updatedOrder.totalUnits * lunchpad.tokenPerUnit,
+        );
       }
     });
+
+    updatedLunchpad = await this.lunchpadService.checkIfLunchpadNeedsStatusChangeAfterOrderCompleted(updatedLunchpad);
 
     return await this.lunchpadService.setOrderCompleted(order._id);
   }

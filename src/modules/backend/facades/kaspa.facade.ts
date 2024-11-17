@@ -131,7 +131,7 @@ export class KaspaFacade {
       await this.getKrc20TokenBalance(lunchpadSenderWallet.address, lunchpad.ticker),
     );
 
-    if (lunchpadSenderWalletTokensAmount != lunchpad.currentTokensAmount) {
+    if (lunchpadSenderWalletTokensAmount < lunchpad.currentTokensAmount) {
       throw new LunchpadWalletTokenBalanceIncorrect(
         lunchpad.ticker,
         lunchpadSenderWallet.address,

@@ -180,9 +180,11 @@ export class LunchpadService {
   }
 
   async reduceLunchpadTokenCurrentAmount(lunchpad: LunchpadEntity, amount: number): Promise<LunchpadEntity> {
-    let result = await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
+    return await this.lunchpadRepository.reduceLunchpadTokenCurrentAmount(lunchpad._id, amount);
+  }
 
-    if (result.availabeUnits < lunchpad.minUnitsPerOrder * lunchpad.tokenPerUnit) {
+  async checkIfLunchpadNeedsStatusChangeAfterOrderCompleted(lunchpad: LunchpadEntity) {
+    if (lunchpad.availabeUnits < lunchpad.minUnitsPerOrder) {
       const roundsData = lunchpad.rounds;
 
       const currentRound = lunchpad.rounds[lunchpad.roundNumber - 1];
@@ -193,14 +195,18 @@ export class LunchpadService {
 
       currentRound.unitsLeft = lunchpad.availabeUnits;
 
-      result = await this.lunchpadRepository.updateLunchpadByStatus(
-        lunchpad._id,
-        { status: LunchpadStatus.SOLD_OUT, rounds: roundsData },
-        LunchpadStatus.NO_UNITS_LEFT,
-      );
+      if (lunchpad.status == LunchpadStatus.NO_UNITS_LEFT) {
+        lunchpad = await this.lunchpadRepository.updateLunchpadByStatus(
+          lunchpad._id,
+          { status: LunchpadStatus.SOLD_OUT, rounds: roundsData },
+          LunchpadStatus.NO_UNITS_LEFT,
+        );
+      } else if (lunchpad.status == LunchpadStatus.STOPPING) {
+        lunchpad = await this.setLunchpadInactiveIfNoOrdersAndNotRunning(lunchpad);
+      }
     }
 
-    return result;
+    return lunchpad;
   }
 
   async setOrderCompleted(orderId: string): Promise<LunchpadOrder> {
@@ -212,7 +218,7 @@ export class LunchpadService {
   }
 
   async startRunningLunchpad(lunchpad: LunchpadEntity) {
-    return await this.lunchpadRepository.setLunchpadIsRunning(lunchpad._id, true, lunchpad.status == LunchpadStatus.STOPPING);
+    return await this.lunchpadRepository.setLunchpadIsRunning(lunchpad._id, true, lunchpad.status);
   }
 
   async stopRunningLunchpad(lunchpadId: string) {
@@ -244,7 +250,7 @@ export class LunchpadService {
   }
 
   async getLunchpadOpenOrders(lunchpad: LunchpadEntity): Promise<LunchpadOrder[]> {
-    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad.roundNumber, [
+    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad._id, lunchpad.roundNumber, [
       LunchpadOrderStatus.WAITING_FOR_KAS,
       LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
       LunchpadOrderStatus.PROCESSING,
@@ -253,7 +259,7 @@ export class LunchpadService {
   }
 
   async getReadyToProcessOrders(lunchpad: LunchpadEntity) {
-    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad.roundNumber, [
+    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad._id, lunchpad.roundNumber, [
       LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
     ]);
   }
