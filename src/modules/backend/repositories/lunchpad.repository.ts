@@ -14,6 +14,8 @@ import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-l
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 
+const WAITING_FOR_KAS_TIME_TO_CHECK = 10 * 60 * 1000;
+
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
   constructor(
@@ -351,5 +353,55 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     const lunchpads = await query.exec();
 
     return { lunchpads, totalCount };
+  }
+
+  /**
+   * Gets all lunchpad orders that are waiting for kas too long
+   */
+  async getLunchpadIdsWithWaitingForKasTooLongOrders(): Promise<string[]> {
+    const now = new Date();
+    const tooLongAgo = new Date(now.getTime() - WAITING_FOR_KAS_TIME_TO_CHECK);
+
+    const lunchpadIds = await this.lunchpadOrderModel.distinct('lunchpadId', {
+      createdAt: { $lte: tooLongAgo },
+      status: LunchpadOrderStatus.WAITING_FOR_KAS,
+    });
+
+    return lunchpadIds;
+  }
+
+  async getOrdersUsedTransactionsForLunchpad(lunchpadId: string) {
+    const orders = await this.lunchpadOrderModel.find(
+      { lunchpadId, userTransactionId: { $exists: true } },
+      { userTransactionId: 1 },
+    );
+    return orders.map((order) => order.userTransactionId).filter((id) => id);
+  }
+
+  async getMatchingwaitingForKasOrderByUnitsAndWallet(
+    lunchpad: LunchpadEntity,
+    units: number,
+    walletAddress: string,
+  ): Promise<LunchpadOrder | null> {
+    return await this.lunchpadOrderModel
+      .findOne({
+        lunchpadId: lunchpad._id,
+        units,
+        wallet: walletAddress,
+        roundNumber: lunchpad.roundNumber,
+        status: LunchpadOrderStatus.WAITING_FOR_KAS,
+      })
+      .sort({ createdAt: 1 })
+      .exec();
+  }
+
+  async getLunchpadWaitingForKasOrders(lunchpadId: string): Promise<LunchpadOrder[]> {
+    return await this.lunchpadOrderModel
+      .find({
+        lunchpadId,
+        status: LunchpadOrderStatus.WAITING_FOR_KAS,
+      })
+      .sort({ createdAt: 1 })
+      .exec();
   }
 }
