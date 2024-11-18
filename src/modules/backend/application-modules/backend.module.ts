@@ -18,10 +18,12 @@ import { BatchMintManagementController } from '../controllers/management/batch-m
 import { BatchMintManagementProvider } from '../providers/management/batch-mint-management.provider';
 import { LunchpadManagementController } from '../controllers/management/lunchpad-management.controller';
 import { LunchpadManagementProvider } from '../providers/management/lunchpad-management.provider';
+import { P2pV2Controller } from '../controllers/p2p-v2.controller';
 
 @Module({
   controllers: [
     P2pController,
+    P2pV2Controller,
     OrdersManagementController,
     LunchpadController,
     LunchpadManagementController,

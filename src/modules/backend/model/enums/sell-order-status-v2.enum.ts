@@ -1,0 +1,5 @@
+export enum SellOrderStatusV2 {
+  LISTED_FOR_SALE = 'LISTED_FOR_SALE',
+  COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
+}

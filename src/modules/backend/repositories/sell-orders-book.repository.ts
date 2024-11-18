@@ -195,18 +195,37 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     try {
       const baseQuery = { status: SellOrderStatus.LISTED_FOR_SALE, ticker };
 
-      let query: any = this.sellOrdersModel.find(baseQuery);
+      const basePipeline: any[] = [
+        { $match: baseQuery }, // Filter first collection
+        {
+          $unionWith: {
+            coll: 'p2p_orders_v2', // Name of the second collection
+            pipeline: [{ $match: baseQuery }, { $addFields: { isDecentralized: true } }], // Filter second collection
+          },
+        },
+      ];
 
+      const pipeline = [...basePipeline];
+
+      // Apply sorting (translate existing sort logic into $sort stage)
       if (sort) {
-        query = this.applySort(query, sort);
+        const sortStage = this.applySortPipeline(sort); // Implement helper to generate $sort stage
+        pipeline.push(sortStage);
       }
 
+      // Apply pagination (translate existing pagination logic into $skip and $limit stages)
       if (pagination) {
-        query = this.applyPagination(query, pagination);
+        const paginationStages = this.applyPaginationPipeline(pagination); // Helper for $skip and $limit
+        pipeline.push(...paginationStages);
       }
 
-      const totalCount = await this.sellOrdersModel.countDocuments(baseQuery);
-      const orders: P2pOrderEntity[] = await query.exec();
+      // Execute the aggregation pipeline
+      const orders: P2pOrderEntity[] = await this.sellOrdersModel.aggregate(pipeline).exec();
+
+      const countPipeline = [...basePipeline, { $count: 'totalCount' }];
+
+      const countResult = await this.sellOrdersModel.aggregate(countPipeline).exec();
+      const totalCount = countResult[0]?.totalCount || 0;
 
       return { orders, totalCount } as any;
     } catch (error) {
