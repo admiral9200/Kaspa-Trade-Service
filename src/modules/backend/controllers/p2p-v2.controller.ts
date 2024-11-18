@@ -61,16 +61,4 @@ export class P2pV2Controller {
   ): Promise<ListedOrderV2Dto> {
     return await this.p2pV2Provider.cancel(sellOrderId, walletInfo.walletAddress);
   }
-
-  // @Post('cancel/:sellOrderId')
-  // async cancelOrder(
-  //   @Param('sellOrderId') sellOrderId: string,
-  //   @Body() body: ConfirmBuyRequestDto,
-  // ): Promise<ConfirmBuyOrderRequestResponseDto> {
-  //   try {
-  //   } catch (error) {
-  //     this.logger.error('Error confirming buy order', error);
-  //     throw error;
-  //   }
-  // }
 }

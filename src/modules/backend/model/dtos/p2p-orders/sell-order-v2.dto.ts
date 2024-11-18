@@ -1,8 +1,8 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNumber, IsString, Min } from 'class-validator';
 
 export class SellOrderV2Dto {
   @IsNumber()
-  @Min(1)
+  @Min(0)
   quantity: number;
 
   @IsString()
