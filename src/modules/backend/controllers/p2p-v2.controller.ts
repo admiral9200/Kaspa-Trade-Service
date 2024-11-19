@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
@@ -9,6 +9,9 @@ import { SellRequestV2ResponseDto } from '../model/dtos/p2p-orders/responses/sel
 import { ListedOrderV2Dto } from '../model/dtos/p2p-orders/listed-order-v2.dto';
 import { GetUserOrdersRequestDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
 import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-response.dto';
+import { SkipGuards } from '../guards/infra/skipGuardsService';
+import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
+import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
 
 @Controller('p2p-v2')
 @UseGuards(JwtWalletAuthGuard)
@@ -64,6 +67,15 @@ export class P2pV2Controller {
     @Param('sellOrderId') sellOrderId: string,
   ): Promise<ListedOrderV2Dto> {
     return await this.p2pV2Provider.cancel(sellOrderId, walletInfo.walletAddress);
+  }
+
+  @Post('sell-orders')
+  @SkipGuards([JwtWalletAuthGuard])
+  async getSellOrders(
+    @Body() body: GetOrdersDto,
+    @Query('ticker') ticker: string,
+  ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+    return await this.p2pV2Provider.getSellOrders(ticker, body);
   }
 
   @Post('user-orders')

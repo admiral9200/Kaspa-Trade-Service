@@ -11,4 +11,5 @@ export interface ListedOrderDto {
   createdAt: Date;
   status?: SellOrderStatus | SellOrderStatusV2;
   isDecentralized?: boolean;
+  sellerWalletAddress?: string;
 }
