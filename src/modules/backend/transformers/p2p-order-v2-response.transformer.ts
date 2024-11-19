@@ -24,6 +24,8 @@ export class P2pOrderV2ResponseTransformer {
       psktSeller: entity.psktSeller,
       psktTransactionId: entity.psktTransactionId,
       status: entity.status,
+      sellerWalletAddress: entity.sellerWalletAddress,
+      isDecentralized: true,
     };
   }
 

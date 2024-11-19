@@ -10,4 +10,6 @@ export interface ListedOrderV2Dto {
   status: SellOrderStatusV2;
   psktSeller: string;
   psktTransactionId: string;
+  sellerWalletAddress?: string;
+  isDecentralized?: boolean;
 }
