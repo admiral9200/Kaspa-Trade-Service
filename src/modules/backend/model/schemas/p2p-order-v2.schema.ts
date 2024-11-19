@@ -48,6 +48,9 @@ export class P2pOrderV2Entity {
 
   @Prop()
   updatedAt?: Date;
+
+  @Prop()
+  feeAmount?: number;
 }
 
 export type OrderV2Document = HydratedDocument<P2pOrderV2Entity>;

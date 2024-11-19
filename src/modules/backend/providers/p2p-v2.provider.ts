@@ -35,7 +35,12 @@ export class P2pV2Provider {
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(orderEntity);
   }
 
-  public async buy(orderId: string, buyerWalletAddress: string, transactionId: string): Promise<ListedOrderV2Dto> {
+  public async buy(
+    orderId: string,
+    buyerWalletAddress: string,
+    transactionId: string,
+    feeAmount: number,
+  ): Promise<ListedOrderV2Dto> {
     if (!transactionId) {
       throw new Error('transactionId is required');
     }
@@ -44,6 +49,7 @@ export class P2pV2Provider {
       orderId,
       buyerWalletAddress,
       transactionId,
+      feeAmount,
     );
 
     const isVerified = await this.kaspaApiService.verifyPaymentTransaction(
@@ -53,8 +59,6 @@ export class P2pV2Provider {
       KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
       true,
     );
-
-    console.log('isVerified', isVerified);
 
     if (!isVerified) {
       const unverifiedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.reopenSellOrder(orderId);
