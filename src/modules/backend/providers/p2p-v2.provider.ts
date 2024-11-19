@@ -11,6 +11,8 @@ import { KaspaApiService } from '../services/kaspa-api/services/kaspa-api.servic
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-response.dto';
 import { GetUserOrdersRequestDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
+import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
+import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
 
 @Injectable()
 export class P2pV2Provider {
@@ -86,12 +88,19 @@ export class P2pV2Provider {
       walletAddress,
     );
 
-    console.log(ordersResponse, 'ordersResponse');
-
     return {
       allTickers: ordersResponse.allTickers,
-      orders: ordersResponse.orders.map((order) => P2pOrderV2ResponseTransformer.transformToUserOrderOrder(order)),
+      orders: ordersResponse.orders.map((order) => P2pOrderV2ResponseTransformer.transformToUserOrder(order)),
       totalCount: ordersResponse.totalCount,
+    };
+  }
+
+  async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
+    const ordersData = await this.p2pOrdersV2Service.getSellOrders(ticker, getSellOrdersDto.sort, getSellOrdersDto.pagination);
+
+    return {
+      orders: ordersData.orders.map((order) => P2pOrderV2ResponseTransformer.transformOrderToListedOrderWithOldDto(order)),
+      totalCount: ordersData.totalCount,
     };
   }
 }

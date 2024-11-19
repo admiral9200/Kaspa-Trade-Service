@@ -81,4 +81,13 @@ export class P2pOrdersV2Service {
 
     return await this.sellOrdersV2Repository.getOrderListWithOldOrdersAndTotalCount(repoFilters, sort, pagination, true);
   }
+
+  async getSellOrders(ticker: string, sort: SortDto, pagination: PaginationDto) {
+    return await this.sellOrdersV2Repository.getOrderListWithOldOrdersAndTotalCount(
+      { tickers: [ticker], statuses: [SellOrderStatusV2.LISTED_FOR_SALE] },
+      sort,
+      pagination,
+      false,
+    );
+  }
 }
