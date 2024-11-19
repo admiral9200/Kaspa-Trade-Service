@@ -22,10 +22,15 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
     super(sellOrderV2Model);
   }
 
-  async updateBuyerAndStatus(sellOrderId: string, buyerWalletAddress: string, transactionId: string): Promise<P2pOrderV2Entity> {
+  async updateBuyerAndStatus(
+    sellOrderId: string,
+    buyerWalletAddress: string,
+    transactionId: string,
+    feeAmount: number,
+  ): Promise<P2pOrderV2Entity> {
     return await this.sellOrderV2Model.findOneAndUpdate(
       { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE },
-      { $set: { buyerWalletAddress, status: SellOrderStatusV2.VERIFYING, buyerTransactionId: transactionId } },
+      { $set: { buyerWalletAddress, status: SellOrderStatusV2.VERIFYING, buyerTransactionId: transactionId, feeAmount } },
       { new: true },
     );
   }
