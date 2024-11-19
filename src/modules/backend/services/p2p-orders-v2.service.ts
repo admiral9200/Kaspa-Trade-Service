@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { SellOrdersV2Repository } from '../repositories/sell-orders-v2.repository';
 import { SellOrderV2Dto } from '../model/dtos/p2p-orders/sell-order-v2.dto';
 import { SellOrderStatusV2 } from '../model/enums/sell-order-status-v2.enum';
+import { GetUserOrdersFiltersDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
+import { SortDto } from '../model/dtos/abstract/sort.dto';
+import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { GetOrderListFiltersDto } from '../model/dtos/p2p-orders/get-order-list-filter.dto';
 
 @Injectable()
 export class P2pOrdersV2Service {
@@ -62,5 +66,19 @@ export class P2pOrdersV2Service {
     }
 
     return result;
+  }
+
+  async getUserOrders(filters: GetUserOrdersFiltersDto, sort: SortDto, pagination: PaginationDto, walletAddress: string) {
+    const repoFilters: GetOrderListFiltersDto = {
+      buyerWalletAddress: filters.isBuyer ? walletAddress : null,
+      sellerWalletAddress: filters.isSeller ? walletAddress : null,
+      endDateTimestamp: filters.endDateTimestamp,
+      startDateTimestamp: filters.startDateTimestamp,
+      statuses: filters.statuses,
+      tickers: filters.tickers,
+      totalPrice: filters.totalPrice,
+    };
+
+    return await this.sellOrdersV2Repository.getOrderListWithOldOrdersAndTotalCount(repoFilters, sort, pagination, true);
   }
 }

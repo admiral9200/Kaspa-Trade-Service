@@ -9,6 +9,8 @@ import { TelegramBotService } from 'src/modules/shared/telegram-notifier/service
 import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
 import { KaspaApiService } from '../services/kaspa-api/services/kaspa-api.service';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-response.dto';
+import { GetUserOrdersRequestDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
 
 @Injectable()
 export class P2pV2Provider {
@@ -74,5 +76,22 @@ export class P2pV2Provider {
     const order: P2pOrderV2Entity = await this.p2pOrdersV2Service.cancelSellOrder(orderId, ownerWalletAddess);
 
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(order);
+  }
+
+  async getUserOrders(userOrdersDto: GetUserOrdersRequestDto, walletAddress: string): Promise<UserOrdersResponseDto> {
+    const ordersResponse = await this.p2pOrdersV2Service.getUserOrders(
+      userOrdersDto.filters,
+      userOrdersDto.sort,
+      userOrdersDto.pagination,
+      walletAddress,
+    );
+
+    console.log(ordersResponse, 'ordersResponse');
+
+    return {
+      allTickers: ordersResponse.allTickers,
+      orders: ordersResponse.orders.map((order) => P2pOrderV2ResponseTransformer.transformToUserOrderOrder(order)),
+      totalCount: ordersResponse.totalCount,
+    };
   }
 }
