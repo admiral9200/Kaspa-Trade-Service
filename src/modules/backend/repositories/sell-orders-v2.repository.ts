@@ -15,10 +15,26 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
     super(sellOrderV2Model);
   }
 
-  async updateBuyerAndCloseSell(sellOrderId: string, buyerWalletAddress: string): Promise<P2pOrderV2Entity> {
+  async updateBuyerAndStatus(sellOrderId: string, buyerWalletAddress: string, transactionId: string): Promise<P2pOrderV2Entity> {
     return await this.sellOrderV2Model.findOneAndUpdate(
       { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE },
-      { $set: { buyerWalletAddress, status: SellOrderStatusV2.COMPLETED } },
+      { $set: { buyerWalletAddress, status: SellOrderStatusV2.VERIFYING, buyerTransactionId: transactionId } },
+      { new: true },
+    );
+  }
+
+  async reopenSellOrder(sellOrderId: string): Promise<P2pOrderV2Entity> {
+    return await this.sellOrderV2Model.findOneAndUpdate(
+      { _id: sellOrderId, status: SellOrderStatusV2.VERIFYING },
+      { $set: { status: SellOrderStatusV2.LISTED_FOR_SALE } },
+      { new: true },
+    );
+  }
+
+  async setOrderToCompleted(sellOrderId: string): Promise<P2pOrderV2Entity> {
+    return await this.sellOrderV2Model.findOneAndUpdate(
+      { _id: sellOrderId, status: SellOrderStatusV2.VERIFYING },
+      { $set: { status: SellOrderStatusV2.COMPLETED } },
       { new: true },
     );
   }

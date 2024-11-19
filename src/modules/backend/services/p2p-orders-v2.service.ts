@@ -24,11 +24,31 @@ export class P2pOrdersV2Service {
     return await this.sellOrdersV2Repository.getById(id);
   }
 
-  async updateBuyerAndCloseSell(orderId: string, buyerWalletAddress: string) {
-    const result = await this.sellOrdersV2Repository.updateBuyerAndCloseSell(orderId, buyerWalletAddress);
+  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string) {
+    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId);
 
     if (!result) {
       throw new Error('Incorrect status for buying an order');
+    }
+
+    return result;
+  }
+
+  async reopenSellOrder(orderId: string) {
+    const result = await this.sellOrdersV2Repository.reopenSellOrder(orderId);
+
+    if (!result) {
+      throw new Error('Incorrect status for reopening an order');
+    }
+
+    return result;
+  }
+
+  async setOrderToCompleted(orderId: string) {
+    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId);
+
+    if (!result) {
+      throw new Error('Incorrect status for completing an order');
     }
 
     return result;

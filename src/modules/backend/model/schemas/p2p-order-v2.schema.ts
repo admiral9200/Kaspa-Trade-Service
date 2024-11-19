@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { SwapTransactionsResult } from '../../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { SellOrderStatusV2 } from '../enums/sell-order-status-v2.enum';
 
 @Schema({
@@ -35,14 +34,14 @@ export class P2pOrderV2Entity {
   @Prop()
   fulfillmentTimestamp?: number;
 
-  @Prop({ type: Object })
-  transactions?: Partial<SwapTransactionsResult>;
-
   @Prop({ required: true, unique: true })
   psktSeller: string;
 
   @Prop({ type: String })
   psktTransactionId: string;
+
+  @Prop({ type: String })
+  buyerTransactionId?: string;
 
   @Prop()
   createdAt?: Date;

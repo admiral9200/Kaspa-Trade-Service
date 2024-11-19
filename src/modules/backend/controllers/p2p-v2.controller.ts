@@ -50,8 +50,9 @@ export class P2pV2Controller {
   async buyToken(
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Param('sellOrderId') sellOrderId: string,
+    @Body('transactionId') transactionId: string,
   ): Promise<ListedOrderV2Dto> {
-    return await this.p2pV2Provider.buy(sellOrderId, walletInfo.walletAddress);
+    return await this.p2pV2Provider.buy(sellOrderId, walletInfo.walletAddress, transactionId);
   }
 
   @Post('cancel/:sellOrderId')

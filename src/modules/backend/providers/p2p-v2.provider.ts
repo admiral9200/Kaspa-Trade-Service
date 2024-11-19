@@ -7,6 +7,8 @@ import { P2pOrderV2ResponseTransformer } from '../transformers/p2p-order-v2-resp
 import { ListedOrderV2Dto } from '../model/dtos/p2p-orders/listed-order-v2.dto';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
+import { KaspaApiService } from '../services/kaspa-api/services/kaspa-api.service';
+import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 
 @Injectable()
 export class P2pV2Provider {
@@ -14,6 +16,7 @@ export class P2pV2Provider {
     private readonly p2pOrdersV2Service: P2pOrdersV2Service,
     private readonly telegramBotService: TelegramBotService,
     private readonly kaspianoBackendApiService: KaspianoBackendApiService,
+    private readonly kaspaApiService: KaspaApiService,
   ) {}
 
   public async createOrder(sellOrderDto: SellOrderV2Dto, walletAddress: string): Promise<SellRequestV2ResponseDto> {
@@ -28,17 +31,42 @@ export class P2pV2Provider {
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(orderEntity);
   }
 
-  public async buy(orderId: string, buyerWalletAddress: string): Promise<ListedOrderV2Dto> {
-    // need to add validation to see if the buyer really bought
-    const order: P2pOrderV2Entity = await this.p2pOrdersV2Service.updateBuyerAndCloseSell(orderId, buyerWalletAddress);
+  public async buy(orderId: string, buyerWalletAddress: string, transactionId: string): Promise<ListedOrderV2Dto> {
+    if (!transactionId) {
+      throw new Error('transactionId is required');
+    }
+
+    const order: P2pOrderV2Entity = await this.p2pOrdersV2Service.updateBuyerAndStatus(
+      orderId,
+      buyerWalletAddress,
+      transactionId,
+    );
+
+    const isVerified = await this.kaspaApiService.verifyPaymentTransaction(
+      transactionId,
+      buyerWalletAddress,
+      order.sellerWalletAddress,
+      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+      true,
+    );
+
+    console.log('isVerified', isVerified);
+
+    if (!isVerified) {
+      const unverifiedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.reopenSellOrder(orderId);
+
+      return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(unverifiedOrder);
+    }
+
+    const completedOrder = await this.p2pOrdersV2Service.setOrderToCompleted(orderId);
 
     // don't await because not important
-    this.telegramBotService.notifyOrderCompleted(order).catch(() => {});
-    this.kaspianoBackendApiService.sendMailAfterSwap(order._id, true).catch((err) => {
+    this.telegramBotService.notifyOrderCompleted(completedOrder).catch(() => {});
+    this.kaspianoBackendApiService.sendMailAfterSwap(completedOrder._id, true).catch((err) => {
       console.error(err);
     });
 
-    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(order);
+    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(completedOrder);
   }
 
   public async cancel(orderId: string, ownerWalletAddess: string): Promise<ListedOrderV2Dto> {
