@@ -51,9 +51,9 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
     );
   }
 
-  async cancelSellOrder(sellOrderId: string, ownerWallet: string): Promise<P2pOrderV2Entity> {
+  async cancelSellOrder(sellOrderId: string): Promise<P2pOrderV2Entity> {
     return await this.sellOrderV2Model.findOneAndUpdate(
-      { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE, sellerWalletAddress: ownerWallet },
+      { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE },
       { $set: { status: SellOrderStatusV2.CANCELED } },
       { new: true },
     );

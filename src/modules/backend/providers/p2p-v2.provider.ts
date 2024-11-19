@@ -13,6 +13,8 @@ import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-resp
 import { GetUserOrdersRequestDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
 import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
+import { SellOrderStatusV2 } from '../model/enums/sell-order-status-v2.enum';
+import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 
 @Injectable()
 export class P2pV2Provider {
@@ -21,6 +23,7 @@ export class P2pV2Provider {
     private readonly telegramBotService: TelegramBotService,
     private readonly kaspianoBackendApiService: KaspianoBackendApiService,
     private readonly kaspaApiService: KaspaApiService,
+    private readonly kasplexApiService: KasplexApiService,
   ) {}
 
   public async createOrder(sellOrderDto: SellOrderV2Dto, walletAddress: string): Promise<SellRequestV2ResponseDto> {
@@ -69,7 +72,7 @@ export class P2pV2Provider {
     const completedOrder = await this.p2pOrdersV2Service.setOrderToCompleted(orderId);
 
     // don't await because not important
-    this.telegramBotService.notifyOrderCompleted(completedOrder).catch(() => {});
+    this.telegramBotService.notifyOrderCompleted(completedOrder, true).catch(() => {});
     this.kaspianoBackendApiService.sendMailAfterSwap(completedOrder._id, true).catch((err) => {
       console.error(err);
     });
@@ -77,11 +80,26 @@ export class P2pV2Provider {
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(completedOrder);
   }
 
-  public async cancel(orderId: string, ownerWalletAddess: string): Promise<ListedOrderV2Dto> {
-    // need to add validation to see if the buyer really bought
-    const order: P2pOrderV2Entity = await this.p2pOrdersV2Service.cancelSellOrder(orderId, ownerWalletAddess);
+  public async cancel(orderId: string): Promise<ListedOrderV2Dto> {
+    const order = await this.p2pOrdersV2Service.getById(orderId);
 
-    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(order);
+    if (order.status != SellOrderStatusV2.LISTED_FOR_SALE) {
+      throw new Error('Invalid status for order');
+    }
+
+    const isOffMarketplace = await this.kasplexApiService.validateMarketplaceOrderOffMarket(
+      order.ticker,
+      order.psktTransactionId,
+      order.sellerWalletAddress,
+    );
+
+    if (!isOffMarketplace) {
+      throw new Error('Order is not off marketplace');
+    }
+
+    const updatedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.cancelSellOrder(orderId);
+
+    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(updatedOrder);
   }
 
   async getUserOrders(userOrdersDto: GetUserOrdersRequestDto, walletAddress: string): Promise<UserOrdersResponseDto> {

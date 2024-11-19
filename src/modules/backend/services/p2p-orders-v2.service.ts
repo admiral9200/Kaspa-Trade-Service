@@ -12,16 +12,19 @@ export class P2pOrdersV2Service {
   constructor(private readonly sellOrdersV2Repository: SellOrdersV2Repository) {}
 
   async create(sellOrderDto: SellOrderV2Dto, walletAddress: string) {
-    return await this.sellOrdersV2Repository.create({
-      pricePerToken: sellOrderDto.pricePerToken,
-      psktSeller: sellOrderDto.psktSeller,
-      quantity: sellOrderDto.quantity,
-      sellerWalletAddress: walletAddress,
-      ticker: sellOrderDto.ticker,
-      totalPrice: sellOrderDto.totalPrice,
-      status: SellOrderStatusV2.LISTED_FOR_SALE,
-      psktTransactionId: sellOrderDto.psktTransactionId,
-    });
+    return await this.sellOrdersV2Repository.createIfNotExists(
+      {
+        pricePerToken: sellOrderDto.pricePerToken,
+        psktSeller: sellOrderDto.psktSeller,
+        quantity: sellOrderDto.quantity,
+        sellerWalletAddress: walletAddress,
+        ticker: sellOrderDto.ticker,
+        totalPrice: sellOrderDto.totalPrice,
+        status: SellOrderStatusV2.LISTED_FOR_SALE,
+        psktTransactionId: sellOrderDto.psktTransactionId,
+      },
+      'psktSeller',
+    );
   }
 
   async getById(id: string) {
@@ -58,8 +61,8 @@ export class P2pOrdersV2Service {
     return result;
   }
 
-  async cancelSellOrder(orderId: string, ownerWallet: string) {
-    const result = await this.sellOrdersV2Repository.cancelSellOrder(orderId, ownerWallet);
+  async cancelSellOrder(orderId: string) {
+    const result = await this.sellOrdersV2Repository.cancelSellOrder(orderId);
 
     if (!result) {
       throw new Error('Incorrect status for canceling an order');

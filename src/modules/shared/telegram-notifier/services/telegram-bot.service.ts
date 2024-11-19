@@ -75,16 +75,21 @@ export class TelegramBotService {
     }
   }
 
-  async notifyOrderCompleted(order: P2pOrderEntity | P2pOrderV2Entity): Promise<void> {
+  async notifyOrderCompleted(order: P2pOrderEntity | P2pOrderV2Entity, isNew = false): Promise<void> {
     if (
       !isEmptyString(this.optionalNotificationApiKey) &&
       !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
     ) {
       try {
-        const comission = Math.max(
-          order.totalPrice * (this.configService.swapCommissionPercentage / 100),
-          Number(MIMINAL_COMMITION) / 1e8,
-        ).toFixed(3);
+        let comission = ((order as P2pOrderV2Entity).feeAmount || 0).toFixed(3);
+
+        if (!isNew) {
+          comission = Math.max(
+            order.totalPrice * (this.configService.swapCommissionPercentage / 100),
+            Number(MIMINAL_COMMITION) / 1e8,
+          ).toFixed(3);
+        }
+
         let message = TelegramBotService.escapeMarkdown(
           `Order completed.^n^Total Kaspa: ${order.totalPrice}^n^Tokens: ${order.quantity} ${order.ticker}^n^Commission: ${comission}`,
         );

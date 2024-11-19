@@ -21,6 +21,21 @@ export abstract class BaseRepository<T> {
     return this.model.create([data], { session }).then((docs) => docs[0]);
   }
 
+  async createIfNotExists(data: T, field: keyof T, session?: ClientSession): Promise<T> {
+    return (await this.model
+      .findOneAndUpdate(
+        { [field]: data[field] } as Record<string, any>,
+        { $setOnInsert: data },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+          session,
+        },
+      )
+      .exec()) as T;
+  }
+
   async count(session?: ClientSession): Promise<number> {
     return this.model.estimatedDocumentCount().session(session);
   }
