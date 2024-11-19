@@ -55,4 +55,3 @@ export class P2pOrderV2Entity {
 
 export type OrderV2Document = HydratedDocument<P2pOrderV2Entity>;
 export const P2pOrderV2Schema = SchemaFactory.createForClass(P2pOrderV2Entity);
-P2pOrderV2Schema.index({ ticker: 1, status: 1 });
