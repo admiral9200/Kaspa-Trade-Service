@@ -118,7 +118,12 @@ export class P2pV2Provider {
   }
 
   async getSellOrders(ticker: string, getSellOrdersDto: GetOrdersDto): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
-    const ordersData = await this.p2pOrdersV2Service.getSellOrders(ticker, getSellOrdersDto.sort, getSellOrdersDto.pagination);
+    const ordersData = await this.p2pOrdersV2Service.getSellOrders(
+      ticker,
+      getSellOrdersDto.sort,
+      getSellOrdersDto.pagination,
+      getSellOrdersDto.completedOrders,
+    );
 
     return {
       orders: ordersData.orders.map((order) => P2pOrderV2ResponseTransformer.transformOrderToListedOrderWithOldDto(order)),

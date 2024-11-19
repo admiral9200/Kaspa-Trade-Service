@@ -1,5 +1,5 @@
 import { SortDto } from '../abstract/sort.dto';
-import { IsOptional, ValidateNested } from 'class-validator';
+import { IsBoolean, IsOptional, ValidateNested } from 'class-validator';
 import { PaginationDto } from '../abstract/pagination.dto';
 import { Type } from 'class-transformer';
 import { SortDirection } from '../../enums/sort-direction.enum';
@@ -19,6 +19,10 @@ export class GetOrdersDto {
   pagination: PaginationDto = {
     limit: PAGINATION_LIMIT_DEFAULT,
   };
+
+  @IsOptional()
+  @IsBoolean()
+  completedOrders?: boolean;
 
   constructor() {
     this.sort = new SortDto();
