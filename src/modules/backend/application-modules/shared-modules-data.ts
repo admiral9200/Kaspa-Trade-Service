@@ -35,10 +35,15 @@ import { BatchMintEntity, BatchMintEntitySchema } from '../model/schemas/batch-m
 import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
 import { UserRoleService } from '../services/user-role.service';
 import { PodJobProvider } from '../providers/pod-job-provider';
+import { P2pV2Provider } from '../providers/p2p-v2.provider';
+import { P2pOrdersV2Service } from '../services/p2p-orders-v2.service';
+import { P2pOrderV2Entity, P2pOrderV2Schema } from '../model/schemas/p2p-order-v2.schema';
+import { SellOrdersV2Repository } from '../repositories/sell-orders-v2.repository';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
   P2pProvider,
+  P2pV2Provider,
   LunchpadProvider,
   BatchMintProvider,
   PodJobProvider,
@@ -48,6 +53,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Services
   P2pOrdersService,
+  P2pOrdersV2Service,
   KaspaNetworkActionsService,
   KaspaNetworkTransactionsManagerService,
   KaspaNetworkConnectionManagerService,
@@ -65,6 +71,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Repositories
   SellOrdersBookRepository,
+  SellOrdersV2Repository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
   BatchMintRepository,
@@ -85,6 +92,7 @@ export const BASE_IMPORTS = [
   MongooseModule.forFeature(
     [
       { name: P2pOrderEntity.name, schema: P2pOrderSchema },
+      { name: P2pOrderV2Entity.name, schema: P2pOrderV2Schema },
       { name: TemporaryWalletsSequence.name, schema: TemporaryWalletsSequenceSchema },
       { name: LunchpadEntity.name, schema: LunchpadEntitySchema },
       { name: LunchpadOrder.name, schema: LunchpadOrderSchema },

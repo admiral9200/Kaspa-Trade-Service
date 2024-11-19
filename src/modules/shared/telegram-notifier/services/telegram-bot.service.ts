@@ -7,6 +7,7 @@ import { P2pOrderEntity } from 'src/modules/backend/model/schemas/p2p-order.sche
 import { isEmptyString } from 'src/modules/backend/utils/object.utils';
 import { MIMINAL_COMMITION } from 'src/modules/backend/services/kaspa-network/kaspa-network-actions.service';
 import { BatchMintEntity } from 'src/modules/backend/model/schemas/batch-mint.schema';
+import { P2pOrderV2Entity } from 'src/modules/backend/model/schemas/p2p-order-v2.schema';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -74,7 +75,7 @@ export class TelegramBotService {
     }
   }
 
-  async notifyOrderCompleted(order: P2pOrderEntity): Promise<void> {
+  async notifyOrderCompleted(order: P2pOrderEntity | P2pOrderV2Entity): Promise<void> {
     if (
       !isEmptyString(this.optionalNotificationApiKey) &&
       !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)

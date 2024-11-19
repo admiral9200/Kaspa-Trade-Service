@@ -1,14 +1,13 @@
 import { SellOrderStatusV2 } from '../../enums/sell-order-status-v2.enum';
-import { SellOrderStatus } from '../../enums/sell-order-status.enum';
 
-export interface ListedOrderDto {
+export interface ListedOrderV2Dto {
   orderId: string;
   pricePerToken: number;
   quantity: number;
   ticker: string;
   totalPrice: number;
-  expiresAt: Date;
   createdAt: Date;
-  status?: SellOrderStatus | SellOrderStatusV2;
-  isDecentralized?: boolean;
+  status: SellOrderStatusV2;
+  psktSeller: string;
+  psktTransactionId: string;
 }

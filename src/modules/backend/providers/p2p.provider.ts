@@ -52,6 +52,7 @@ export class P2pProvider {
     getSellOrdersRequestDto: GetOrdersDto,
   ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
+
     return {
       orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
       totalCount,

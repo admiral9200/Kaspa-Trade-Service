@@ -36,6 +36,10 @@ export abstract class BaseRepository<T> {
     return this.model.findOne(filter).session(session).exec();
   }
 
+  async getById(id: string, session?: ClientSession): Promise<T | null> {
+    return await this.model.findById(id).session(session).exec();
+  }
+
   async updateByOne(
     field: keyof T,
     value: any,
@@ -76,5 +80,31 @@ export abstract class BaseRepository<T> {
     query = query.skip(pagination.offset);
     query = query.limit(pagination.limit);
     return query;
+  }
+
+  protected applySortPipeline(sort: SortDto = { direction: SortDirection.DESC }, defaultSortField: string = 'createdAt'): any {
+    if (!sort || isEmpty(sort)) {
+      sort = { direction: SortDirection.DESC };
+    }
+
+    const sortField = sort.field || defaultSortField;
+    const sortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
+
+    return { $sort: { [sortField]: sortOrder } };
+  }
+
+  protected applyPaginationPipeline(pagination?: PaginationDto): any[] {
+    if (!pagination || isEmpty(pagination)) {
+      pagination = { limit: 10, offset: 0 };
+    }
+
+    const stages: any[] = [];
+    if (pagination.offset) {
+      stages.push({ $skip: pagination.offset });
+    }
+    if (pagination.limit) {
+      stages.push({ $limit: pagination.limit });
+    }
+    return stages;
   }
 }
