@@ -52,8 +52,6 @@ export class P2pV2Provider {
       true,
     );
 
-    console.log('isVerified', isVerified);
-
     if (!isVerified) {
       const unverifiedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.reopenSellOrder(orderId);
 
@@ -85,8 +83,6 @@ export class P2pV2Provider {
       userOrdersDto.pagination,
       walletAddress,
     );
-
-    console.log(ordersResponse, 'ordersResponse');
 
     return {
       allTickers: ordersResponse.allTickers,
