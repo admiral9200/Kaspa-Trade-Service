@@ -12,24 +12,27 @@ export class P2pOrdersV2Service {
   constructor(private readonly sellOrdersV2Repository: SellOrdersV2Repository) {}
 
   async create(sellOrderDto: SellOrderV2Dto, walletAddress: string) {
-    return await this.sellOrdersV2Repository.create({
-      pricePerToken: sellOrderDto.pricePerToken,
-      psktSeller: sellOrderDto.psktSeller,
-      quantity: sellOrderDto.quantity,
-      sellerWalletAddress: walletAddress,
-      ticker: sellOrderDto.ticker,
-      totalPrice: sellOrderDto.totalPrice,
-      status: SellOrderStatusV2.LISTED_FOR_SALE,
-      psktTransactionId: sellOrderDto.psktTransactionId,
-    });
+    return await this.sellOrdersV2Repository.createIfNotExists(
+      {
+        pricePerToken: sellOrderDto.pricePerToken,
+        psktSeller: sellOrderDto.psktSeller,
+        quantity: sellOrderDto.quantity,
+        sellerWalletAddress: walletAddress,
+        ticker: sellOrderDto.ticker,
+        totalPrice: sellOrderDto.totalPrice,
+        status: SellOrderStatusV2.LISTED_FOR_SALE,
+        psktTransactionId: sellOrderDto.psktTransactionId,
+      },
+      'psktSeller',
+    );
   }
 
   async getById(id: string) {
     return await this.sellOrdersV2Repository.getById(id);
   }
 
-  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string, feeAmount: number) {
-    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId, feeAmount);
+  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string) {
+    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId);
 
     if (!result) {
       throw new Error('Incorrect status for buying an order');
@@ -48,8 +51,8 @@ export class P2pOrdersV2Service {
     return result;
   }
 
-  async setOrderToCompleted(orderId: string) {
-    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId);
+  async setOrderToCompleted(orderId: string, commission: number = 0) {
+    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId, commission);
 
     if (!result) {
       throw new Error('Incorrect status for completing an order');
@@ -58,8 +61,8 @@ export class P2pOrdersV2Service {
     return result;
   }
 
-  async cancelSellOrder(orderId: string, ownerWallet: string) {
-    const result = await this.sellOrdersV2Repository.cancelSellOrder(orderId, ownerWallet);
+  async cancelSellOrder(orderId: string) {
+    const result = await this.sellOrdersV2Repository.cancelSellOrder(orderId);
 
     if (!result) {
       throw new Error('Incorrect status for canceling an order');
@@ -82,9 +85,9 @@ export class P2pOrdersV2Service {
     return await this.sellOrdersV2Repository.getOrderListWithOldOrdersAndTotalCount(repoFilters, sort, pagination, true);
   }
 
-  async getSellOrders(ticker: string, sort: SortDto, pagination: PaginationDto) {
+  async getSellOrders(ticker: string, sort: SortDto, pagination: PaginationDto, completedOrders: boolean = false) {
     return await this.sellOrdersV2Repository.getOrderListWithOldOrdersAndTotalCount(
-      { tickers: [ticker], statuses: [SellOrderStatusV2.LISTED_FOR_SALE] },
+      { tickers: [ticker], statuses: [completedOrders ? SellOrderStatusV2.COMPLETED : SellOrderStatusV2.LISTED_FOR_SALE] },
       sort,
       pagination,
       false,

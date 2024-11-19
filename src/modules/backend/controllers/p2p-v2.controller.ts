@@ -20,24 +20,6 @@ export class P2pV2Controller {
     private readonly p2pV2Provider: P2pV2Provider,
     private readonly logger: AppLogger,
   ) {}
-
-  // @Post('getSellOrders')
-  // @SkipGuards([JwtWalletAuthGuard])
-  // async getOrders(
-  //   @Body() body: GetOrdersDto,
-  //   @Query('ticker') ticker: string,
-  // ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
-  //   try {
-  //     if (!ticker) {
-  //       throw new HttpException('Ticker is required', HttpStatus.BAD_REQUEST);
-  //     }
-  //     return await this.p2pProvider.listOrders(ticker, body);
-  //   } catch (error) {
-  //     this.logger.error('Error getting sell orders', error);
-  //     throw error;
-  //   }
-  // }
-
   @Post()
   async createSellOrder(
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
@@ -56,9 +38,8 @@ export class P2pV2Controller {
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Param('sellOrderId') sellOrderId: string,
     @Body('transactionId') transactionId: string,
-    @Body('feeAmount') feeAmount: number,
   ): Promise<ListedOrderV2Dto> {
-    return await this.p2pV2Provider.buy(sellOrderId, walletInfo.walletAddress, transactionId, feeAmount);
+    return await this.p2pV2Provider.buy(sellOrderId, walletInfo.walletAddress, transactionId);
   }
 
   @Post('cancel/:sellOrderId')
@@ -66,7 +47,7 @@ export class P2pV2Controller {
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Param('sellOrderId') sellOrderId: string,
   ): Promise<ListedOrderV2Dto> {
-    return await this.p2pV2Provider.cancel(sellOrderId, walletInfo.walletAddress);
+    return await this.p2pV2Provider.cancel(sellOrderId);
   }
 
   @Post('sell-orders')
