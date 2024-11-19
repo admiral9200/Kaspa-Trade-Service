@@ -31,8 +31,8 @@ export class P2pOrdersV2Service {
     return await this.sellOrdersV2Repository.getById(id);
   }
 
-  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string, feeAmount: number) {
-    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId, feeAmount);
+  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string) {
+    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId);
 
     if (!result) {
       throw new Error('Incorrect status for buying an order');
@@ -51,8 +51,8 @@ export class P2pOrdersV2Service {
     return result;
   }
 
-  async setOrderToCompleted(orderId: string) {
-    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId);
+  async setOrderToCompleted(orderId: string, commission: number = 0) {
+    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId, commission);
 
     if (!result) {
       throw new Error('Incorrect status for completing an order');

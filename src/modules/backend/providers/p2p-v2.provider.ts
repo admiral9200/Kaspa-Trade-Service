@@ -15,6 +15,7 @@ import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
 import { SellOrderStatusV2 } from '../model/enums/sell-order-status-v2.enum';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
+import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 
 @Injectable()
 export class P2pV2Provider {
@@ -24,6 +25,7 @@ export class P2pV2Provider {
     private readonly kaspianoBackendApiService: KaspianoBackendApiService,
     private readonly kaspaApiService: KaspaApiService,
     private readonly kasplexApiService: KasplexApiService,
+    private readonly config: AppConfigService,
   ) {}
 
   public async createOrder(sellOrderDto: SellOrderV2Dto, walletAddress: string): Promise<SellRequestV2ResponseDto> {
@@ -38,12 +40,7 @@ export class P2pV2Provider {
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(orderEntity);
   }
 
-  public async buy(
-    orderId: string,
-    buyerWalletAddress: string,
-    transactionId: string,
-    feeAmount: number,
-  ): Promise<ListedOrderV2Dto> {
+  public async buy(orderId: string, buyerWalletAddress: string, transactionId: string): Promise<ListedOrderV2Dto> {
     if (!transactionId) {
       throw new Error('transactionId is required');
     }
@@ -52,24 +49,27 @@ export class P2pV2Provider {
       orderId,
       buyerWalletAddress,
       transactionId,
-      feeAmount,
     );
 
-    const isVerified = await this.kaspaApiService.verifyPaymentTransaction(
+    const isVerifiedResult = await this.kaspaApiService.verifyPaymentTransactionAndGetCommission(
       transactionId,
       buyerWalletAddress,
       order.sellerWalletAddress,
       KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
       true,
+      this.config.commitionWalletAddress,
     );
 
-    if (!isVerified) {
+    if (!isVerifiedResult.isVerified) {
       const unverifiedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.reopenSellOrder(orderId);
 
       return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(unverifiedOrder);
     }
 
-    const completedOrder = await this.p2pOrdersV2Service.setOrderToCompleted(orderId);
+    const completedOrder = await this.p2pOrdersV2Service.setOrderToCompleted(
+      orderId,
+      KaspaNetworkActionsService.SompiToNumber(isVerifiedResult.commission || 0n),
+    );
 
     // don't await because not important
     this.telegramBotService.notifyOrderCompleted(completedOrder, true).catch(() => {});
