@@ -55,7 +55,7 @@ export class P2pV2Provider {
       transactionId,
       buyerWalletAddress,
       order.sellerWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
       true,
       this.config.commitionWalletAddress,
     );

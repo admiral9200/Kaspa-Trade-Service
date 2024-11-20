@@ -293,7 +293,7 @@ export class LunchpadProvider {
       };
     }
 
-    if (lunchpad.status != LunchpadStatus.ACTIVE) {
+    if (![LunchpadStatus.ACTIVE, LunchpadStatus.SOLD_OUT].includes(lunchpad.status)) {
       return {
         success: false,
         errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
@@ -454,7 +454,7 @@ export class LunchpadProvider {
       transactionId,
       userWalletAddress,
       lunchpadReceiverWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit),
     );
 
     if (!isTransactionVerified) {
@@ -689,7 +689,7 @@ export class LunchpadProvider {
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
           lunchpad.senderWalletSequenceId,
           lunchpad.ownerWallet,
-          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
         );
       } else if (walletType === LunchpadWalletType.RECEIVER) {
         const commission = await this.kaspaFacade.getLunchpadComission(lunchpad.receiverWalletSequenceId);
@@ -697,7 +697,7 @@ export class LunchpadProvider {
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
           lunchpad.receiverWalletSequenceId,
           lunchpad.ownerWallet,
-          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
           commission,
         );
       } else {

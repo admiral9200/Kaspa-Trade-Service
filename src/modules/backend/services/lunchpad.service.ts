@@ -102,7 +102,7 @@ export class LunchpadService {
     const updatedLunchpad = await this.lunchpadRepository.updateLunchpadByStatus(
       lunchpad._id,
       { status: LunchpadStatus.STOPPING },
-      LunchpadStatus.ACTIVE,
+      lunchpad.status === LunchpadStatus.SOLD_OUT ? LunchpadStatus.SOLD_OUT : LunchpadStatus.ACTIVE,
     );
 
     return await this.setLunchpadInactiveIfNoOrdersAndNotRunning(updatedLunchpad);
