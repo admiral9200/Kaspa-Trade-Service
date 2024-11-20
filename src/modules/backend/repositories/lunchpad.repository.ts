@@ -13,6 +13,7 @@ import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc
 import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
@@ -43,6 +44,44 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     } catch (error) {
       if (!this.isLunchpadInvalidStatusUpdateError(error)) {
         console.error(`Error updating to status for lunchpad by ID(${id}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
+  async updateLunchpadByOwnerAndStatus(
+    id: string,
+    data: Partial<LunchpadEntity>,
+    requiredStatuses: LunchpadStatus[],
+    ownerWalletAddress: string,
+    session?: ClientSession,
+  ): Promise<LunchpadEntity> {
+    try {
+      const result = await super.updateByOne(
+        '_id',
+        id,
+        data,
+        { status: { $in: requiredStatuses }, ownerWallet: ownerWalletAddress },
+        session,
+      );
+
+      if (!result) {
+        console.log(
+          'Failed updateing lunchpad by owner, requested status: ' +
+            requiredStatuses.join(requiredStatuses.join(',')) +
+            ', owner: ' +
+            ownerWalletAddress +
+            ', id: ' +
+            id,
+        );
+        throw new InvalidStatusForLunchpadUpdateError();
+      }
+
+      return result;
+    } catch (error) {
+      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+        console.error(`Error updating lunchpad by ID(${id}):`, error);
       }
 
       throw error;
@@ -96,6 +135,28 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     return error instanceof InvalidStatusForLunchpadUpdateError || this.isDocumentTransactionLockedError(error);
   }
 
+  async getWalletBoughtUntisForLunchpad(lunchpadId: string, walletAddress: string): Promise<number> {
+    const result = await this.lunchpadOrderModel
+      .aggregate([
+        {
+          $match: {
+            lunchpadId,
+            userWalletAddress: walletAddress,
+            status: { $ne: LunchpadOrderStatus.TOKENS_NOT_SENT },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalUnits: { $sum: '$totalUnits' },
+          },
+        },
+      ])
+      .exec();
+
+    return result[0]?.totalUnits || 0;
+  }
+
   async createLunchpadOrderAndLockLunchpadQty(
     lunchpadId: string,
     units: number,
@@ -116,7 +177,21 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
         throw new Error('Lunchpad not found');
       }
 
-      const amountToReduce = Math.min(units, lockedLunchpad.availabeUnits);
+      let amountToReduce = Math.min(units, lockedLunchpad.availabeUnits);
+
+      if (lockedLunchpad.maxUnitsPerWallet) {
+        const walletUnits = await this.getWalletBoughtUntisForLunchpad(lockedLunchpad.id, orderCreatorWallet);
+
+        console.log('getWalletBoughtUntisForLunchpad', walletUnits);
+
+        const remainingUnitsAvailable = lockedLunchpad.maxUnitsPerWallet - walletUnits;
+
+        if (remainingUnitsAvailable <= 0) {
+          throw new LunchpadNotEnoughUserAvailableQtyError(lockedLunchpad._id, orderCreatorWallet);
+        }
+
+        amountToReduce = Math.min(amountToReduce, remainingUnitsAvailable);
+      }
 
       if (!amountToReduce) {
         throw new LunchpadNotEnoughAvailableQtyError(lockedLunchpad._id);

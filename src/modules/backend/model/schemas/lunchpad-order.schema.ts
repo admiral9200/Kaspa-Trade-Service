@@ -13,7 +13,7 @@ export class LunchpadOrder {
   _id?: string;
 
   @Prop({ required: true })
-  lunchpadId: string; // Index
+  lunchpadId: string;
 
   @Prop({ required: true })
   totalUnits: number;
@@ -27,7 +27,7 @@ export class LunchpadOrder {
   @Prop({ required: true })
   roundNumber: number;
 
-  @Prop({ unique: true, sparse: true }) // Unique for not null
+  @Prop({ unique: true, sparse: true })
   userTransactionId?: string;
 
   @Prop({ type: Array })
@@ -48,3 +48,5 @@ export class LunchpadOrder {
 
 export type LunchpadOrderDocument = HydratedDocument<LunchpadOrder>;
 export const LunchpadOrderSchema = SchemaFactory.createForClass(LunchpadOrder);
+
+LunchpadOrderSchema.index({ lunchpadId: 1, userWalletAddress: 1, status: 1 });
