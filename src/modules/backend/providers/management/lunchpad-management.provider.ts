@@ -31,23 +31,23 @@ export class LunchpadManagementProvider {
       throw new UnauthorizedException();
     }
 
-    const batchMint = await this.lunchpadService.getById(id);
+    const lunchpad = await this.lunchpadService.getById(id);
 
     let walletSequenceId = null;
 
     if (walletType == LunchpadWalletType.RECEIVER) {
-      walletSequenceId = batchMint.receiverWalletSequenceId;
+      walletSequenceId = lunchpad.receiverWalletSequenceId;
     } else if (walletType == LunchpadWalletType.SENDER) {
-      walletSequenceId = batchMint.senderWalletSequenceId;
+      walletSequenceId = lunchpad.senderWalletSequenceId;
     } else {
       throw new Error('Wallet not found');
     }
 
     const wallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
-    await this.lunchpadService.setWalletKeyExposedBy(batchMint, viewerWallet, walletType);
+    await this.lunchpadService.setWalletKeyExposedBy(lunchpad, viewerWallet, walletType);
 
     let message = TelegramBotService.escapeMarkdown(
-      `\nA private key requested for lunchpad ${wallet} wallet: ${batchMint._id.toString()}\n\nAdmin wallet:\n${viewerWallet}\n\nPrivate key: ^^^PRIVATE^^^`,
+      `\nA private key requested for lunchpad ${lunchpad._id.toString()}\n\nwallet: ${walletType}\n\nAdmin wallet:\n${viewerWallet}\n\nPrivate key: ^^^PRIVATE^^^`,
     );
 
     message = message.replace('^^^PRIVATE^^^', TelegramBotService.formatCodeBlock(wallet.privateKey.toString()));
