@@ -8,6 +8,7 @@ export const SERVICE_TYPE: ServiceTypeEnum = (process.env.SERVICE_TYPE || Servic
 
 export const PAGINATION_LIMIT_DEFAULT = 10;
 export const PAGINATION_LIMIT_MAX = 50;
+export const WALLET_ADDRESS_VALIDATION_REGEX = /^(kaspa|kaspatest):(q|p)[a-z0-9]{54,90}$/;
 
 export const ERROR_CODES = {
   GENERAL: {
@@ -31,6 +32,7 @@ export const ERROR_CODES = {
     LUNCHPAD_HAVE_OPEN_ORDERS: 20011,
     INVALID_WALLET_TYPE: 20012,
     WALLET_NOT_IN_WHITELIST: 20013,
+    LUNCHPAD_WALLET_UNITS_EXCEEDS: 20014,
   },
   BATCH_MINT: {
     INVALID_KASPA_AMOUNT: 30001,

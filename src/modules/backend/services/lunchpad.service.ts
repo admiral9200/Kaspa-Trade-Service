@@ -165,14 +165,6 @@ export class LunchpadService {
     );
   }
 
-  async setLowFeeErrorStatus(orderId: string): Promise<LunchpadOrder> {
-    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
-      orderId,
-      LunchpadOrderStatus.WAITING_FOR_LOW_FEE,
-      LunchpadOrderStatus.PROCESSING,
-    );
-  }
-
   async setProcessingError(orderId: string, error: string): Promise<LunchpadOrder> {
     return await this.lunchpadRepository.transitionLunchpadOrderStatus(
       orderId,

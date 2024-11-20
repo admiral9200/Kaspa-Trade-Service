@@ -83,6 +83,9 @@ export class LunchpadEntity {
   whitelistWalletAddresses?: string[];
 
   @Prop()
+  maxUnitsPerWallet?: number;
+
+  @Prop()
   createdAt?: Date;
 
   @Prop()

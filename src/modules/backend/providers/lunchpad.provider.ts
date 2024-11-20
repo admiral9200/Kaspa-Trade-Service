@@ -18,6 +18,7 @@ import { ImportantPromisesManager } from '../important-promises-manager/importan
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
+import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 
 @Injectable()
 export class LunchpadProvider {
@@ -385,17 +386,24 @@ export class LunchpadProvider {
         lunchpadOrder: result.lunchpadOrder,
       };
     } catch (error) {
-      if (!(error instanceof LunchpadNotEnoughAvailableQtyError)) {
+      if (!(error instanceof LunchpadNotEnoughAvailableQtyError || error instanceof LunchpadNotEnoughUserAvailableQtyError)) {
         this.logger.error('Failed to create lunchpad order');
         this.logger.error(error, error?.stack, error?.meta);
       }
 
+      let errorCode = ERROR_CODES.GENERAL.UNKNOWN_ERROR;
+
+      if (error instanceof LunchpadNotEnoughAvailableQtyError) {
+        errorCode = ERROR_CODES.LUNCHPAD.LUNCHPAD_UNITS_EXCEEDS;
+      }
+
+      if (error instanceof LunchpadNotEnoughUserAvailableQtyError) {
+        errorCode = ERROR_CODES.LUNCHPAD.LUNCHPAD_WALLET_UNITS_EXCEEDS;
+      }
+
       return {
         success: false,
-        errorCode:
-          error instanceof LunchpadNotEnoughAvailableQtyError
-            ? ERROR_CODES.LUNCHPAD.LUNCHPAD_UNITS_EXCEEDS
-            : ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        errorCode,
         lunchpadOrder: null,
         lunchpad: lunchpad,
       };

@@ -65,6 +65,7 @@ export class LunchpadController {
             result.krc20TokensAmount,
             result.requiredKaspa,
             result.openOrders,
+            true,
           )
         : null,
       errorCode: result.errorCode,
@@ -87,6 +88,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             null,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
@@ -109,6 +112,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             null,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
@@ -131,6 +136,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             result.krc20TokensAmount,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
@@ -153,6 +160,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             result.krc20TokensAmount,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
@@ -175,6 +184,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             result.krc20TokensAmount,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
@@ -198,6 +209,8 @@ export class LunchpadController {
             result.senderWalletAddress,
             result.krc20TokensAmount,
             result.requiredKaspa,
+            result.openOrders,
+            true,
           )
         : null,
     };
