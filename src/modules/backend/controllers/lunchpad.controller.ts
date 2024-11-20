@@ -15,6 +15,7 @@ import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
+import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -71,11 +72,33 @@ export class LunchpadController {
   }
 
   @Post('create')
-  async createLunchpadOrder(
+  async createLunchpad(
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Body() body: CreateLunchpadRequestDto,
   ): Promise<ClientSideLunchpadWithStatus> {
     const result = await this.lunchpadProvider.createLunchpad(body, walletInfo.walletAddress);
+
+    return {
+      success: result.success,
+      lunchpad: result.lunchpad
+        ? LunchpadTransformer.transformLunchpadDataToClientSide(
+            result.lunchpad,
+            result.walletAddress,
+            result.senderWalletAddress,
+            null,
+            result.requiredKaspa,
+          )
+        : null,
+    };
+  }
+
+  @Post(':id/update')
+  async updateLunchpad(
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+    @Param('id') id: string,
+    @Body() body: UpdateLunchpadRequestDto,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.updateLunchpad(id, body, walletInfo.walletAddress);
 
     return {
       success: result.success,

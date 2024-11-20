@@ -77,6 +77,12 @@ export class LunchpadEntity {
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
 
   @Prop()
+  useWhitelist?: boolean;
+
+  @Prop({ type: Array })
+  whitelistWalletAddresses?: string[];
+
+  @Prop()
   createdAt?: Date;
 
   @Prop()

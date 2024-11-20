@@ -49,6 +49,44 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     }
   }
 
+  async updateLunchpadByOwnerAndStatus(
+    id: string,
+    data: Partial<LunchpadEntity>,
+    requiredStatuses: LunchpadStatus[],
+    ownerWalletAddress: string,
+    session?: ClientSession,
+  ): Promise<LunchpadEntity> {
+    try {
+      const result = await super.updateByOne(
+        '_id',
+        id,
+        data,
+        { status: { $in: requiredStatuses }, ownerWallet: ownerWalletAddress },
+        session,
+      );
+
+      if (!result) {
+        console.log(
+          'Failed updateing lunchpad by owner, requested status: ' +
+            requiredStatuses.join(requiredStatuses.join(',')) +
+            ', owner: ' +
+            ownerWalletAddress +
+            ', id: ' +
+            id,
+        );
+        throw new InvalidStatusForLunchpadUpdateError();
+      }
+
+      return result;
+    } catch (error) {
+      if (!this.isLunchpadInvalidStatusUpdateError(error)) {
+        console.error(`Error updating lunchpad by ID(${id}):`, error);
+      }
+
+      throw error;
+    }
+  }
+
   async stopLunchpadIfNotRunning(lunchpadId: string, roundsData: LunchpadRound[]): Promise<LunchpadEntity> {
     return await super.updateByOne(
       '_id',
