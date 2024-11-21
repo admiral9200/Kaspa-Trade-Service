@@ -279,4 +279,15 @@ export class LunchpadService {
   ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
     return await this.lunchpadRepository.getLunchpadList(filters, sort, pagination, walletAddress);
   }
+
+  async getOrdersUsedTransactionsForLunchpad(lunchpadId: string) {
+    return await this.lunchpadRepository.getOrdersUsedTransactionsForLunchpad(lunchpadId);
+  }
+
+  async getLunchpadIdsWithWaitingForKasTooLongOrders(): Promise<string[]> {
+    return await this.lunchpadRepository.getLunchpadIdsWithWaitingForKasTooLongOrders();
+  }
+  async getLunchpadWaitingForKasOrders(lunchpad: LunchpadEntity): Promise<LunchpadOrder[]> {
+    return await this.lunchpadRepository.getLunchpadWaitingForKasOrders(lunchpad._id);
+  }
 }

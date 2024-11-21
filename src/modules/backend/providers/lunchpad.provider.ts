@@ -17,6 +17,7 @@ import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { ImportantPromisesManager } from '../important-promises-manager/important-promises-manager';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
+import * as _ from 'lodash';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
 import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 
@@ -736,5 +737,105 @@ export class LunchpadProvider {
       lunchpadListDto.pagination,
       walletAddress,
     );
+  }
+
+  // ===============================================================
+  // CRON JOB ACTIONS
+  // ===============================================================
+  async handleWaitingKasLunchpadOrders() {
+    const lunchpdIds = await this.lunchpadService.getLunchpadIdsWithWaitingForKasTooLongOrders();
+
+    if (lunchpdIds.length > 0) {
+      this.logger.info(`Handling waiting for kas lunchpads - ${lunchpdIds.length} lunchpads with orders found`);
+    }
+
+    for (const lunchpdId of lunchpdIds) {
+      try {
+        await this.handleLunchpadWaitingForKasOrders(lunchpdId);
+      } catch (error) {
+        console.error('Failed in handling waiting for token orders', error);
+      }
+    }
+  }
+
+  private async handleLunchpadWaitingForKasOrders(lunchpadId: string) {
+    const lunchpad = await this.lunchpadService.getById(lunchpadId);
+    if (!lunchpad) {
+      return;
+    }
+
+    let waitingForKasOrders = await this.lunchpadService.getLunchpadWaitingForKasOrders(lunchpad);
+    const usedTransactions = await this.lunchpadService.getOrdersUsedTransactionsForLunchpad(lunchpadId);
+    const receiverWalletBalance = await this.kaspaFacade.getWalletBalanceAndUtxos(lunchpad.receiverWalletSequenceId);
+    const receiverWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(lunchpad.receiverWalletSequenceId);
+
+    const freeUtxos = receiverWalletBalance.utxoEntries.filter((utxo) => !usedTransactions.includes(utxo.outpoint.transactionId));
+
+    const freeUtxosWithSenderAddress = [];
+    const transactionsSenderPromises = [];
+
+    for (const utxo of freeUtxos) {
+      transactionsSenderPromises.push(
+        this.kaspaFacade.getUtxoSenderWallet(receiverWalletAddress, utxo).then((senderAddress) => {
+          freeUtxosWithSenderAddress.push({ utxo, senderAddress });
+        }),
+      );
+    }
+
+    await Promise.all(transactionsSenderPromises);
+
+    const freeUtxosWithSenderAddressSorted = _.sortBy(freeUtxosWithSenderAddress, ['utxo.blockDaaScore']);
+
+    for (const freeUtxosWithSenderAddress of freeUtxosWithSenderAddressSorted) {
+      waitingForKasOrders = await this.handleFreeUtxoWithSenderAddress(lunchpad, freeUtxosWithSenderAddress, waitingForKasOrders);
+    }
+
+    for (const notSentOrder of waitingForKasOrders) {
+      try {
+        await this.lunchpadService.cancelLunchpadOrder(notSentOrder);
+      } catch (error) {
+        console.error('Failed to cancel lunchpad order', error, notSentOrder);
+      }
+    }
+
+    await this.startLunchpadProcessingOrdersIfNeeded(await this.lunchpadService.getById(lunchpad._id));
+  }
+
+  private async handleFreeUtxoWithSenderAddress(lunchpad: LunchpadEntity, freeUtxosWithSenderAddress, waitingForKasOrders) {
+    if (!freeUtxosWithSenderAddress.senderAddress) {
+      throw new Error(
+        'No sender address at utxo at lunchpad ' +
+          lunchpad._id +
+          ', transaction:  ' +
+          freeUtxosWithSenderAddress.utxo?.outpoint?.transactionId,
+      );
+    }
+
+    const utxoAmount = KaspaNetworkActionsService.SompiToNumber(BigInt(freeUtxosWithSenderAddress.utxo.amount));
+    const units = Math.floor(utxoAmount / lunchpad.kasPerUnit);
+
+    const matchingOrder = waitingForKasOrders.find(
+      (order) => order.totalUnits === units && order.userWalletAddress === freeUtxosWithSenderAddress.senderAddress,
+    );
+
+    if (matchingOrder) {
+      try {
+        await this.lunchpadService.setOrderStatusToVerifiedAndWaitingForProcessing(
+          matchingOrder._id,
+          freeUtxosWithSenderAddress.utxo.outpoint.transactionId,
+        );
+
+        return waitingForKasOrders.filter((order) => order._id !== matchingOrder._id);
+      } catch (error) {
+        console.error(
+          'Failed in updating lunchpad order user transaction id',
+          error,
+          matchingOrder._id,
+          freeUtxosWithSenderAddress,
+        );
+      }
+    }
+
+    return waitingForKasOrders;
   }
 }
