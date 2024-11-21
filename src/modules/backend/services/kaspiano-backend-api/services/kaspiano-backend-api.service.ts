@@ -6,10 +6,11 @@ import { firstValueFrom } from 'rxjs';
 export class KaspianoBackendApiService {
   constructor(protected httpService: HttpService) {}
 
-  public async sendMailAfterSwap(orderId: string) {
+  public async sendMailAfterSwap(orderId: string, isDecentralized: boolean = false) {
     return await firstValueFrom(
       this.httpService.post('/sendEmail/email-order-completed', {
         orderId,
+        isDecentralized,
       }),
     );
   }

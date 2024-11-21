@@ -59,8 +59,13 @@ export class KaspaApiService {
     return inputWallets[0];
   }
 
-  async verifyPaymentTransaction(txnId: string, senderAddr: string, receiverAddr: string, amount: bigint): Promise<boolean> {
-    const txnInfo = await this.getTxnInfo(txnId);
+  private async verifyPaymentInputsAndOutputs(
+    txnInfo: IKaspaApiTransactionData,
+    senderAddr: string,
+    receiverAddr: string,
+    amount: bigint,
+    receiverAddrMightGetMore: boolean = false,
+  ): Promise<boolean> {
     if (!txnInfo) {
       console.error('Transaction info not found.');
       return false;
@@ -74,7 +79,9 @@ export class KaspaApiService {
 
     // 2. Verify the output amount and receiver address
     const output = txnInfo.outputs.find(
-      (output: any) => output.amount === Number(amount) && output.script_public_key_address === receiverAddr,
+      (output: any) =>
+        output.script_public_key_address === receiverAddr &&
+        (output.amount === Number(amount) || (receiverAddrMightGetMore && output.amount > Number(amount))),
     );
 
     if (!output) {
@@ -83,6 +90,53 @@ export class KaspaApiService {
     }
 
     return true;
+  }
+
+  async verifyPaymentTransaction(
+    txnId: string,
+    senderAddr: string,
+    receiverAddr: string,
+    amount: bigint,
+    receiverAddrMightGetMore: boolean = false,
+  ): Promise<boolean> {
+    const txnInfo = await this.getTxnInfo(txnId);
+
+    return await this.verifyPaymentInputsAndOutputs(txnInfo, senderAddr, receiverAddr, amount, receiverAddrMightGetMore);
+  }
+
+  async verifyPaymentTransactionAndGetCommission(
+    txnId: string,
+    senderAddr: string,
+    receiverAddr: string,
+    amount: bigint,
+    receiverAddrMightGetMore: boolean = false,
+    commissionWallet: string = null,
+  ): Promise<{
+    isVerified: boolean;
+    commission?: bigint;
+  }> {
+    const txnInfo = await this.getTxnInfo(txnId);
+
+    const isVerified = await this.verifyPaymentInputsAndOutputs(
+      txnInfo,
+      senderAddr,
+      receiverAddr,
+      amount,
+      receiverAddrMightGetMore,
+    );
+
+    if (!isVerified) {
+      return {
+        isVerified: false,
+      };
+    }
+
+    const commissionOutput = txnInfo.outputs.find((output: any) => output.script_public_key_address === commissionWallet);
+
+    return {
+      isVerified: true,
+      commission: BigInt(commissionOutput?.amount || 0) || 0n,
+    };
   }
 
   async getWalletLastTransactions(walletAddress: string = null, limit: number = 10, offset: number = 0): Promise<any> {

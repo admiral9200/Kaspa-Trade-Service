@@ -34,6 +34,7 @@ import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoney
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
 import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
+import { GetUserListingsDto } from '../model/dtos/p2p-orders/user-listings.dto';
 
 @Injectable()
 export class P2pProvider {
@@ -52,6 +53,7 @@ export class P2pProvider {
     getSellOrdersRequestDto: GetOrdersDto,
   ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     const { orders, totalCount } = await this.p2pOrderBookService.getSellOrders(ticker, getSellOrdersRequestDto);
+
     return {
       orders: orders.map((order) => P2pOrderBookTransformer.transformP2pOrderEntityToListedOrderDto(order)),
       totalCount,
@@ -59,7 +61,7 @@ export class P2pProvider {
   }
 
   public async userListings(
-    getSellOrdersRequestDto: GetOrdersDto,
+    getSellOrdersRequestDto: GetUserListingsDto,
     walletAddress: string,
   ): Promise<{ orders: ListedOrderDto[]; totalCount: number }> {
     const { orders, totalCount } = await this.p2pOrderBookService.getUserListings(getSellOrdersRequestDto, walletAddress);

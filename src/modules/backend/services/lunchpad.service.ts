@@ -10,7 +10,9 @@ import { KRC20ActionTransations } from './kaspa-network/interfaces/Krc20ActionTr
 import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
+import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
 
+export const ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD = [LunchpadStatus.SOLD_OUT, LunchpadStatus.INACTIVE];
 @Injectable()
 export class LunchpadService {
   constructor(
@@ -52,6 +54,15 @@ export class LunchpadService {
     });
   }
 
+  async updateLunchpad(id: string, updateLunchpadDto: UpdateLunchpadRequestDto, ownerWallet: string): Promise<LunchpadEntity> {
+    return await this.lunchpadRepository.updateLunchpadByOwnerAndStatus(
+      id,
+      updateLunchpadDto,
+      ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD,
+      ownerWallet,
+    );
+  }
+
   async getByIdAndOwner(id: string, ownerWallet: string): Promise<LunchpadEntity> {
     return await this.lunchpadRepository.findOne({ _id: id, ownerWallet });
   }
@@ -91,7 +102,7 @@ export class LunchpadService {
     const updatedLunchpad = await this.lunchpadRepository.updateLunchpadByStatus(
       lunchpad._id,
       { status: LunchpadStatus.STOPPING },
-      LunchpadStatus.ACTIVE,
+      lunchpad.status === LunchpadStatus.SOLD_OUT ? LunchpadStatus.SOLD_OUT : LunchpadStatus.ACTIVE,
     );
 
     return await this.setLunchpadInactiveIfNoOrdersAndNotRunning(updatedLunchpad);
@@ -151,14 +162,6 @@ export class LunchpadService {
       orderId,
       LunchpadOrderStatus.PROCESSING,
       LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
-    );
-  }
-
-  async setLowFeeErrorStatus(orderId: string): Promise<LunchpadOrder> {
-    return await this.lunchpadRepository.transitionLunchpadOrderStatus(
-      orderId,
-      LunchpadOrderStatus.WAITING_FOR_LOW_FEE,
-      LunchpadOrderStatus.PROCESSING,
     );
   }
 

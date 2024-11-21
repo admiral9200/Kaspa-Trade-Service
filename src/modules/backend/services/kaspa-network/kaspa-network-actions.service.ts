@@ -82,7 +82,7 @@ export class KaspaNetworkActionsService {
 
     const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(requiredAmount));
 
-    return KaspaNetworkActionsService.KaspaToSompi(String(requiredAmountCeiled));
+    return KaspaNetworkActionsService.KaspaToSompiFromNumber(requiredAmountCeiled);
   }
 
   getRequiredKaspaAmountForLunchpad(totalUnits: number, minUnits: number, maxPriorityFee: bigint): bigint {
@@ -98,7 +98,7 @@ export class KaspaNetworkActionsService {
 
     const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(baseAmountForLunchpad));
 
-    return KaspaNetworkActionsService.KaspaToSompi(String(requiredAmountCeiled));
+    return KaspaNetworkActionsService.KaspaToSompiFromNumber(requiredAmountCeiled);
   }
 
   async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
@@ -519,6 +519,10 @@ export class KaspaNetworkActionsService {
 
   static KaspaToSompi(value: string): bigint {
     return kaspaToSompi(value);
+  }
+
+  static KaspaToSompiFromNumber(value: number): bigint {
+    return BigInt(Math.round(value * 1e8).toLocaleString('fullwide', { useGrouping: false }));
   }
 
   static SompiToNumber(value: bigint): number {

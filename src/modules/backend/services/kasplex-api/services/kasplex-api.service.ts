@@ -240,4 +240,46 @@ export class KasplexApiService {
       transactionData.tick == ticker
     );
   }
+
+  async getMarketplaceOrders(ticker: string, txId?: string, walletAddress?: string) {
+    const urlParams = new URLSearchParams();
+
+    if (walletAddress) {
+      urlParams.set('address', walletAddress);
+    }
+
+    if (txId) {
+      urlParams.set('txid', txId);
+    }
+
+    const response = await firstValueFrom(
+      this.httpService.get<any>(`krc20/market/${ticker}`, {
+        params: urlParams,
+      }),
+    );
+
+    return response?.data?.result;
+  }
+
+  async validateMarketplaceOrderOffMarket(ticker: string, txId: string, walletAddress: string): Promise<boolean> {
+    try {
+      await this.utils.retryOnError(
+        async () => {
+          const result = await this.getMarketplaceOrders(ticker, txId, walletAddress);
+
+          if (result && result.length > 0) {
+            throw new Error('Order exists');
+          }
+        },
+        10,
+        2000,
+        true,
+      );
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+
+    return true;
+  }
 }

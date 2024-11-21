@@ -3,7 +3,7 @@ import { KaspaFacade } from '../facades/kaspa.facade';
 import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
-import { LunchpadService } from '../services/lunchpad.service';
+import { ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD, LunchpadService } from '../services/lunchpad.service';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadDataWithWallet, LunchpadOrderDataWithErrors } from '../model/dtos/lunchpad/lunchpad-data-with-wallet';
@@ -18,6 +18,8 @@ import { ImportantPromisesManager } from '../important-promises-manager/importan
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import * as _ from 'lodash';
+import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
+import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 
 @Injectable()
 export class LunchpadProvider {
@@ -89,15 +91,84 @@ export class LunchpadProvider {
     const senderWalletSequenceId: number = await this.temporaryWalletService.getNextSequenceId();
     const receiverWalletSequenceId: number = await this.temporaryWalletService.getNextSequenceId();
 
-    const lunchpad = await this.lunchpadService.createLunchpad(
-      createLunchpadDto,
-      ownerWalletAddress,
-      senderWalletSequenceId,
-      receiverWalletSequenceId,
-    );
+    let lunchpad = null;
+    try {
+      lunchpad = await this.lunchpadService.createLunchpad(
+        createLunchpadDto,
+        ownerWalletAddress,
+        senderWalletSequenceId,
+        receiverWalletSequenceId,
+      );
+    } catch (e) {
+      console.error('Failed to create lunchpad', createLunchpadDto, e);
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
 
     if (!lunchpad) {
       console.error('Failed to create lunchpad', createLunchpadDto, lunchpad);
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
+
+    const walletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(lunchpad.receiverWalletSequenceId);
+    const senderWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(lunchpad.senderWalletSequenceId);
+
+    return {
+      success: true,
+      lunchpad,
+      walletAddress,
+      senderWalletAddress,
+    };
+  }
+
+  async updateLunchpad(
+    id: string,
+    updateLunchpadDto: UpdateLunchpadRequestDto,
+    ownerWalletAddress: string,
+  ): Promise<LunchpadDataWithWallet> {
+    let lunchpad = await this.lunchpadService.getByIdAndOwner(id, ownerWalletAddress);
+
+    if (!lunchpad) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
+
+    if (!ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD.includes(lunchpad.status)) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
+        lunchpad: lunchpad,
+        walletAddress: null,
+      };
+    }
+
+    try {
+      lunchpad = await this.lunchpadService.updateLunchpad(id, updateLunchpadDto, ownerWalletAddress);
+    } catch (e) {
+      console.error('Failed to update lunchpad', updateLunchpadDto, e);
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
+
+    if (!lunchpad) {
+      console.error('Failed to create lunchpad', updateLunchpadDto, lunchpad);
       return {
         success: false,
         errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
@@ -223,7 +294,7 @@ export class LunchpadProvider {
       };
     }
 
-    if (lunchpad.status != LunchpadStatus.ACTIVE) {
+    if (![LunchpadStatus.ACTIVE, LunchpadStatus.SOLD_OUT].includes(lunchpad.status)) {
       return {
         success: false,
         errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
@@ -280,6 +351,15 @@ export class LunchpadProvider {
       };
     }
 
+    if (lunchpad.useWhitelist && !(lunchpad.whitelistWalletAddresses || []).includes(orderCreatorWallet)) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.WALLET_NOT_IN_WHITELIST,
+        lunchpadOrder: null,
+        lunchpad: lunchpad,
+      };
+    }
+
     if (lunchpad.minUnitsPerOrder && body.units < lunchpad.minUnitsPerOrder) {
       return {
         success: false,
@@ -307,17 +387,24 @@ export class LunchpadProvider {
         lunchpadOrder: result.lunchpadOrder,
       };
     } catch (error) {
-      if (!(error instanceof LunchpadNotEnoughAvailableQtyError)) {
+      if (!(error instanceof LunchpadNotEnoughAvailableQtyError || error instanceof LunchpadNotEnoughUserAvailableQtyError)) {
         this.logger.error('Failed to create lunchpad order');
         this.logger.error(error, error?.stack, error?.meta);
       }
 
+      let errorCode = ERROR_CODES.GENERAL.UNKNOWN_ERROR;
+
+      if (error instanceof LunchpadNotEnoughAvailableQtyError) {
+        errorCode = ERROR_CODES.LUNCHPAD.LUNCHPAD_UNITS_EXCEEDS;
+      }
+
+      if (error instanceof LunchpadNotEnoughUserAvailableQtyError) {
+        errorCode = ERROR_CODES.LUNCHPAD.LUNCHPAD_WALLET_UNITS_EXCEEDS;
+      }
+
       return {
         success: false,
-        errorCode:
-          error instanceof LunchpadNotEnoughAvailableQtyError
-            ? ERROR_CODES.LUNCHPAD.LUNCHPAD_UNITS_EXCEEDS
-            : ERROR_CODES.GENERAL.UNKNOWN_ERROR,
+        errorCode,
         lunchpadOrder: null,
         lunchpad: lunchpad,
       };
@@ -368,7 +455,7 @@ export class LunchpadProvider {
       transactionId,
       userWalletAddress,
       lunchpadReceiverWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompi(String(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit),
     );
 
     if (!isTransactionVerified) {
@@ -603,7 +690,7 @@ export class LunchpadProvider {
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
           lunchpad.senderWalletSequenceId,
           lunchpad.ownerWallet,
-          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
         );
       } else if (walletType === LunchpadWalletType.RECEIVER) {
         const commission = await this.kaspaFacade.getLunchpadComission(lunchpad.receiverWalletSequenceId);
@@ -611,7 +698,7 @@ export class LunchpadProvider {
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
           lunchpad.receiverWalletSequenceId,
           lunchpad.ownerWallet,
-          KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
           commission,
         );
       } else {

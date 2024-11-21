@@ -34,7 +34,7 @@ export class KaspaFacade {
   async checkIfWalletHasKrc20Token(address: string, ticker: string, amount: number): Promise<boolean> {
     const walletTokensAmount = await this.getKrc20TokenBalance(address, ticker);
 
-    return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
+    return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompiFromNumber(amount);
   }
 
   async getKrc20TokenBalance(address: string, ticker: string): Promise<bigint> {
@@ -51,7 +51,7 @@ export class KaspaFacade {
       transactionId,
       from,
       to,
-      KaspaNetworkActionsService.KaspaToSompi(String(amount)) + AMOUNT_FOR_SWAP_FEES,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(amount) + AMOUNT_FOR_SWAP_FEES,
     );
   }
 
@@ -65,7 +65,7 @@ export class KaspaFacade {
     const swapWallet = await this.getAccountWalletAddressAtIndex(order.walletSequenceId);
     const isValidData = await this.kaspaNetworkActionsService.isValidKaspaAmountForSwap(
       swapWallet,
-      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
     );
 
     return isValidData.isValid;
@@ -87,8 +87,8 @@ export class KaspaFacade {
       const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
       const holderWalletPrivateKey = walletAccount.privateKey;
 
-      const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
-      const totalPrice = KaspaNetworkActionsService.KaspaToSompi(`${order.totalPrice}`);
+      const quantity = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.quantity);
+      const totalPrice = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice);
 
       return await this.kaspaNetworkActionsService.doSellSwap(
         holderWalletPrivateKey,
@@ -112,7 +112,7 @@ export class KaspaFacade {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
     const holderWalletPrivateKey = walletAccount.privateKey;
 
-    const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
+    const quantity = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.quantity);
 
     return await this.kaspaNetworkActionsService.cancelSellSwap(
       holderWalletPrivateKey,
@@ -149,13 +149,15 @@ export class KaspaFacade {
     // Verify wallet amount
     const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
 
+    console.log();
+
     return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
       lunchpadSenderWallet.privateKey,
       lunchpadOrder.userWalletAddress,
       lunchpad.ticker,
-      KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpad.tokenPerUnit)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpadOrder.totalUnits * lunchpad.tokenPerUnit),
       lunchpadOrder.transactions || {},
-      KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
       notifyUpdate,
     );
   }
@@ -164,7 +166,7 @@ export class KaspaFacade {
     return KaspaNetworkActionsService.SompiToNumber(
       this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
         totalMints,
-        KaspaNetworkActionsService.KaspaToSompi(maxPriorityFee.toFixed(8)),
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(maxPriorityFee),
       ),
     );
   }
@@ -174,7 +176,7 @@ export class KaspaFacade {
       this.kaspaNetworkActionsService.getRequiredKaspaAmountForLunchpad(
         totalUnits,
         minUnits,
-        KaspaNetworkActionsService.KaspaToSompi(maxPriorityFee.toFixed(8)),
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(maxPriorityFee),
       ),
     );
   }
@@ -188,7 +190,7 @@ export class KaspaFacade {
 
     const requiredKaspaAmount = this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
       batchMintEntity.totalMints,
-      KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(batchMintEntity.maxPriorityFee),
     );
 
     if (requiredKaspaAmount > walletUtxoData.totalBalance) {
