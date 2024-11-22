@@ -4,6 +4,9 @@ import { firstValueFrom } from 'rxjs';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaApiTransactionData } from '../model/kaspa-api-transaction-data.interface';
 import { groupBy } from 'loadsh';
+import { SendTransactionIncorrectDataError } from '../../kaspa-network/errors/SendTransactionIncorrectDataError';
+import { IsVerifiedSendAction } from '../model/is-verified-send-action.interface';
+import * as _ from 'lodash';
 
 @Injectable()
 export class KaspaApiService {
@@ -104,37 +107,70 @@ export class KaspaApiService {
     return await this.verifyPaymentInputsAndOutputs(txnInfo, senderAddr, receiverAddr, amount, receiverAddrMightGetMore);
   }
 
-  async verifyPaymentTransactionAndGetCommission(
+  async verifySendTransactionAndGetCommission(
     txnId: string,
-    senderAddr: string,
-    receiverAddr: string,
+    sellerWalletAddress: string,
+    sellerPsktTransactionId: string,
     amount: bigint,
-    receiverAddrMightGetMore: boolean = false,
     commissionWallet: string = null,
-  ): Promise<{
-    isVerified: boolean;
-    commission?: bigint;
-  }> {
+  ): Promise<IsVerifiedSendAction> {
     const txnInfo = await this.getTxnInfo(txnId);
 
-    const isVerified = await this.verifyPaymentInputsAndOutputs(
-      txnInfo,
-      senderAddr,
-      receiverAddr,
-      amount,
-      receiverAddrMightGetMore,
-    );
+    // Verify the send transactios
+    const listTransactionInput = txnInfo.inputs.find((input: any) => input.previous_outpoint_hash === sellerPsktTransactionId);
 
-    if (!isVerified) {
+    if (!listTransactionInput) {
       return {
         isVerified: false,
       };
     }
 
+    // Find the seller output
+    const sellerOutput = txnInfo.outputs.find((output: any) => output.script_public_key_address === sellerWalletAddress);
+
+    if (!sellerOutput) {
+      throw new SendTransactionIncorrectDataError(txnInfo, txnId, sellerWalletAddress, sellerPsktTransactionId, amount);
+    }
+
+    // Cancel action, only input of the utxo, without sending money
+    const inputsBySender = _.groupBy(txnInfo.inputs, (input: any) => input.previous_outpoint_address);
+
+    if (Object.keys(inputsBySender).length === 1) {
+      return {
+        isVerified: true,
+        isCompleted: false,
+      };
+    }
+
+    // Buy action, verify amount
+    const sellerMoneyOutput = txnInfo.outputs.find((input: any) => input.script_public_key_address === sellerWalletAddress);
+
+    if (!sellerMoneyOutput) {
+      throw new SendTransactionIncorrectDataError(txnInfo, txnId, sellerWalletAddress, sellerPsktTransactionId, amount);
+    }
+
+    if (BigInt(sellerMoneyOutput.amount) < amount) {
+      return { isVerified: false };
+    }
+
+    // Get buyer address
+    const inputsWithoutUtxoInput = txnInfo.inputs.filter((input: any) => input.index !== listTransactionInput.index);
+
+    const moneySenders = _.groupBy(inputsWithoutUtxoInput, (input: any) => input.previous_outpoint_address);
+
+    if (Object.keys(moneySenders).length != 1) {
+      throw new SendTransactionIncorrectDataError(txnInfo, txnId, sellerWalletAddress, sellerPsktTransactionId, amount);
+    }
+
+    const buyerWalletAddress = Object.keys(moneySenders)[0];
+
+    // Commission
     const commissionOutput = txnInfo.outputs.find((output: any) => output.script_public_key_address === commissionWallet);
 
     return {
       isVerified: true,
+      isCompleted: true,
+      buyerWalletAddress,
       commission: BigInt(commissionOutput?.amount || 0) || 0n,
     };
   }

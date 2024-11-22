@@ -13,9 +13,11 @@ import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-resp
 import { GetUserOrdersRequestDto } from '../model/dtos/p2p-orders/get-user-orders-request.dto';
 import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
-import { SellOrderStatusV2 } from '../model/enums/sell-order-status-v2.enum';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
+import { IsVerifiedSendAction } from '../services/kaspa-api/model/is-verified-send-action.interface';
+import { FailedOrderVerification } from '../services/kaspa-network/errors/FailedSellOrderVerification';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 
 @Injectable()
 export class P2pV2Provider {
@@ -26,6 +28,7 @@ export class P2pV2Provider {
     private readonly kaspaApiService: KaspaApiService,
     private readonly kasplexApiService: KasplexApiService,
     private readonly config: AppConfigService,
+    private readonly logger: AppLogger,
   ) {}
 
   public async createOrder(sellOrderDto: SellOrderV2Dto, walletAddress: string): Promise<SellRequestV2ResponseDto> {
@@ -40,35 +43,112 @@ export class P2pV2Provider {
     return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(orderEntity);
   }
 
-  public async buy(orderId: string, buyerWalletAddress: string, transactionId: string): Promise<ListedOrderV2Dto> {
-    if (!transactionId) {
-      throw new Error('transactionId is required');
+  private async verifySendTransactionAndSendErrorIfNeeded(
+    transactionId: string,
+    order: P2pOrderV2Entity,
+  ): Promise<IsVerifiedSendAction> {
+    try {
+      return await this.kaspaApiService.verifySendTransactionAndGetCommission(
+        transactionId,
+        order.sellerWalletAddress,
+        order.psktTransactionId,
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
+        this.config.commitionWalletAddress,
+      );
+    } catch (error) {
+      this.telegramBotService.sendErrorToErrorsChannel(error);
+      this.logger.error(error?.message || error, error?.stack, error?.meta);
     }
 
-    const order: P2pOrderV2Entity = await this.p2pOrdersV2Service.updateBuyerAndStatus(
-      orderId,
-      buyerWalletAddress,
-      transactionId,
-    );
+    return { isVerified: false };
+  }
 
-    const isVerifiedResult = await this.kaspaApiService.verifyPaymentTransactionAndGetCommission(
-      transactionId,
-      buyerWalletAddress,
-      order.sellerWalletAddress,
-      KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
-      true,
-      this.config.commitionWalletAddress,
-    );
+  public async verify(sellOrderId: string, transactionId?: string): Promise<ListedOrderV2Dto> {
+    try {
+      let order: P2pOrderV2Entity = null;
 
-    if (!isVerifiedResult.isVerified) {
-      const unverifiedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.reopenSellOrder(orderId);
+      try {
+        order = await this.p2pOrdersV2Service.updateStatusToVerifying(sellOrderId);
+      } catch (error) {
+        if (this.p2pOrdersV2Service.isOrderInvalidStatusUpdateError(error)) {
+          return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(await this.p2pOrdersV2Service.getById(sellOrderId));
+        }
 
-      return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(unverifiedOrder);
+        throw error;
+      }
+
+      const isOffMarketplace = await this.kasplexApiService.validateMarketplaceOrderOffMarket(
+        order.ticker,
+        order.psktTransactionId,
+        order.sellerWalletAddress,
+      );
+
+      if (!isOffMarketplace) {
+        order = await this.p2pOrdersV2Service.reopenSellOrder(order._id);
+        return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(order);
+      }
+
+      let sendTransaction = transactionId;
+
+      let isVerifiedResult: IsVerifiedSendAction = { isVerified: false };
+
+      if (sendTransaction) {
+        isVerifiedResult = await this.verifySendTransactionAndSendErrorIfNeeded(sendTransaction, order);
+      } else {
+        this.logger.warn('Transaction id is not provided for sell order ' + order._id + '.');
+        this.telegramBotService.sendErrorToErrorsChannel(
+          'Warning: Transaction id is not provided for sell order ' + order._id + '.',
+        );
+
+        // Find transaction
+        const possibleTransactions = await this.kasplexApiService.findSendOrderPossibleTransactions(
+          order.sellerWalletAddress,
+          order.ticker,
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(order.quantity),
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
+        );
+
+        for (let i = 0; i < possibleTransactions.length; i++) {
+          sendTransaction = possibleTransactions[i];
+          isVerifiedResult = await this.verifySendTransactionAndSendErrorIfNeeded(sendTransaction, order);
+
+          if (isVerifiedResult.isVerified) {
+            break;
+          }
+        }
+      }
+
+      if (isVerifiedResult.isVerified) {
+        if (isVerifiedResult.isCompleted) {
+          order = await this.completeOrder(order, sendTransaction, isVerifiedResult);
+        } else {
+          order = await this.cancelOrder(order, sendTransaction);
+        }
+      } else {
+        order = await this.p2pOrdersV2Service.setOrderToFailedVerification(order._id);
+        const failedVerificationError = new FailedOrderVerification(order);
+        this.logger.error(failedVerificationError.message, failedVerificationError.stack);
+        this.telegramBotService.sendErrorToErrorsChannel(failedVerificationError);
+      }
+
+      return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(order);
+    } catch (error) {
+      this.telegramBotService.sendErrorToErrorsChannel(error);
+      this.logger.error(error?.message || error, error?.stack, error?.meta);
+      throw error;
     }
+  }
 
+  public async completeOrder(
+    order: P2pOrderV2Entity,
+    transactionId: string,
+    verificationResult: IsVerifiedSendAction,
+  ): Promise<P2pOrderV2Entity> {
     const completedOrder = await this.p2pOrdersV2Service.setOrderToCompleted(
-      orderId,
-      KaspaNetworkActionsService.SompiToNumber(isVerifiedResult.commission || 0n),
+      order._id,
+      verificationResult.buyerWalletAddress,
+      transactionId,
+      KaspaNetworkActionsService.SompiToNumber(verificationResult.commission || 0n),
     );
 
     // don't await because not important
@@ -77,29 +157,11 @@ export class P2pV2Provider {
       console.error(err);
     });
 
-    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(completedOrder);
+    return completedOrder;
   }
 
-  public async cancel(orderId: string): Promise<ListedOrderV2Dto> {
-    const order = await this.p2pOrdersV2Service.getById(orderId);
-
-    if (order.status != SellOrderStatusV2.LISTED_FOR_SALE) {
-      throw new Error('Invalid status for order');
-    }
-
-    const isOffMarketplace = await this.kasplexApiService.validateMarketplaceOrderOffMarket(
-      order.ticker,
-      order.psktTransactionId,
-      order.sellerWalletAddress,
-    );
-
-    if (!isOffMarketplace) {
-      throw new Error('Order is not off marketplace');
-    }
-
-    const updatedOrder: P2pOrderV2Entity = await this.p2pOrdersV2Service.cancelSellOrder(orderId);
-
-    return P2pOrderV2ResponseTransformer.transformOrderToListedOrderDto(updatedOrder);
+  public async cancelOrder(order: P2pOrderV2Entity, transactionId: string): Promise<P2pOrderV2Entity> {
+    return await this.p2pOrdersV2Service.setOrderToCanceled(order._id, transactionId);
   }
 
   async getUserOrders(userOrdersDto: GetUserOrdersRequestDto, walletAddress: string): Promise<UserOrdersResponseDto> {

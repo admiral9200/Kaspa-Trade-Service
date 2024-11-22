@@ -31,44 +31,64 @@ export class P2pOrdersV2Service {
     return await this.sellOrdersV2Repository.getById(id);
   }
 
-  async updateBuyerAndStatus(orderId: string, buyerWalletAddress: string, transactionId: string) {
-    const result = await this.sellOrdersV2Repository.updateBuyerAndStatus(orderId, buyerWalletAddress, transactionId);
+  async updateStatusToVerifying(orderId: string) {
+    try {
+      return await this.sellOrdersV2Repository.transitionOrderStatus(
+        orderId,
+        SellOrderStatusV2.VERIFYING,
+        SellOrderStatusV2.LISTED_FOR_SALE,
+      );
+    } catch (e) {
+      if (this.sellOrdersV2Repository.isOrderInvalidStatusUpdateError(e)) {
+        return await this.sellOrdersV2Repository.transitionOrderStatus(
+          orderId,
+          SellOrderStatusV2.VERIFYING,
+          SellOrderStatusV2.FAILED_VERIFICATION,
+        );
+      }
 
-    if (!result) {
-      throw new Error('Incorrect status for buying an order');
+      throw e;
     }
+  }
 
-    return result;
+  isOrderInvalidStatusUpdateError(error: any) {
+    return this.sellOrdersV2Repository.isOrderInvalidStatusUpdateError(error);
   }
 
   async reopenSellOrder(orderId: string) {
-    const result = await this.sellOrdersV2Repository.reopenSellOrder(orderId);
-
-    if (!result) {
-      throw new Error('Incorrect status for reopening an order');
-    }
-
-    return result;
+    return await this.sellOrdersV2Repository.transitionOrderStatus(
+      orderId,
+      SellOrderStatusV2.LISTED_FOR_SALE,
+      SellOrderStatusV2.VERIFYING,
+    );
   }
 
-  async setOrderToCompleted(orderId: string, commission: number = 0) {
-    const result = await this.sellOrdersV2Repository.setOrderToCompleted(orderId, commission);
-
-    if (!result) {
-      throw new Error('Incorrect status for completing an order');
-    }
-
-    return result;
+  async setOrderToCompleted(orderId: string, buyerWalletAddress: string, sendTransactionId: string, commission: number = 0) {
+    return await this.sellOrdersV2Repository.transitionOrderStatus(
+      orderId,
+      SellOrderStatusV2.COMPLETED,
+      SellOrderStatusV2.VERIFYING,
+      { feeAmount: commission, buyerWalletAddress, sendTransactionId },
+    );
   }
 
-  async cancelSellOrder(orderId: string) {
-    const result = await this.sellOrdersV2Repository.cancelSellOrder(orderId);
+  async setOrderToCanceled(orderId: string, sendTransactionId: string) {
+    return await this.sellOrdersV2Repository.transitionOrderStatus(
+      orderId,
+      SellOrderStatusV2.CANCELED,
+      SellOrderStatusV2.VERIFYING,
+      {
+        sendTransactionId,
+      },
+    );
+  }
 
-    if (!result) {
-      throw new Error('Incorrect status for canceling an order');
-    }
-
-    return result;
+  async setOrderToFailedVerification(orderId: string) {
+    return await this.sellOrdersV2Repository.transitionOrderStatus(
+      orderId,
+      SellOrderStatusV2.FAILED_VERIFICATION,
+      SellOrderStatusV2.VERIFYING,
+    );
   }
 
   async getUserOrders(filters: GetUserOrdersFiltersDto, sort: SortDto, pagination: PaginationDto, walletAddress: string) {
@@ -93,4 +113,5 @@ export class P2pOrdersV2Service {
       false,
     );
   }
+  
 }

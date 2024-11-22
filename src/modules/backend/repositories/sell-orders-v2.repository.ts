@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { P2pOrderV2Entity } from '../model/schemas/p2p-order-v2.schema';
 import { SellOrderStatusV2 } from '../model/enums/sell-order-status-v2.enum';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
@@ -10,6 +10,7 @@ import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { GetOrderListFiltersDto } from '../model/dtos/p2p-orders/get-order-list-filter.dto';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
+import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 
 @Injectable()
 export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
@@ -22,36 +23,39 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
     super(sellOrderV2Model);
   }
 
-  async updateBuyerAndStatus(sellOrderId: string, buyerWalletAddress: string, transactionId: string): Promise<P2pOrderV2Entity> {
-    return await this.sellOrderV2Model.findOneAndUpdate(
-      { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE },
-      { $set: { buyerWalletAddress, status: SellOrderStatusV2.VERIFYING, buyerTransactionId: transactionId } },
-      { new: true },
-    );
+  async transitionOrderStatus(
+    orderId: string,
+    newStatus: SellOrderStatusV2,
+    requiredStatus: SellOrderStatusV2,
+    additionalData: Partial<P2pOrderV2Entity> = {},
+    session?: ClientSession,
+  ): Promise<P2pOrderV2Entity> {
+    try {
+      const order = await super.updateByOne(
+        '_id',
+        orderId,
+        { status: newStatus, ...additionalData },
+        { status: requiredStatus },
+        session,
+      );
+
+      if (!order) {
+        console.log('Failed assigning status for sell order, already in progress');
+        throw new InvalidStatusForOrderUpdateError(orderId);
+      }
+
+      return order;
+    } catch (error) {
+      if (!this.isOrderInvalidStatusUpdateError(error)) {
+        console.error(`Error updating to ${newStatus} for order by ID(${orderId}):`, error);
+      }
+
+      throw error;
+    }
   }
 
-  async reopenSellOrder(sellOrderId: string): Promise<P2pOrderV2Entity> {
-    return await this.sellOrderV2Model.findOneAndUpdate(
-      { _id: sellOrderId, status: SellOrderStatusV2.VERIFYING },
-      { $set: { status: SellOrderStatusV2.LISTED_FOR_SALE } },
-      { new: true },
-    );
-  }
-
-  async setOrderToCompleted(sellOrderId: string, commission: number): Promise<P2pOrderV2Entity> {
-    return await this.sellOrderV2Model.findOneAndUpdate(
-      { _id: sellOrderId, status: SellOrderStatusV2.VERIFYING },
-      { $set: { status: SellOrderStatusV2.COMPLETED, feeAmount: commission } },
-      { new: true },
-    );
-  }
-
-  async cancelSellOrder(sellOrderId: string): Promise<P2pOrderV2Entity> {
-    return await this.sellOrderV2Model.findOneAndUpdate(
-      { _id: sellOrderId, status: SellOrderStatusV2.LISTED_FOR_SALE },
-      { $set: { status: SellOrderStatusV2.CANCELED } },
-      { new: true },
-    );
+  public isOrderInvalidStatusUpdateError(error) {
+    return error instanceof InvalidStatusForOrderUpdateError || this.isDocumentTransactionLockedError(error);
   }
 
   private async getOrderListWithOldBasePipeline(filters: GetOrderListFiltersDto) {
@@ -100,7 +104,7 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
       { $match: baseQuery }, // Filters for first collection
       {
         $unionWith: {
-          coll: 'p2p_orders', // Name of the second collection
+          coll: this.sellOrderModel.collection.name, // Name of the second collection
           pipeline: [{ $match: baseQuery }, { $addFields: { isDecentralized: false } }], // Filters for second collection
         },
       },

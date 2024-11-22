@@ -41,7 +41,7 @@ export class P2pOrderV2Entity {
   psktTransactionId: string;
 
   @Prop({ type: String })
-  buyerTransactionId?: string;
+  sendTransactionId?: string;
 
   @Prop()
   createdAt?: Date;
