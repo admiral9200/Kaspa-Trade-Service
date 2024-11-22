@@ -92,7 +92,9 @@ export class P2pV2Provider {
 
       let isVerifiedResult: IsVerifiedSendAction = { isVerified: false };
 
-      if (!sendTransaction) {
+      if (sendTransaction) {
+        isVerifiedResult = await this.verifySendTransactionAndSendErrorIfNeeded(sendTransaction, order);
+      } else {
         this.logger.warn('Transaction id is not provided for sell order ' + order._id + '.');
         this.telegramBotService.sendErrorToErrorsChannel(
           'Warning: Transaction id is not provided for sell order ' + order._id + '.',
@@ -114,8 +116,6 @@ export class P2pV2Provider {
             break;
           }
         }
-      } else {
-        isVerifiedResult = await this.verifySendTransactionAndSendErrorIfNeeded(sendTransaction, order);
       }
 
       if (isVerifiedResult.isVerified) {
