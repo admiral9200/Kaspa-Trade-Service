@@ -1,6 +1,6 @@
 export class InvalidStatusForOrderUpdateError extends Error {
-  constructor() {
-    super(`Invalid status for order update.`);
+  constructor(public readonly orderId?: string) {
+    super(`Invalid status for order update. Order ID: ${orderId || '--'}`);
     this.name = 'InvalidStatusForOrderUpdateError';
   }
 }

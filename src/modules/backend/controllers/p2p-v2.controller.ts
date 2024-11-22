@@ -33,21 +33,13 @@ export class P2pV2Controller {
     return await this.p2pV2Provider.getOrderById(id);
   }
 
-  @Post('buy/:sellOrderId')
-  async buyToken(
+  @Post('verify/:sellOrderId')
+  async verifySellOrder(
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Param('sellOrderId') sellOrderId: string,
-    @Body('transactionId') transactionId: string,
+    @Body('transactionId') transactionId?: string,
   ): Promise<ListedOrderV2Dto> {
-    return await this.p2pV2Provider.buy(sellOrderId, walletInfo.walletAddress, transactionId);
-  }
-
-  @Post('cancel/:sellOrderId')
-  async cancel(
-    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
-    @Param('sellOrderId') sellOrderId: string,
-  ): Promise<ListedOrderV2Dto> {
-    return await this.p2pV2Provider.cancel(sellOrderId);
+    return await this.p2pV2Provider.verify(sellOrderId, transactionId);
   }
 
   @Post('sell-orders')

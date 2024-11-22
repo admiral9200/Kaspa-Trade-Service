@@ -12,6 +12,7 @@ import { IKaspaResponse } from '../model/kaspa-response.interface';
 import { IBalanceArray } from '../model/balance-array.interface';
 import { ITokenDetailsWithHolders } from '../model/token-details-with-holders.interface';
 import { IndexerStatus, IndexerStatusMessage } from '../model/indexer-status.interface';
+import { WalletOperationListInterface } from '../model/wallet-operation-list.interface';
 
 @Injectable()
 export class KasplexApiService {
@@ -259,6 +260,48 @@ export class KasplexApiService {
     );
 
     return response?.data?.result;
+  }
+
+  async getWalletOperationHistory(walletAddress: string, tick?: string): Promise<WalletOperationListInterface[]> {
+    const urlParams = new URLSearchParams();
+    urlParams.set('address', walletAddress);
+
+    if (tick) {
+      urlParams.set('tick', tick);
+    }
+
+    const response = await firstValueFrom(
+      this.httpService.get<any>(`krc20/oplist`, {
+        params: urlParams,
+      }),
+    );
+
+    return response?.data?.result;
+  }
+
+  async findSendOrderPossibleTransactions(
+    sellerWalletAddress: string,
+    ticker: string,
+    tokenAmount: bigint,
+    price: bigint,
+  ): Promise<string[]> {
+    const userActions = await this.utils.retryOnError(
+      async () => {
+        return await this.getWalletOperationHistory(sellerWalletAddress, ticker);
+      },
+      5,
+      5000,
+      true,
+    );
+
+    return userActions
+      .filter(
+        (action) =>
+          action.op === 'send' &&
+          BigInt(action.amt) == tokenAmount &&
+          (BigInt(action.price) >= price || BigInt(action.price) == 0n),
+      )
+      .map((action) => action.hashRev);
   }
 
   async validateMarketplaceOrderOffMarket(ticker: string, txId: string, walletAddress: string): Promise<boolean> {
