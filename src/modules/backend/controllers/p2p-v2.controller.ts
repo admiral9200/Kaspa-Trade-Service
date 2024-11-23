@@ -12,6 +12,7 @@ import { UserOrdersResponseDto } from '../model/dtos/p2p-orders/user-orders-resp
 import { SkipGuards } from '../guards/infra/skipGuardsService';
 import { GetOrdersDto } from '../model/dtos/p2p-orders/get-orders.dto';
 import { ListedOrderDto } from '../model/dtos/p2p-orders/listed-order.dto';
+import { GetUserUnlistedTransactionsRequestDto } from '../model/dtos/p2p-orders/get-user-unlisted-transactions.request.dto';
 
 @Controller('p2p-v2')
 @UseGuards(JwtWalletAuthGuard)
@@ -70,5 +71,13 @@ export class P2pV2Controller {
       this.logger.error('Error getting orders history', error);
       throw error;
     }
+  }
+
+  @Post('unlisted-transactions')
+  async getUserUnlistedTransactions(
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+    @Body() userOrdersDto: GetUserUnlistedTransactionsRequestDto,
+  ): Promise<string[]> {
+    return await this.p2pV2Provider.getUserUnlistedTransactions(userOrdersDto.transactions, walletInfo.walletAddress);
   }
 }

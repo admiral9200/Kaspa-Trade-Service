@@ -158,4 +158,21 @@ export class SellOrdersV2Repository extends BaseRepository<P2pOrderV2Entity> {
 
     return { orders: result, totalCount, allTickers: tickers };
   }
+
+  async getUnlistedTransactions(transactions: string[], walletAddress: string, session?: ClientSession): Promise<string[]> {
+    const baseQuery = { psktTransactionId: { $in: transactions }, sellerWalletAddress: walletAddress };
+
+    const result = await this.sellOrderV2Model.find(baseQuery, { psktTransactionId: 1, _id: 0 }).session(session).exec();
+
+    const existingTransactionsIds = {};
+
+    for (const transaction of result) {
+      existingTransactionsIds[transaction.psktTransactionId] = true;
+    }
+
+    // Find and return IDs that do not exist in the database
+    const nonExistentTransactionIds = transactions.filter((id) => !existingTransactionsIds[id]);
+
+    return nonExistentTransactionIds;
+  }
 }
