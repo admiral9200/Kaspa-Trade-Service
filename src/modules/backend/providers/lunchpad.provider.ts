@@ -327,6 +327,33 @@ export class LunchpadProvider {
     };
   }
 
+  async isWalletWhitelisted(ticker: string, walletAddress: string): Promise<LunchpadDataWithWallet> {
+    const lunchpad = await this.lunchpadService.getByTicker(ticker);
+
+    if (!lunchpad) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.GENERAL.NOT_FOUND,
+        lunchpad: null,
+        walletAddress: null,
+      };
+    }
+
+    if (lunchpad.useWhitelist && !(lunchpad.whitelistWalletAddresses || []).includes(walletAddress)) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.WALLET_NOT_IN_WHITELIST,
+        lunchpad: lunchpad,
+        walletAddress: null,
+      };
+    }
+    return {
+      success: true,
+      lunchpad: lunchpad,
+      walletAddress: null,
+    };
+  }
+
   async createLunchpadOrder(
     ticker: string,
     body: CreateLunchpadOrderRequestDto,

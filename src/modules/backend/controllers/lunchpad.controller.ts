@@ -238,6 +238,20 @@ export class LunchpadController {
     };
   }
 
+  @Get(':ticker/is-whitelisted')
+  async checkUserWhitelisted(
+    @Param('ticker') ticker: string,
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+  ): Promise<ClientSideLunchpadWithStatus> {
+    const result = await this.lunchpadProvider.isWalletWhitelisted(ticker, walletInfo.walletAddress);
+
+    return {
+      success: result.success,
+      errorCode: result.errorCode,
+      lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
+    };
+  }
+
   @Post(':orderId/verify-process-order')
   async startVerifyAndProcessOrder(
     @Param('orderId') orderId: string,
