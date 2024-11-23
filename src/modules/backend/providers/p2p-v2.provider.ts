@@ -192,4 +192,8 @@ export class P2pV2Provider {
       totalCount: ordersData.totalCount,
     };
   }
+
+  async getUserUnlistedTransactions(transactions: string[], walletAddress: string): Promise<string[]> {
+    return await this.p2pOrdersV2Service.getUserUnlistedTransactions(transactions, walletAddress);
+  }
 }

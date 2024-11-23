@@ -113,5 +113,8 @@ export class P2pOrdersV2Service {
       false,
     );
   }
-  
+
+  async getUserUnlistedTransactions(transactions: string[], walletAddress: string): Promise<string[]> {
+    return await this.sellOrdersV2Repository.getUnlistedTransactions(transactions, walletAddress);
+  }
 }
