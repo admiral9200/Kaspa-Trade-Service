@@ -37,7 +37,16 @@ export class LunchpadController {
   }
 
   @Post('list')
-  async getLucnhpads(
+  @SkipGuards([JwtWalletAuthGuard])
+  async getLucnhpads(@Body() getLaunchpadUserListDto: GetLunchpadListDto): Promise<ClientSideLunchpadListWithStatus> {
+    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getLaunchpadUserListDto);
+    return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
+      lunchpadListData.lunchpads,
+      lunchpadListData.totalCount,
+    );
+  }
+  @Post('list-owner')
+  async getOwnerLucnhpads(
     @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
     @Body() getLaunchpadUserListDto: GetLunchpadListDto,
   ): Promise<ClientSideLunchpadListWithStatus> {
