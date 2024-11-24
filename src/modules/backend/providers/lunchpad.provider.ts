@@ -663,6 +663,24 @@ export class LunchpadProvider {
       };
     }
 
+    if (orderData.lunchpad.roundNumber != orderData.lunchpadOrder.roundNumber) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_ORDER_ROUND_NUMBER,
+        lunchpadOrder: orderData.lunchpadOrder,
+        lunchpad: orderData.lunchpad,
+      };
+    }
+
+    if (![LunchpadStatus.ACTIVE, LunchpadStatus.NO_UNITS_LEFT].includes(orderData.lunchpad.status)) {
+      return {
+        success: false,
+        errorCode: ERROR_CODES.LUNCHPAD.INVALID_LUNCHPAD_STATUS,
+        lunchpadOrder: orderData.lunchpadOrder,
+        lunchpad: orderData.lunchpad,
+      };
+    }
+
     const lunchpadReceiverWalletAddress = await this.kaspaFacade.getAccountWalletAddressAtIndex(
       orderData.lunchpad.receiverWalletSequenceId,
     );
