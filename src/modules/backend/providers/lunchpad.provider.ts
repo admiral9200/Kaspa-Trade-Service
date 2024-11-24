@@ -460,21 +460,6 @@ export class LunchpadProvider {
       };
     }
 
-    if (!orderData.lunchpadOrder.userTransactionId) {
-      try {
-        await this.lunchpadService.updateOrderUserTransactionId(orderData.lunchpadOrder._id, transactionId);
-      } catch (error) {
-        console.error(error);
-
-        return {
-          success: false,
-          errorCode: ERROR_CODES.LUNCHPAD.TRANSACTION_VERIFICATION_FAILED,
-          lunchpadOrder: orderData.lunchpadOrder,
-          lunchpad: orderData.lunchpad,
-        };
-      }
-    }
-
     if (![LunchpadStatus.ACTIVE, LunchpadStatus.NO_UNITS_LEFT].includes(orderData.lunchpad.status)) {
       return {
         success: false,
@@ -518,6 +503,21 @@ export class LunchpadProvider {
         lunchpadOrder: orderData.lunchpadOrder,
         lunchpad: orderData.lunchpad,
       };
+    }
+
+    if (!orderData.lunchpadOrder.userTransactionId) {
+      try {
+        await this.lunchpadService.updateOrderUserTransactionId(orderData.lunchpadOrder._id, transactionId);
+      } catch (error) {
+        console.error(error);
+
+        return {
+          success: false,
+          errorCode: ERROR_CODES.LUNCHPAD.TRANSACTION_VERIFICATION_FAILED,
+          lunchpadOrder: orderData.lunchpadOrder,
+          lunchpad: orderData.lunchpad,
+        };
+      }
     }
 
     let updatedOrder = null;
