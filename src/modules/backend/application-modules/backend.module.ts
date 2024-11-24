@@ -19,6 +19,7 @@ import { BatchMintManagementProvider } from '../providers/management/batch-mint-
 import { LunchpadManagementController } from '../controllers/management/lunchpad-management.controller';
 import { LunchpadManagementProvider } from '../providers/management/lunchpad-management.provider';
 import { P2pV2Controller } from '../controllers/p2p-v2.controller';
+import { AllowWithoutWalletService } from '../guards/infra/allowWithoutWalletService';
 
 @Module({
   controllers: [
@@ -39,6 +40,7 @@ import { P2pV2Controller } from '../controllers/p2p-v2.controller';
     LunchpadManagementProvider,
     JwtWalletAuthGuard,
     SkipGuardsService,
+    AllowWithoutWalletService,
     RolesGuard,
   ],
   imports: [
