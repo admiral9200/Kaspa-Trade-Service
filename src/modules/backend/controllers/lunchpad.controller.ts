@@ -16,6 +16,7 @@ import { SkipGuards } from '../guards/infra/skipGuardsService';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
+import { AllowWithoutWallet } from '../guards/infra/allowWithoutWalletService';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -37,20 +38,12 @@ export class LunchpadController {
   }
 
   @Post('list')
-  @SkipGuards([JwtWalletAuthGuard])
-  async getLucnhpads(@Body() getLaunchpadUserListDto: GetLunchpadListDto): Promise<ClientSideLunchpadListWithStatus> {
-    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getLaunchpadUserListDto);
-    return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
-      lunchpadListData.lunchpads,
-      lunchpadListData.totalCount,
-    );
-  }
-  @Post('list-owner')
-  async getOwnerLucnhpads(
-    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+  @AllowWithoutWallet()
+  async getLucnhpads(
     @Body() getLaunchpadUserListDto: GetLunchpadListDto,
+    @CurrentAuthWalletInfo() authWalletInfo?: AuthWalletInfo,
   ): Promise<ClientSideLunchpadListWithStatus> {
-    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getLaunchpadUserListDto, authWalletInfo.walletAddress);
+    const lunchpadListData = await this.lunchpadProvider.getLunchpadList(getLaunchpadUserListDto, authWalletInfo?.walletAddress);
     return LunchpadTransformer.transformLunchpadListDataWithStatusToClientSide(
       lunchpadListData.lunchpads,
       lunchpadListData.totalCount,

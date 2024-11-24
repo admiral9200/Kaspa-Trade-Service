@@ -91,6 +91,11 @@ export class P2pProvider {
   public async buy(orderId: string, buyerWalletAddress: string): Promise<BuyRequestResponseDto> {
     try {
       const order = await this.p2pOrderBookService.getOrderById(orderId);
+
+      if (order.status != SellOrderStatus.LISTED_FOR_SALE) {
+        return { success: false };
+      }
+
       const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
 
       if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
@@ -330,6 +335,11 @@ export class P2pProvider {
   async removeSellOrderFromMarketplace(sellOrderId: string, walletAddress: string): Promise<OffMarketplaceRequestResponseDto> {
     try {
       const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+
+      if (order.status != SellOrderStatus.LISTED_FOR_SALE) {
+        return { success: false };
+      }
+
       const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
 
       if (totalBalanceWithUtxos.totalBalance > 0 || totalBalanceWithUtxos.utxoEntries.length) {
@@ -353,6 +363,10 @@ export class P2pProvider {
 
   async updateSellOrder(sellOrderId: string, updateSellOrderDto: UpdateSellOrderDto, walletAddress: string): Promise<void> {
     const order: P2pOrderEntity = await this.p2pOrderBookService.getOrderAndValidateWalletAddress(sellOrderId, walletAddress);
+
+    if (![SellOrderStatus.LISTED_FOR_SALE, SellOrderStatus.OFF_MARKETPLACE].includes(order.status)) {
+      throw new HttpException('Order is not in a updatable status', HttpStatus.BAD_REQUEST);
+    }
 
     const totalBalanceWithUtxos = await this.kaspaFacade.getWalletBalanceAndUtxos(order.walletSequenceId);
 
