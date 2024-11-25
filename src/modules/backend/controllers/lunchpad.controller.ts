@@ -3,6 +3,7 @@ import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad
 import { LunchpadProvider } from '../providers/lunchpad.provider';
 import {
   ClientSideLunchpadListWithStatus,
+  ClientSideLunchpadOrderListWithStatus,
   ClientSideLunchpadOrderWithStatus,
   ClientSideLunchpadWithStatus,
   LunchpadTransformer,
@@ -16,6 +17,7 @@ import { SkipGuards } from '../guards/infra/skipGuardsService';
 import { LunchpadWalletType } from '../model/enums/lunchpad-wallet-type.enum';
 import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
+import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 import { AllowWithoutWallet } from '../guards/infra/allowWithoutWalletService';
 
 @Controller('lunchpad')
@@ -293,11 +295,28 @@ export class LunchpadController {
       lunchpadOrder: result.lunchpadOrder
         ? LunchpadTransformer.transformLunchpadOrderDataToClientSide(
             result.lunchpadOrder,
-            result.lunchpad.kasPerUnit,
-            result.lunchpad.tokenPerUnit,
+            result.lunchpad?.kasPerUnit,
+            result.lunchpad?.tokenPerUnit,
           )
         : null,
       lunchpad: result.lunchpad ? LunchpadTransformer.transformLunchpadDataToClientSide(result.lunchpad) : null,
     };
+  }
+
+  @Post(':lunchpadId/orders-list')
+  async getLucnhpadOrdersList(
+    @Param('lunchpadId') lunchpadId: string,
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() getLaunchpadOrderListDto: GetLunchpadOrderListDto,
+  ): Promise<ClientSideLunchpadOrderListWithStatus> {
+    const lunchpadOrderListData = await this.lunchpadProvider.getLunchpadOrdersList(
+      lunchpadId,
+      getLaunchpadOrderListDto,
+      authWalletInfo.walletAddress,
+    );
+    return LunchpadTransformer.transformLunchpadOrdersListToClientSide(
+      lunchpadOrderListData.orders,
+      lunchpadOrderListData.totalCount,
+    );
   }
 }

@@ -14,6 +14,7 @@ import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-l
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
+import { GetLunchpadOrderListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 
 const WAITING_FOR_KAS_TIME_TO_CHECK = 10 * 60 * 1000;
 
@@ -215,8 +216,6 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
       const lunchpadOrder = await this.lunchpadOrderModel.create({
         lunchpadId,
-        kasPerUnit: updatedLunchpad.kasPerUnit,
-        tokenPerUnit: updatedLunchpad.tokenPerUnit,
         status: LunchpadOrderStatus.WAITING_FOR_KAS,
         totalUnits: amountToReduce,
         userWalletAddress: orderCreatorWallet,
@@ -478,5 +477,49 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       })
       .sort({ createdAt: 1 })
       .exec();
+  }
+
+  async getLunchpadOrders(
+    lunchpadId: string,
+    filters: GetLunchpadOrderListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+  ): Promise<{ orders: LunchpadOrder[]; totalCount: number }> {
+    const filterQuery: any = { lunchpadId };
+
+    if (filters) {
+      if (filters.statuses && filters.statuses.length > 0) {
+        filterQuery.status = { $in: filters.statuses };
+      }
+
+      if (filters.roundNumber) {
+        filterQuery.roundNumber = filters.roundNumber;
+      }
+
+      if (filters.startDateTimestamp || filters.endDateTimestamp) {
+        filterQuery.createdAt = {};
+        if (filters.startDateTimestamp) {
+          filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
+        }
+        if (filters.endDateTimestamp) {
+          filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
+        }
+      }
+    }
+
+    // Create the base query
+    let query: any = this.lunchpadOrderModel.find(filterQuery);
+    const totalCount = await this.lunchpadOrderModel.countDocuments(filterQuery);
+
+    // Apply sorting
+    query = this.applySort(query, sort);
+
+    // Apply pagination
+    query = this.applyPagination(query, pagination);
+
+    // Execute the query
+    const orders = await query.exec();
+
+    return { orders, totalCount };
   }
 }

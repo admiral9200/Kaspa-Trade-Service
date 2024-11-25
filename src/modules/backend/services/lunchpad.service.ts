@@ -11,6 +11,7 @@ import { GetLunchpadListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-l
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
+import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 
 export const ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD = [LunchpadStatus.SOLD_OUT, LunchpadStatus.INACTIVE];
 @Injectable()
@@ -289,5 +290,27 @@ export class LunchpadService {
   }
   async getLunchpadWaitingForKasOrders(lunchpad: LunchpadEntity): Promise<LunchpadOrder[]> {
     return await this.lunchpadRepository.getLunchpadWaitingForKasOrders(lunchpad._id);
+  }
+
+  async getLunchpadOrders(
+    lunchpadId: string,
+    getLaunchpadOrderListDto: GetLunchpadOrderListDto,
+  ): Promise<{ orders: LunchpadOrder[]; totalCount: number }> {
+    return await this.lunchpadRepository.getLunchpadOrders(
+      lunchpadId,
+      getLaunchpadOrderListDto.filters,
+      getLaunchpadOrderListDto.sort,
+      getLaunchpadOrderListDto.pagination,
+    );
+  }
+
+  getLunchpadOrderUnits(lunchpad: LunchpadEntity, order: LunchpadOrder): { tokenPerUnit: number; kasPerUnit: number } {
+    const roundData = lunchpad.rounds.filter((r) => r.roundNumber == order.roundNumber)[0];
+
+    if (!roundData) {
+      throw new Error('Round data not found');
+    }
+
+    return { tokenPerUnit: roundData.tokenPerUnit, kasPerUnit: roundData.kasPerUnit };
   }
 }

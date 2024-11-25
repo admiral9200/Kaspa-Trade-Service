@@ -15,7 +15,7 @@ export class LunchpadCronJob extends BaseCronJob {
     super(logger, telegramBotService);
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     await this.runOnce(async () => {
       try {
