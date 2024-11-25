@@ -1,5 +1,6 @@
-import { Prop, Schema } from "@nestjs/mongoose";
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { WithdrawalStatus } from "../enums/withdrawal-status.enum";
+import { HydratedDocument } from "mongoose";
 
 @Schema({
     versionKey: false,
@@ -27,3 +28,6 @@ export class P2pWithdrawalEntity {
     @Prop()
     updatedAt?: Date;
 }
+
+export type WithdrawalDocument = HydratedDocument<P2pWithdrawalEntity>;
+export const P2pWithdrawalSchema = SchemaFactory.createForClass(P2pWithdrawalEntity);
