@@ -90,7 +90,7 @@ export class AppConfigService {
   }
 
   get lunchpadCommissionPercentage(): number {
-    return Number(this.configService.get('LUNCHPAD_COMMISSION_PERCANTAGE') || '5');
+    return Number(this.configService.get('LUNCHPAD_COMMISSION_PERCANTAGE') || '2.5');
   }
 
   get commitionWalletAddress(): string {
