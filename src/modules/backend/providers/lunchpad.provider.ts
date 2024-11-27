@@ -615,7 +615,7 @@ export class LunchpadProvider {
           await this.processOrderAfterStatusChange(order, lunchpad);
         } catch (error) {
           if (error instanceof ApplicationIsClosingError) {
-            return;
+            break;
           }
 
           await this.lunchpadService.setProcessingError(order._id, error.toString());
