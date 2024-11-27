@@ -494,7 +494,7 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       {
         $match: {
           buyerWalletAddress: receivingAddress,
-          status: "WAITING_FOR_KAS"
+          status: SellOrderStatus.WAITING_FOR_KAS
         }
       },
       {

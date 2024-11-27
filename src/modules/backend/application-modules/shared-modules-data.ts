@@ -32,6 +32,8 @@ import { LunchpadEntity, LunchpadEntitySchema } from '../model/schemas/lunchpad.
 import { LunchpadOrder, LunchpadOrderSchema } from '../model/schemas/lunchpad-order.schema';
 import { KaspianoBackendApiModule } from '../services/kaspiano-backend-api/kaspiano-backend-api.module';
 import { UserRoleService } from '../services/user-role.service';
+import { P2pWithdrawalsService } from '../services/p2p-withdrawals.service';
+import { WithdrawalOrdersBookRepository } from '../repositories/withdrawal-orders-book.repository';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
@@ -43,6 +45,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Services
   P2pOrdersService,
+  P2pWithdrawalsService,
   KaspaNetworkActionsService,
   KaspaNetworkTransactionsManagerService,
   KaspaNetworkConnectionManagerService,
@@ -60,6 +63,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Repositories
   SellOrdersBookRepository,
+  WithdrawalOrdersBookRepository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
 ];

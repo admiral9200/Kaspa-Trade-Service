@@ -37,14 +37,16 @@ import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/serv
 import { CreateWithdrawalDto } from '../model/dtos/p2p-withdrawals/create-withdrawal.dto';
 import { WithdrawalResponseDto } from '../model/dtos/p2p-withdrawals/withdrawal.response.dto';
 import { PrivateKey } from 'libs/kaspa/kaspa';
-import { P2pWithdrawalResponseTransformer } from '../transformers/p2p-withdrawal-response.transformer';
+import { P2pWithdrawalBookResponseTransformer } from '../transformers/p2p-withdrawal-book-response.transformer';
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
+import { P2pWithdrawalsService } from '../services/p2p-withdrawals.service';
 
 @Injectable()
 export class P2pProvider {
   constructor(
     private readonly kaspaFacade: KaspaFacade,
     private readonly p2pOrderBookService: P2pOrdersService,
+    private readonly p2pWithdrawalBookService: P2pWithdrawalsService,
     private readonly temporaryWalletService: TemporaryWalletSequenceService,
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly telegramBotService: TelegramBotService,
@@ -572,6 +574,10 @@ export class P2pProvider {
 
   async createWithdrawal(body: CreateWithdrawalDto): Promise<Partial<WithdrawalResponseDto> | null> {
     try {
+      // Create withdrawal order with CREATED status...
+      const withdrawalOrder = await this.p2pWithdrawalBookService.createWithdrawal(body);
+      console.log("withdrawal order: ", withdrawalOrder);
+      
       // Getting available balance for users...
       const receivingWallet = body.receivingWallet;
       const privateKey = body.ownerWallet;
@@ -598,7 +604,7 @@ export class P2pProvider {
           1n
         );
 
-        return P2pWithdrawalResponseTransformer.transformEntityToResponseDto(
+        return P2pWithdrawalBookResponseTransformer.transformEntityToResponseDto(
           result.summary.finalAmount,
           receivingWallet,
           WithdrawalStatus.COMPLETED
