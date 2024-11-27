@@ -380,7 +380,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     filters: GetLunchpadListFiltersDto,
     sort: SortDto,
     pagination: PaginationDto,
-    walletAddress: string,
+    walletAddress?: string,
   ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
     const filterQuery: any = {};
 

@@ -149,6 +149,7 @@ export class LunchpadTransformer {
         roundNumber: lunchpad.roundNumber,
         maxUnitsPerWallet: lunchpad.maxUnitsPerWallet,
         useWhitelist: lunchpad.useWhitelist,
+        totalUnits: lunchpad.totalUnits,
       })),
       totalCount,
     };

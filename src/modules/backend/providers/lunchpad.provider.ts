@@ -847,7 +847,7 @@ export class LunchpadProvider {
 
   async getLunchpadList(
     lunchpadListDto: GetLunchpadListDto,
-    walletAddress: string,
+    walletAddress?: string,
   ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
     return await this.lunchpadService.getLunchpadList(
       lunchpadListDto.filters,

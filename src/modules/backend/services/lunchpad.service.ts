@@ -276,7 +276,7 @@ export class LunchpadService {
     filters: GetLunchpadListFiltersDto,
     sort: SortDto,
     pagination: PaginationDto,
-    walletAddress: string,
+    walletAddress?: string,
   ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
     return await this.lunchpadRepository.getLunchpadList(filters, sort, pagination, walletAddress);
   }
