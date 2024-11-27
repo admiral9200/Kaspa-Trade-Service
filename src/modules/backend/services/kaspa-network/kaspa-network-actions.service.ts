@@ -54,7 +54,7 @@ export class KaspaNetworkActionsService {
     // Doing in this weird way bacause large numbers might be problematic
     const onePercentOfTotalAmount = KaspaNetworkActionsService.SompiToNumber(totalBalance / 100n);
     const commission = KaspaNetworkActionsService.KaspaToSompiFromNumber(
-      Math.round(onePercentOfTotalAmount * this.config.lunchpadCommissionPercentage * 100) / 100,
+      Math.round(onePercentOfTotalAmount * this.config.lunchpadCommissionPercentage * 10000) / 10000,
     );
 
     return commission > MIMINAL_COMMITION ? commission : MIMINAL_COMMITION;
