@@ -8,7 +8,10 @@ import { ConfirmSellOrderRequestResponseDto } from '../model/dtos/p2p-orders/res
 import { BuyRequestResponseDto } from '../model/dtos/p2p-orders/responses/buy-request.response.dto';
 import { SellRequestResponseDto } from '../model/dtos/p2p-orders/responses/sell-request.response.dto';
 import { ConfirmBuyOrderRequestResponseDto } from '../model/dtos/p2p-orders/responses/confirm-buy-order-request.response.dto';
-import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import {
+  ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
+  KaspaNetworkActionsService,
+} from '../services/kaspa-network/kaspa-network-actions.service';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
@@ -177,6 +180,7 @@ export class P2pProvider {
       order.buyerWalletAddress,
       temporaryWalletPublicAddress,
       order.totalPrice,
+      ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
     );
 
     let transactionsResult: SwapTransactionsResult;
@@ -262,6 +266,7 @@ export class P2pProvider {
       order.sellerWalletAddress,
       temporaryWalletPublicAddress,
       0, // swap fee added in verifyTransactionResultWithKaspaApiAndWalletTotalAmountWithSwapFee
+      ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
     );
 
     let transactionsResult: Partial<SwapTransactionsResult>;
@@ -405,6 +410,7 @@ export class P2pProvider {
         const senderAddr = await this.kaspaFacade.getUtxoSenderWallet(
           await this.kaspaFacade.getAccountWalletAddressAtIndex(order.walletSequenceId),
           walletTotalBalanceAndUtxos.utxoEntries[0],
+          ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
         );
 
         if (senderAddr) {

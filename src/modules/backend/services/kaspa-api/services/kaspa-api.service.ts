@@ -30,16 +30,27 @@ export class KaspaApiService {
     );
   }
 
-  async getTransactionSender(txnId: string, receiverAddr: string, amount: bigint): Promise<string> {
+  async getTransactionSender(
+    txnId: string,
+    receiverAddr: string,
+    amount: bigint,
+    acceptableAmountRange: bigint = 0n,
+  ): Promise<string> {
     const txnInfo = await this.getTxnInfo(txnId);
     if (!txnInfo) {
       console.error('Transaction info not found.');
       return null;
     }
 
+    const minAcceptableAmount = amount - acceptableAmountRange;
+    const maxAcceptableAmount = amount + acceptableAmountRange;
+
     // 2. Verify the output amount and receiver address
     const output = txnInfo.outputs.find(
-      (output: any) => output.amount === Number(amount) && output.script_public_key_address === receiverAddr,
+      (output: any) =>
+        output.amount >= minAcceptableAmount &&
+        output.amount <= maxAcceptableAmount &&
+        output.script_public_key_address === receiverAddr,
     );
 
     if (!output) {
@@ -68,6 +79,7 @@ export class KaspaApiService {
     receiverAddr: string,
     amount: bigint,
     receiverAddrMightGetMore: boolean = false,
+    acceptableAmountRange: bigint = 0n,
   ): Promise<boolean> {
     if (!txnInfo) {
       console.error('Transaction info not found.');
@@ -80,11 +92,15 @@ export class KaspaApiService {
       return false;
     }
 
+    const minRangeAmount = amount - acceptableAmountRange;
+    const maxRangeAmount = amount + acceptableAmountRange;
+
     // 2. Verify the output amount and receiver address
     const output = txnInfo.outputs.find(
       (output: any) =>
         output.script_public_key_address === receiverAddr &&
-        (output.amount === Number(amount) || (receiverAddrMightGetMore && output.amount > Number(amount))),
+        output.amount >= Number(minRangeAmount) &&
+        (output.amount <= Number(maxRangeAmount) || receiverAddrMightGetMore),
     );
 
     if (!output) {
@@ -101,10 +117,18 @@ export class KaspaApiService {
     receiverAddr: string,
     amount: bigint,
     receiverAddrMightGetMore: boolean = false,
+    acceptableAmountRange: bigint = 0n,
   ): Promise<boolean> {
     const txnInfo = await this.getTxnInfo(txnId);
 
-    return await this.verifyPaymentInputsAndOutputs(txnInfo, senderAddr, receiverAddr, amount, receiverAddrMightGetMore);
+    return await this.verifyPaymentInputsAndOutputs(
+      txnInfo,
+      senderAddr,
+      receiverAddr,
+      amount,
+      receiverAddrMightGetMore,
+      acceptableAmountRange,
+    );
   }
 
   async verifySendTransactionAndGetCommission(

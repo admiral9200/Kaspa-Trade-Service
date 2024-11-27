@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
-import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import {
+  ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
+  KaspaNetworkActionsService,
+} from '../services/kaspa-network/kaspa-network-actions.service';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD, LunchpadService } from '../services/lunchpad.service';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
@@ -490,6 +493,8 @@ export class LunchpadProvider {
         userWalletAddress,
         lunchpadReceiverWalletAddress,
         KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.lunchpadOrder.totalUnits * orderData.lunchpad.kasPerUnit),
+        false,
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE),
       );
     } catch (error) {
       this.logger.error('Failed to verify payment transaction');
@@ -930,7 +935,7 @@ export class LunchpadProvider {
     }
 
     const utxoAmount = KaspaNetworkActionsService.SompiToNumber(BigInt(freeUtxosWithSenderAddress.utxo.amount));
-    const units = Math.floor(utxoAmount / lunchpad.kasPerUnit);
+    const units = Math.floor((utxoAmount + ACCEPTABLE_TRANSACTION_AMOUNT_RANGE) / lunchpad.kasPerUnit);
 
     const matchingOrder = waitingForKasOrders.find(
       (order) => order.totalUnits === units && order.userWalletAddress === freeUtxosWithSenderAddress.senderAddress,

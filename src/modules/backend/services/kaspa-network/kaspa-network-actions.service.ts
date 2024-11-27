@@ -23,6 +23,7 @@ export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
 export const MIMINAL_COMMITION = kaspaToSompi('1');
+export const ACCEPTABLE_TRANSACTION_AMOUNT_RANGE = 0.001;
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
 const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10000n;
@@ -101,12 +102,23 @@ export class KaspaNetworkActionsService {
     return KaspaNetworkActionsService.KaspaToSompiFromNumber(requiredAmountCeiled);
   }
 
-  async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
-    return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
+  async getTransactionSenderWallet(
+    transactionId: string,
+    receiverWallet: string,
+    amount: bigint,
+    acceptableAmountRange: bigint,
+  ): Promise<string> {
+    return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount, acceptableAmountRange);
   }
 
-  async verifyPaymentTransaction(transactionId: string, from: string, to: string, amount: bigint): Promise<boolean> {
-    return await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount);
+  async verifyPaymentTransaction(
+    transactionId: string,
+    from: string,
+    to: string,
+    amount: bigint,
+    acceptableAmountRange: bigint = 0n,
+  ): Promise<boolean> {
+    return await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount, false, acceptableAmountRange);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
@@ -114,18 +126,19 @@ export class KaspaNetworkActionsService {
     from: string,
     to: string,
     amount: bigint,
+    acceptableAmountRange: bigint = 0n,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.verifyPaymentTransaction(transactionId, from, to, amount);
+    const kaspaApiResult = await this.verifyPaymentTransaction(transactionId, from, to, amount, acceptableAmountRange);
     if (!kaspaApiResult) {
       return false;
     }
 
     const walletTotalBalance = await this.getWalletTotalBalance(to);
 
-    // Must be == and not >=, Because if there is there extra money it belongs to someone else
-    // And it will be sent to the buyer even though it's not his money
-    // This is in case of an error
-    return walletTotalBalance === amount;
+    const minAccepted = amount - acceptableAmountRange;
+    const maxAccepted = amount + acceptableAmountRange;
+
+    return walletTotalBalance >= minAccepted && walletTotalBalance <= maxAccepted;
   }
 
   async isValidKaspaAmountForSwap(
@@ -136,8 +149,13 @@ export class KaspaNetworkActionsService {
 
     const requiredAmount = swapAmount + AMOUNT_FOR_SWAP_FEES;
 
+    const minRequiredAmount =
+      requiredAmount - KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+    const maxRequiredAmount =
+      requiredAmount + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+
     return {
-      isValid: totalWalletAmountAtStart === requiredAmount,
+      isValid: totalWalletAmountAtStart >= minRequiredAmount && totalWalletAmountAtStart <= maxRequiredAmount,
       requiredAmount,
       currentAmount: totalWalletAmountAtStart,
     };
@@ -272,7 +290,12 @@ export class KaspaNetworkActionsService {
           this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
         );
 
-        if (totalWalletAmountAtStart != AMOUNT_FOR_SWAP_FEES) {
+        const minAcceptableAmountForFee =
+          AMOUNT_FOR_SWAP_FEES - KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+        const maxAcceptableAmountForFee =
+          AMOUNT_FOR_SWAP_FEES + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+
+        if (!(totalWalletAmountAtStart >= minAcceptableAmountForFee && totalWalletAmountAtStart <= maxAcceptableAmountForFee)) {
           throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, AMOUNT_FOR_SWAP_FEES);
         }
 
