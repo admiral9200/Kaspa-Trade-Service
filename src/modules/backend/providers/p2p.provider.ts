@@ -621,7 +621,17 @@ export class P2pProvider {
       } else {
         // When there is no enough balance in the master wallet...
         // This should be WAITING_FOR_KAS status.
+        const withdrawal: P2pWithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
+        // Mapping to response DTO.
+        return P2pWithdrawalBookResponseTransformer.transformEntityToResponseDto(
+          String(BigInt(withdrawal.amount) * BigInt(10 ** 8)),
+          withdrawal.receivingWallet,
+          WithdrawalStatus.COMPLETED,
+          withdrawal.createdAt,
+          withdrawal.updatedAt,
+          false
+        );
       }
 
 

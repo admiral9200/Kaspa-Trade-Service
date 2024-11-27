@@ -12,7 +12,7 @@ export class P2pWithdrawalsService {
     constructor(
         @InjectConnection(MONGO_DATABASE_CONNECTIONS.P2P) private connection: Connection,
         private readonly withdrawalOrdersBookRepository: WithdrawalOrdersBookRepository
-    ) {}
+    ) { }
 
     public async createWithdrawal(
         createWithdrawalDto: CreateWithdrawalDto,
@@ -30,9 +30,19 @@ export class P2pWithdrawalsService {
         const order: P2pWithdrawalEntity = await this.withdrawalOrdersBookRepository.setCompletedStatus(_id);
 
         if (!order) {
-          throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
         }
-    
+
         return order;
-      }
+    }
+
+    async updateWithdrawalStatusToWaitingForKas(_id: string): Promise<P2pWithdrawalEntity> {
+        const order: P2pWithdrawalEntity = await this.withdrawalOrdersBookRepository.setWaitingForKasStatus(_id);
+
+        if (!order) {
+            throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return order;
+    }
 }
