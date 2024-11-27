@@ -16,6 +16,7 @@ import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwa
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { KRC20ActionTransations } from './interfaces/Krc20ActionTransactions.interface';
+import { WithdrawalStatus } from '../../model/enums/withdrawal-status.enum';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
@@ -389,5 +390,15 @@ export class KaspaNetworkActionsService {
 
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
+  }
+
+  async createTransaction(
+    privateKey: PrivateKey,
+    outputs: IPaymentOutput[]
+  ) {
+    console.log("create connection function!");
+    return await this.transactionsManagerService.connectAndDo(async () => {
+      return await this.transactionsManagerService.createTransactionForWithdrawal(10, privateKey.toPublicKey().toString(), "kaspatest:qrcz2axlffjdyztdtz0400j73cz4zsp69rh0p28qz2dhtmemu0zs2xzy8530n", WithdrawalStatus.CREATED)
+    });
   }
 }

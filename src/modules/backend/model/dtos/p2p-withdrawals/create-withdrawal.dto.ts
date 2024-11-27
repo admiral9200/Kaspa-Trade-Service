@@ -2,8 +2,8 @@ import { IsEnum, IsNumber, IsString } from "class-validator";
 import { WithdrawalStatus } from "../../enums/withdrawal-status.enum";
 
 export class CreateWithdrawalDto {
-    @IsNumber()
-    amount: number;
+    @IsString()
+    amount: string;
     
     @IsString()
     ownerWallet: string;

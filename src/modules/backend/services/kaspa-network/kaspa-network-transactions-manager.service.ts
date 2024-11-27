@@ -12,7 +12,7 @@ import {
   UtxoEntryReference,
   kaspaToSompi,
   PublicKey,
-  verifyMessage,
+  verifyMessage
 } from 'libs/kaspa/kaspa';
 import { KRC20_BASE_TRANSACTION_AMOUNT, KRC20OperationDataInterface } from './classes/KRC20OperationData';
 import { TransacionReciever } from './classes/TransacionReciever';
@@ -24,6 +24,7 @@ import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtx
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
 import { UtxoProcessorManager } from './classes/UnxoProcessorManager';
+import { WithdrawalStatus } from '../../model/enums/withdrawal-status.enum';
 
 export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 
@@ -545,5 +546,14 @@ export class KaspaNetworkTransactionsManagerService {
     }
 
     return null;
+  }
+
+  async createTransactionForWithdrawal(amount: number, ownerWallet: string, receivingWallet: string, status: WithdrawalStatus) {
+    return {
+      amount,
+      ownerWallet,
+      receivingWallet,
+      status
+    }
   }
 }

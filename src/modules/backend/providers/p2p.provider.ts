@@ -34,6 +34,9 @@ import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoney
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
 import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
+import { CreateWithdrawalDto } from '../model/dtos/p2p-withdrawals/create-withdrawal.dto';
+import { WithdrawalResponseDto } from '../model/dtos/p2p-withdrawals/withdrawal.response.dto';
+import { PrivateKey } from 'libs/kaspa/kaspa';
 
 @Injectable()
 export class P2pProvider {
@@ -562,6 +565,22 @@ export class P2pProvider {
     } catch (error) {
       this.logger.error(error?.message, error?.stack);
       this.telegramBotService.sendErrorToErrorsChannel(error);
+    }
+  }
+
+  async createWithdrawal(body: CreateWithdrawalDto): Promise<WithdrawalResponseDto> {
+    try {
+      const result = await this.kaspaNetworkActionsService.transferKaspa(new PrivateKey("7189846b9f61d0c846162dd7abedf7eecb9196517e3da891d76b52e3797db273"), [{
+        address: "kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju",
+        amount: 100000000n
+      }], 1n);
+
+      console.log("result: ", result);
+      return;
+    } catch (error) {
+      console.log("error: ", error);
+      this.logger.error(error);
+      
     }
   }
 }

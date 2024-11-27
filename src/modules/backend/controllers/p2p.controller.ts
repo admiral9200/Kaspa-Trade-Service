@@ -237,8 +237,7 @@ export class P2pController {
     @Body() body: CreateWithdrawalDto
   ): Promise<WithdrawalResponseDto> {
     try {
-      // return await this.p2pProvider
-      return;
+      return await this.p2pProvider.createWithdrawal(body);
     } catch (error) {
       this.logger.error('Error creating a withdrawal', error);
       throw error;
