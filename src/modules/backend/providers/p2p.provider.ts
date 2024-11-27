@@ -608,6 +608,9 @@ export class P2pProvider {
         // Update the status of withdrawal order to COMPLETED...
         const withdrawal: P2pWithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToCompleted(withdrawalOrder._id);
 
+        // Notify the completed status to Telegram.
+        await this.telegramBotService.notifyWithdrawalCompleted(withdrawal).catch(() => {});
+
         // Mapping to response DTO.
         return P2pWithdrawalBookResponseTransformer.transformEntityToResponseDto(
           String(BigInt(withdrawal.amount) * BigInt(10 ** 8)),
@@ -633,9 +636,6 @@ export class P2pProvider {
           false
         );
       }
-
-
-      return;
     } catch (error) {
       console.log("error: ", error);
       this.logger.error(error);

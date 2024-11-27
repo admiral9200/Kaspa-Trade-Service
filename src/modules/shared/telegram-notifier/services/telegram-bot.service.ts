@@ -6,6 +6,7 @@ import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { P2pOrderEntity } from 'src/modules/backend/model/schemas/p2p-order.schema';
 import { isEmptyString } from 'src/modules/backend/utils/object.utils';
 import { MIMINAL_COMMITION } from 'src/modules/backend/services/kaspa-network/kaspa-network-actions.service';
+import { P2pWithdrawalEntity } from 'src/modules/backend/model/schemas/p2p-withdrawal.schema';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -114,5 +115,35 @@ export class TelegramBotService {
       return `\`\`\`${language}\n${escapedCode}\n\`\`\``;
     }
     return `\`\`\`\n${escapedCode}\n\`\`\``;
+  }
+
+
+  async notifyWithdrawalCompleted(order: P2pWithdrawalEntity): Promise<void> {
+    if (
+      !isEmptyString(this.optionalNotificationApiKey) &&
+      !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
+    ) {
+      try {
+        const commission = Math.max(
+          order.amount * (this.configService.swapCommissionPercentage / 100),
+          Number(MIMINAL_COMMITION) / 1e8,
+        ).toFixed(3);
+        let message = TelegramBotService.escapeMarkdown(
+          `Withdrawal completed.^n^Total Kaspa: ${order.amount}^n^Tokens!`,
+        );
+
+        message = message.replace(/\^n\^/g, '\n');
+
+        this.sendFormattedMessage(
+          this.configService.getTelegramOrdersNotificationsChannelId,
+          message,
+          this.optionalNotificationApiKey,
+        );
+      } catch (error) {
+        console.error('Error notifying withdrawal completed:', error);
+        this.logger.error('Error notifying order completed');
+        this.logger.error(error, error?.stack, error?.meta);
+      }
+    }
   }
 }
