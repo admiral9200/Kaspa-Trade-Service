@@ -30,6 +30,8 @@ import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
 import { UtxoProcessorManager } from './classes/UnxoProcessorManager';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
+import { ApplicationIsClosingError } from './errors/ApplicationIsClosingError';
+import { ImportantPromisesManager } from '../../important-promises-manager/important-promises-manager';
 
 export const MINIMAL_AMOUNT_TO_SEND = kaspaToSompi('0.2');
 const TIME_TO_WAIT_BEFORE_TRANSACTION_RECEIVED_CHECK = 120 * 1000;
@@ -41,6 +43,7 @@ type DoTransactionOptions = {
   additionalKrc20TransactionPriorityFee?: bigint;
   priorityEntries?: IUtxoEntry[];
   sendAll?: boolean;
+  stopOnApplicationClosing?: boolean;
 };
 
 @Injectable()
@@ -457,16 +460,12 @@ export class KaspaNetworkTransactionsManagerService {
                     isTransactionRecieverDisposed = true;
                     await transactionReciever.dispose();
 
-                    console.log(`Transaction ${transaction.id} not received, trying to get from api...`, new Date());
+                    if (additionalOptions.stopOnApplicationClosing && ImportantPromisesManager.isApplicationClosing()) {
+                      throw new ApplicationIsClosingError();
+                    }
 
-                    await this.utils.retryOnError(
-                      async () => {
-                        return await this.kaspaApiService.getTxnInfo(transaction.id);
-                      },
-                      NUMBER_OF_MINUTES_TO_KEEP_CHECKING_TRANSACTION_RECEIVED,
-                      TIME_TO_WAIT_BEFORE_TRANSACTION_RECEIVED_CHECK,
-                      true,
-                    );
+                    console.log(`Transaction ${transaction.id} not received, trying to get from api...`, new Date());
+                    await this.verifyTransactionReceivedOnKaspaApi(transaction.id, additionalOptions.stopOnApplicationClosing);
                   }
                 }
               } catch (error) {
@@ -504,6 +503,7 @@ export class KaspaNetworkTransactionsManagerService {
     maxPriorityFee: bigint = 0n,
     baseTransactionAmount = KRC20_BASE_TRANSACTION_AMOUNT,
     notifyCreatedTransactions: (transactionId: string) => Promise<any> = null,
+    stopOnApplicationClosing: boolean = false,
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
@@ -516,6 +516,7 @@ export class KaspaNetworkTransactionsManagerService {
 
     return await this.doTransactionWithUtxoProcessor(privateKey, maxPriorityFee, outputs, {
       notifyCreatedTransactions,
+      stopOnApplicationClosing,
     });
   }
 
@@ -525,6 +526,7 @@ export class KaspaNetworkTransactionsManagerService {
     transactionFeeAmount: bigint,
     maxPriorityFee: bigint = 0n,
     notifyCreatedTransactions: (transactionId: string) => Promise<any> = null,
+    stopOnApplicationClosing: boolean = false,
   ) {
     const scriptAndScriptAddress = this.createP2SHAddressScript(krc20transactionData, privateKey);
 
@@ -554,6 +556,7 @@ export class KaspaNetworkTransactionsManagerService {
       specialSignTransactionFunc,
       additionalKrc20TransactionPriorityFee: transactionFeeAmount,
       priorityEntries,
+      stopOnApplicationClosing,
     });
   }
 
@@ -658,5 +661,21 @@ export class KaspaNetworkTransactionsManagerService {
     }
 
     return null;
+  }
+
+  async verifyTransactionReceivedOnKaspaApi(txnId: string, stopOnApplicationClosing: boolean = false): Promise<void> {
+    await this.utils.retryOnError(
+      async () => {
+        if (stopOnApplicationClosing) {
+          throw new ApplicationIsClosingError();
+        }
+
+        return await this.kaspaApiService.getTxnInfo(txnId);
+      },
+      NUMBER_OF_MINUTES_TO_KEEP_CHECKING_TRANSACTION_RECEIVED,
+      TIME_TO_WAIT_BEFORE_TRANSACTION_RECEIVED_CHECK,
+      true,
+      (error) => error instanceof ApplicationIsClosingError,
+    );
   }
 }

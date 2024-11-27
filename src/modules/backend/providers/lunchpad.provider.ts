@@ -24,6 +24,7 @@ import * as _ from 'lodash';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
 import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
+import { ApplicationIsClosingError } from '../services/kaspa-network/errors/ApplicationIsClosingError';
 
 @Injectable()
 export class LunchpadProvider {
@@ -54,6 +55,8 @@ export class LunchpadProvider {
     let senderWalletAddress = null;
     let krc20TokensAmount = null;
     let openOrders = null;
+    let walletUnits = null;
+    let walletTokensAmount = null;
 
     if (userWalletAddress) {
       if (userWalletAddress != lunchpad.ownerWallet) {
@@ -78,6 +81,9 @@ export class LunchpadProvider {
       );
 
       openOrders = (await this.lunchpadService.getLunchpadOpenOrders(lunchpad)).length;
+
+      walletTokensAmount = krc20TokensAmount;
+      walletUnits = this.lunchpadService.calculateLunchpadUnits(walletTokensAmount, lunchpad.tokenPerUnit);
     }
 
     return {
@@ -88,6 +94,8 @@ export class LunchpadProvider {
       senderWalletAddress,
       krc20TokensAmount,
       openOrders,
+      walletTokensAmount,
+      walletUnits,
     };
   }
 
@@ -442,7 +450,7 @@ export class LunchpadProvider {
     }
   }
 
-  async verifyOrderAndStartLunchpadProcess(orderId, userWalletAddress, transactionId): Promise<LunchpadOrderDataWithErrors> {
+  async verifyOrderAndSetToVerified(orderId, userWalletAddress, transactionId): Promise<LunchpadOrderDataWithErrors> {
     const orderData = await this.getOrderByIdAndWalletAndStatus(
       orderId,
       userWalletAddress,
@@ -550,26 +558,11 @@ export class LunchpadProvider {
       }
     }
 
-    try {
-      // process order
-      await this.startLunchpadProcessingOrdersIfNeeded(orderData.lunchpad);
-
-      return {
-        success: true,
-        lunchpadOrder: updatedOrder,
-        lunchpad: orderData.lunchpad,
-      };
-    } catch (error) {
-      this.logger.error('Failed transfering lunchpad order KRC20 Tokens');
-      this.logger.error(error, error?.stack, error?.meta);
-
-      return {
-        success: false,
-        errorCode: ERROR_CODES.GENERAL.UNKNOWN_ERROR,
-        lunchpadOrder: orderData.lunchpadOrder,
-        lunchpad: orderData.lunchpad,
-      };
-    }
+    return {
+      success: true,
+      lunchpadOrder: updatedOrder,
+      lunchpad: orderData.lunchpad,
+    };
   }
 
   async startLunchpadProcessingOrdersIfNeeded(lunchpad: LunchpadEntity) {
@@ -590,38 +583,49 @@ export class LunchpadProvider {
       return;
     }
 
-    await this.lunchpadService.startRunningLunchpad(lunchpad);
-
     let resolve = null;
-
     const promise = new Promise((res) => {
       resolve = res;
     });
 
-    // Not await because might take some time
-    this.runLunchpadAndProcessOrders(lunchpad)
-      .catch((error) => {
-        this.logger.error(error, error?.stack, error?.meta);
-      })
-      .finally(() => {
-        this.lunchpadService.stopRunningLunchpad(lunchpad._id).finally(resolve);
-      });
-
     ImportantPromisesManager.addPromise(promise);
+
+    await this.lunchpadService.startRunningLunchpad(lunchpad);
+
+    try {
+      await this.runLunchpadAndProcessOrders(lunchpad);
+    } catch (error) {
+      this.logger.error(error, error?.stack, error?.meta);
+    } finally {
+      await this.lunchpadService.stopRunningLunchpad(lunchpad._id);
+      resolve();
+    }
   }
 
   async runLunchpadAndProcessOrders(lunchpad: LunchpadEntity) {
     let orders = await this.lunchpadService.getReadyToProcessOrders(lunchpad);
 
-    while (orders.length > 0) {
+    while (orders.length > 0 && !ImportantPromisesManager.isApplicationClosing()) {
       for (const order of orders) {
+        if (ImportantPromisesManager.isApplicationClosing()) {
+          break;
+        }
+
         try {
           await this.processOrderAfterStatusChange(order, lunchpad);
         } catch (error) {
+          if (error instanceof ApplicationIsClosingError) {
+            return;
+          }
+
           await this.lunchpadService.setProcessingError(order._id, error.toString());
           this.logger.error(error?.message, error?.stack);
           this.telegramBotService.sendErrorToErrorsChannel(error);
         }
+      }
+
+      if (ImportantPromisesManager.isApplicationClosing()) {
+        break;
       }
 
       orders = await this.lunchpadService.getReadyToProcessOrders(lunchpad);
@@ -629,7 +633,10 @@ export class LunchpadProvider {
   }
 
   private async processOrderAfterStatusChange(order: LunchpadOrder, lunchpad: LunchpadEntity): Promise<LunchpadOrder> {
-    let updatedOrder = await this.lunchpadService.setOrderStatusToProcessing(order._id);
+    let updatedOrder = await this.lunchpadService.setOrderStatusToProcessing(
+      order._id,
+      order.status == LunchpadOrderStatus.PROCESSING,
+    );
     let updatedLunchpad = lunchpad;
 
     await this.kaspaFacade.processLunchpadOrder(updatedOrder, lunchpad, async (result) => {
@@ -709,7 +716,6 @@ export class LunchpadProvider {
       orderData.lunchpadOrder = await this.lunchpadService.setOrderStatusToVerifiedAndWaitingForProcessing(
         orderData.lunchpadOrder._id,
       );
-      this.startLunchpadProcessingOrdersIfNeeded(orderData.lunchpad);
 
       return {
         success: false,
@@ -973,5 +979,18 @@ export class LunchpadProvider {
     }
 
     return await this.lunchpadService.getLunchpadOrders(lunchpadId, getLaunchpadOrderListDto);
+  }
+
+  async startAllLunchpadsOrdersProcessing() {
+    const lunchpadsNeededToBeRun = await this.lunchpadService.getLunchpadsWithOpenOrders();
+
+    console.log(
+      'lunchpadsNeededToBeRun',
+      lunchpadsNeededToBeRun.map((a) => a.ticker),
+    );
+
+    for (const lunchpad of lunchpadsNeededToBeRun) {
+      this.startLunchpadProcessingOrdersIfNeeded(lunchpad);
+    }
   }
 }

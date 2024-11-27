@@ -11,10 +11,10 @@ import { LunchpadWalletType } from '../../model/enums/lunchpad-wallet-type.enum'
 export class LunchpadManagementController {
   constructor(private readonly lunchpadManagementProvider: LunchpadManagementProvider) {}
 
-  @Post(':id/start-process')
-  async startLunchpadProcess(@Param('id') id: string): Promise<any> {
-    return await this.lunchpadManagementProvider.startLunchpadProcess(id);
-  }
+  // @Post(':id/start-process')
+  // async startLunchpadProcess(@Param('id') id: string): Promise<any> {
+  //   return await this.lunchpadManagementProvider.startLunchpadProcess(id);
+  // }
 
   @Post(':id/private')
   async getPrivateKey(

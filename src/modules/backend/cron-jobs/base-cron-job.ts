@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
+import { ImportantPromisesManager } from '../important-promises-manager/important-promises-manager';
 
 @Injectable()
 export class BaseCronJob {
@@ -16,6 +17,10 @@ export class BaseCronJob {
       const errorStr = `cron job ${jobName} in ${this.constructor.name} is already running, please check why it is taking too long`;
       this.logger.error(errorStr);
       this.telegramBotService.sendErrorToErrorsChannel(new Error(errorStr), true);
+      return;
+    }
+
+    if (ImportantPromisesManager.isApplicationClosing()) {
       return;
     }
 

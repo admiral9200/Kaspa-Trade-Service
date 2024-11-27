@@ -168,6 +168,8 @@ export class KaspaFacade {
       lunchpadOrder.transactions || {},
       KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
       notifyUpdate,
+      true,
+      true,
     );
   }
 

@@ -353,11 +353,20 @@ export class KaspaNetworkActionsService {
     maxPriorityFee: bigint,
     alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    verifyTransactionsReceived: boolean = true,
+    stopOnApplicationClosing: boolean = false,
   ) {
     const resultTransactions = { ...alreadyFinishedTransactions };
 
     return await this.transactionsManagerService.connectAndDo<KRC20ActionTransations>(async () => {
-      if (!resultTransactions.commitTransactionId) {
+      if (resultTransactions.commitTransactionId) {
+        if (verifyTransactionsReceived) {
+          await this.transactionsManagerService.verifyTransactionReceivedOnKaspaApi(
+            resultTransactions.commitTransactionId,
+            stopOnApplicationClosing,
+          );
+        }
+      } else {
         const totalWalletAmountAtStart = await this.getWalletTotalBalance(
           this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
         );
@@ -378,10 +387,18 @@ export class KaspaNetworkActionsService {
             resultTransactions.commitTransactionId = transactionId;
             await notifyUpdate(resultTransactions);
           },
+          stopOnApplicationClosing,
         );
       }
 
-      if (!resultTransactions.revealTransactionId) {
+      if (resultTransactions.revealTransactionId) {
+        if (verifyTransactionsReceived) {
+          await this.transactionsManagerService.verifyTransactionReceivedOnKaspaApi(
+            resultTransactions.commitTransactionId,
+            stopOnApplicationClosing,
+          );
+        }
+      } else {
         await this.transactionsManagerService.doKrc20RevealTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
           operationData,
@@ -391,6 +408,7 @@ export class KaspaNetworkActionsService {
             resultTransactions.revealTransactionId = transactionId;
             await notifyUpdate(resultTransactions);
           },
+          stopOnApplicationClosing,
         );
       }
 
@@ -425,6 +443,8 @@ export class KaspaNetworkActionsService {
     alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
     maxPriorityFee: bigint,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    verifyTransactionReceivedOnKaspaApi: boolean = false,
+    stopOnApplicationClosing: boolean = false,
   ): Promise<KRC20ActionTransations> {
     const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, targetAddress);
 
@@ -435,6 +455,8 @@ export class KaspaNetworkActionsService {
       maxPriorityFee,
       alreadyFinishedTransactions,
       notifyUpdate,
+      verifyTransactionReceivedOnKaspaApi,
+      stopOnApplicationClosing,
     );
   }
 

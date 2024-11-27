@@ -27,6 +27,8 @@ export type ClientSideLunchpad = {
   useWhitelist?: boolean;
   maxUnitsPerWallet?: number;
   whitelistWalletAddresses?: string[];
+  walletTokensAmount?: number;
+  walletUnits?: number;
 };
 
 export type ClientSideLunchpadWithStatus = {
@@ -95,6 +97,8 @@ export class LunchpadTransformer {
     requiredKaspa?: number,
     openOrders?: number,
     showWhitelistAddresses: boolean = false,
+    walletTokensAmount: number = 0,
+    walletUnits: number = 0,
   ): ClientSideLunchpad {
     return {
       id: data._id,
@@ -115,6 +119,8 @@ export class LunchpadTransformer {
       krc20TokensAmount: krc20TokensAmount,
       requiredKaspa,
       openOrders,
+      walletTokensAmount,
+      walletUnits,
     };
   }
 

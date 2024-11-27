@@ -17,10 +17,10 @@ export class LunchpadManagementProvider {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
   ) {}
 
-  async startLunchpadProcess(id: string): Promise<void> {
-    const lunchpad = await this.lunchpadService.getById(id);
-    return await this.lunchpadProvider.startLunchpadProcessingOrdersIfNeeded(lunchpad);
-  }
+  // async startLunchpadProcess(id: string): Promise<void> {
+  //   const lunchpad = await this.lunchpadService.getById(id);
+  //   return await this.lunchpadProvider.startLunchpadProcessingOrdersIfNeeded(lunchpad);
+  // }
 
   async getPrivateKey(id: string, password: string, walletType: LunchpadWalletType, viewerWallet: string) {
     if (isEmptyString(this.config.privateKeyViewingPassword)) {

@@ -70,6 +70,8 @@ export class LunchpadController {
             result.requiredKaspa,
             result.openOrders,
             true,
+            result.walletTokensAmount,
+            result.walletUnits,
           )
         : null,
       errorCode: result.errorCode,
@@ -262,11 +264,7 @@ export class LunchpadController {
     @Body() body: ProcessLunchpadOrderRequestDto,
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.verifyOrderAndStartLunchpadProcess(
-      orderId,
-      walletInfo.walletAddress,
-      body.transactionId,
-    );
+    const result = await this.lunchpadProvider.verifyOrderAndSetToVerified(orderId, walletInfo.walletAddress, body.transactionId);
 
     return {
       success: result.success,

@@ -95,7 +95,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     return await super.updateByOne(
       '_id',
       lunchpadId,
-      { status: LunchpadStatus.INACTIVE, rounds: roundsData },
+      { status: LunchpadStatus.INACTIVE, rounds: roundsData, totalUnits: 0, availabeUnits: 0 },
       { isRunning: false, status: LunchpadStatus.STOPPING },
     );
   }
@@ -355,13 +355,19 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       throw error;
     }
   }
-
   async getOrdersByRoundAndStatuses(
     lunchpadId: string,
     roundNumber: number,
     statuses: LunchpadOrderStatus[],
+    orderBy?: { [key: string]: 1 | -1 },
   ): Promise<LunchpadOrder[]> {
-    return await this.lunchpadOrderModel.find({ lunchpadId, roundNumber, status: { $in: statuses } }).exec();
+    const query = this.lunchpadOrderModel.find({ lunchpadId, roundNumber, status: { $in: statuses } });
+
+    if (orderBy) {
+      query.sort(orderBy);
+    }
+
+    return await query.exec();
   }
 
   async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {
@@ -521,5 +527,42 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     const orders = await query.exec();
 
     return { orders, totalCount };
+  }
+
+  async getLunchpadsForOrdersWithStatus(statuses: LunchpadOrderStatus[]): Promise<LunchpadEntity[]> {
+    return await this.lunchpadOrderModel
+      .aggregate([
+        {
+          $match: {
+            status: { $in: statuses },
+          },
+        },
+        {
+          $group: {
+            _id: '$lunchpadId', // Group by lunchpadId
+          },
+        },
+        { $addFields: { convertedId: { $toObjectId: '$_id' } } }, // Convert if needed
+        {
+          $lookup: {
+            from: this.lunchpadModel.collection.name, // The name of the lunchpad collection
+            localField: 'convertedId', // The field from lunchpadOrderModel
+            foreignField: '_id', // The field in lunchpadModel to match
+            as: 'lunchpadData', // The resulting array field
+          },
+        },
+        {
+          $unwind: '$lunchpadData', // Flatten the results
+        },
+        {
+          $replaceRoot: { newRoot: '$lunchpadData' }, // Replace root with the lunchpad data
+        },
+        {
+          $match: {
+            isRunning: false,
+          },
+        },
+      ])
+      .exec();
   }
 }
