@@ -52,7 +52,11 @@ export class KaspaNetworkActionsService {
       return 0n;
     }
 
-    const commission = (BigInt(this.config.lunchpadCommissionPercentage) * totalBalance) / 100n;
+    // Doing in this weird way bacause large numbers might be problematic
+    const onePercentOfTotalAmount = KaspaNetworkActionsService.SompiToNumber(totalBalance / 100n);
+    const commission = KaspaNetworkActionsService.KaspaToSompiFromNumber(
+      Math.round(onePercentOfTotalAmount * this.config.lunchpadCommissionPercentage * 10000) / 10000,
+    );
 
     return commission > MIMINAL_COMMITION ? commission : MIMINAL_COMMITION;
   }
