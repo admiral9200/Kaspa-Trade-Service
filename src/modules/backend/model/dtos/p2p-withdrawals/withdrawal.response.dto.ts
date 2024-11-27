@@ -1,9 +1,7 @@
 import { WithdrawalStatus } from "../../enums/withdrawal-status.enum";
 
 export class WithdrawalResponseDto {
-    id: string;
-    amount: number;
-    ownerWallet: string;
+    amount: bigint;
     receivingWallet: string;
     status: WithdrawalStatus;
     createdAt: Date;

@@ -481,4 +481,32 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
 
     return stuckOrders;
   }
+
+  /**
+   * Calculating the available balance after buying token.
+   * @param receivingAddress 
+   * @returns 
+   */
+  async getAvailableBalanceWithBuyerAddress(
+    receivingAddress: string
+  ): Promise<number> {
+    const result = await this.sellOrdersModel.aggregate([
+      {
+        $match: {
+          buyerWalletAddress: receivingAddress,
+          status: "WAITING_FOR_KAS"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalBalance: {
+            $sum: { $multiply: ["$quantity", "$pricePerToken"] }
+          }
+        }
+      }
+    ]);
+
+    return result.length > 0 ? result[0].totalBalance : 0;
+  }
 }

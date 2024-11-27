@@ -37,6 +37,8 @@ import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/serv
 import { CreateWithdrawalDto } from '../model/dtos/p2p-withdrawals/create-withdrawal.dto';
 import { WithdrawalResponseDto } from '../model/dtos/p2p-withdrawals/withdrawal.response.dto';
 import { PrivateKey } from 'libs/kaspa/kaspa';
+import { P2pWithdrawalResponseTransformer } from '../transformers/p2p-withdrawal-response.transformer';
+import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
 
 @Injectable()
 export class P2pProvider {
@@ -568,19 +570,51 @@ export class P2pProvider {
     }
   }
 
-  async createWithdrawal(body: CreateWithdrawalDto): Promise<WithdrawalResponseDto> {
+  async createWithdrawal(body: CreateWithdrawalDto): Promise<Partial<WithdrawalResponseDto> | null> {
     try {
-      const result = await this.kaspaNetworkActionsService.transferKaspa(new PrivateKey("7189846b9f61d0c846162dd7abedf7eecb9196517e3da891d76b52e3797db273"), [{
-        address: "kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju",
-        amount: 100000000n
-      }], 1n);
+      // Getting available balance for users...
+      const receivingWallet = body.receivingWallet;
+      const privateKey = body.ownerWallet;
+      const availableBalance = await this.p2pOrderBookService.getAvailableBalance(receivingWallet);
 
-      console.log("result: ", result);
+      /**
+       * TODO: Need to be updated...
+       */
+      if (availableBalance === 0) {
+        return null;
+      }
+
+      // Getting total balance of master wallet...
+      const totalBalance = await this.kaspaNetworkActionsService.fetchTotalBalanceForPublicWallet(privateKey);
+
+      // Compare with the total balance and available balance of user...
+      if (totalBalance > BigInt(availableBalance) * BigInt(10 ** 8)) {
+        const result = await this.kaspaNetworkActionsService.transferKaspa(
+          new PrivateKey(privateKey),
+          [{
+            address: receivingWallet,
+            amount: BigInt(availableBalance) * BigInt(10 ** 8)
+          }],
+          1n
+        );
+
+        return P2pWithdrawalResponseTransformer.transformEntityToResponseDto(
+          result.summary.finalAmount,
+          receivingWallet,
+          WithdrawalStatus.COMPLETED
+        );
+      } else {
+        // When there is no enough balance in the master wallet...
+        // This should be WAITING_FOR_KAS status.
+
+      }
+
+
       return;
     } catch (error) {
       console.log("error: ", error);
       this.logger.error(error);
-      
+
     }
   }
 }

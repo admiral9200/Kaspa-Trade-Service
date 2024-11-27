@@ -235,7 +235,7 @@ export class P2pController {
   @Post('createWithdrawal')
   async createWithdrawal(
     @Body() body: CreateWithdrawalDto
-  ): Promise<WithdrawalResponseDto> {
+  ): Promise<Partial<WithdrawalResponseDto>> {
     try {
       return await this.p2pProvider.createWithdrawal(body);
     } catch (error) {

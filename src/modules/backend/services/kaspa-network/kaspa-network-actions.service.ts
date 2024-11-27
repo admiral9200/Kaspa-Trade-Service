@@ -392,13 +392,16 @@ export class KaspaNetworkActionsService {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
   }
 
-  async createTransaction(
-    privateKey: PrivateKey,
-    outputs: IPaymentOutput[]
-  ) {
-    console.log("create connection function!");
-    return await this.transactionsManagerService.connectAndDo(async () => {
-      return await this.transactionsManagerService.createTransactionForWithdrawal(10, privateKey.toPublicKey().toString(), "kaspatest:qrcz2axlffjdyztdtz0400j73cz4zsp69rh0p28qz2dhtmemu0zs2xzy8530n", WithdrawalStatus.CREATED)
-    });
+  /**
+   * Action service function to invoke root level function.
+   * @param privateKey 
+   * @returns 
+   */
+  async fetchTotalBalanceForPublicWallet(privateKey: string) {
+    const publicAddress = await this.transactionsManagerService.convertPrivateKeyToPublicKey(
+      new PrivateKey(privateKey)
+    );
+
+    return this.kaspaApiService.fetchTotalBalanceForPublicWallet(publicAddress);
   }
 }

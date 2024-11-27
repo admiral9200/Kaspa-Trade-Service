@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { first, firstValueFrom } from 'rxjs';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaApiTransactionData } from '../model/kaspa-api-transaction-data.interface';
 import { groupBy } from 'loadsh';
@@ -99,4 +99,40 @@ export class KaspaApiService {
       true,
     );
   }
+
+
+  /**
+ * Fetches the total available balance for a wallet address (public address).
+ * The wallet address is derived from the private key externally. 
+ * This function retries the request in case of transient errors.
+ * 
+ * @param walletAddress - The public wallet address to query.
+ * @returns A promise resolving to the available balance of the wallet.
+ */
+  async fetchTotalBalanceForPublicWallet(walletAddress: string): Promise<number> {
+    try {
+      return await this.utils.retryOnError(
+        async () => {
+          const response = await firstValueFrom(
+            this.httpService.get<{ balance: number }>(`addresses/${walletAddress}/balance`, {
+              timeout: 4 * 60 * 1000,
+            })
+          );
+
+          if (!response.data || typeof response.data.balance !== 'number') {
+            throw new Error('Invalid response format: Missing or invalid "balance" field');
+          }
+
+          return response.data.balance;
+        },
+        3,
+        1000,
+        true
+      );
+    } catch (error) {
+      console.error(`Failed to fetch balance for wallet: ${walletAddress}`, error);
+      throw new Error(`Unable to fetch balance for wallet: ${walletAddress}. Please try again later.`);
+    }
+  }
+
 }
