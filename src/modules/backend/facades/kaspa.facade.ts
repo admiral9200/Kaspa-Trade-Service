@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AMOUNT_FOR_SWAP_FEES, KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import {
+  ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
+  AMOUNT_FOR_SWAP_FEES,
+  KaspaNetworkActionsService,
+} from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
@@ -46,12 +50,14 @@ export class KaspaFacade {
     from: string,
     to: string,
     amount: number = 0,
+    acceptableAmountRange: number = 0,
   ): Promise<boolean> {
     return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
       transactionId,
       from,
       to,
       KaspaNetworkActionsService.KaspaToSompiFromNumber(amount) + AMOUNT_FOR_SWAP_FEES,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(acceptableAmountRange),
     );
   }
 
@@ -71,11 +77,16 @@ export class KaspaFacade {
     return isValidData.isValid;
   }
 
-  async getUtxoSenderWallet(receiverWalletAddress: string, utxoEntry: UtxoEntry): Promise<any> {
+  async getUtxoSenderWallet(
+    receiverWalletAddress: string,
+    utxoEntry: UtxoEntry,
+    acceptableAmountRange: number = 0,
+  ): Promise<any> {
     return await this.kaspaNetworkActionsService.getTransactionSenderWallet(
       utxoEntry.outpoint.transactionId,
       receiverWalletAddress,
       utxoEntry.amount,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(acceptableAmountRange),
     );
   }
 
@@ -149,8 +160,6 @@ export class KaspaFacade {
     // Verify wallet amount
     const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
 
-    console.log();
-
     return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
       lunchpadSenderWallet.privateKey,
       lunchpadOrder.userWalletAddress,
@@ -193,7 +202,10 @@ export class KaspaFacade {
       KaspaNetworkActionsService.KaspaToSompiFromNumber(batchMintEntity.maxPriorityFee),
     );
 
-    if (requiredKaspaAmount > walletUtxoData.totalBalance) {
+    if (
+      requiredKaspaAmount >
+      walletUtxoData.totalBalance + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE)
+    ) {
       throw new IncorrectKaspaAmountForBatchMint(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
     }
 
@@ -208,6 +220,7 @@ export class KaspaFacade {
           batchMintEntity.ownerWallet,
           walletAccount.address,
           requiredKaspaAmount,
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE),
         ))
       ) {
         throw new BatchMintUnknownMoneyError(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
