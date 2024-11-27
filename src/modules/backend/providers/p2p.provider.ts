@@ -40,6 +40,7 @@ import { PrivateKey } from 'libs/kaspa/kaspa';
 import { P2pWithdrawalBookResponseTransformer } from '../transformers/p2p-withdrawal-book-response.transformer';
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
 import { P2pWithdrawalsService } from '../services/p2p-withdrawals.service';
+import { P2pWithdrawalEntity } from '../model/schemas/p2p-withdrawal.schema';
 
 @Injectable()
 export class P2pProvider {
@@ -576,18 +577,18 @@ export class P2pProvider {
     try {
       // Create withdrawal order with CREATED status...
       const withdrawalOrder = await this.p2pWithdrawalBookService.createWithdrawal(body);
-      console.log("withdrawal order: ", withdrawalOrder);
       
       // Getting available balance for users...
       const receivingWallet = body.receivingWallet;
       const privateKey = body.ownerWallet;
       const availableBalance = await this.p2pOrderBookService.getAvailableBalance(receivingWallet);
 
-      /**
-       * TODO: Need to be updated...
-       */
-      if (availableBalance === 0) {
-        return null;
+
+      // Check if the amount of withdrawal order amount is okay...
+      if(withdrawalOrder.amount > availableBalance) {
+        return {
+          success: false
+        };
       }
 
       // Getting total balance of master wallet...
@@ -604,11 +605,19 @@ export class P2pProvider {
           1n
         );
 
+        // Update the status of withdrawal order to COMPLETED...
+        const withdrawal: P2pWithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToCompleted(withdrawalOrder._id);
+
+        // Mapping to response DTO.
         return P2pWithdrawalBookResponseTransformer.transformEntityToResponseDto(
-          result.summary.finalAmount,
-          receivingWallet,
-          WithdrawalStatus.COMPLETED
+          String(BigInt(withdrawal.amount) * BigInt(10 ** 8)),
+          withdrawal.receivingWallet,
+          WithdrawalStatus.COMPLETED,
+          withdrawal.createdAt,
+          withdrawal.updatedAt,
+          true
         );
+
       } else {
         // When there is no enough balance in the master wallet...
         // This should be WAITING_FOR_KAS status.

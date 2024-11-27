@@ -25,4 +25,14 @@ export class P2pWithdrawalsService {
             throw new HttpException('Failed to create a new withdrawal order', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    async updateWithdrawalStatusToCompleted(_id: string): Promise<P2pWithdrawalEntity> {
+        const order: P2pWithdrawalEntity = await this.withdrawalOrdersBookRepository.setCompletedStatus(_id);
+
+        if (!order) {
+          throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    
+        return order;
+      }
 }

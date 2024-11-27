@@ -41,6 +41,20 @@ export class WithdrawalOrdersBookRepository extends BaseRepository<P2pWithdrawal
         );
     }
 
+    async setCompletedStatus(
+        _id: string,
+        session?: ClientSession,
+        fromExpired: boolean = false,
+    ): Promise<P2pWithdrawalEntity> {
+        return await this.transitionOrderStatus(
+            _id,
+            WithdrawalStatus.COMPLETED,
+            fromExpired ? WithdrawalStatus.CREATED : WithdrawalStatus.CREATED,
+            {},
+            session,
+        )
+    }
+
     async transitionOrderStatus(
         orderId: string,
         newStatus: WithdrawalStatus,
