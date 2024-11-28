@@ -34,8 +34,8 @@ import { UnknownMoneyError } from '../services/kaspa-network/errors/UnknownMoney
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { StuckOrdersError } from '../services/kaspa-network/errors/StuckOrdersError';
 import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
-import { CreateWithdrawalDto } from '../model/dtos/p2p-withdrawals/create-withdrawal.dto';
-import { WithdrawalResponseDto } from '../model/dtos/p2p-withdrawals/withdrawal.response.dto';
+import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
+import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
 import { PrivateKey } from 'libs/kaspa/kaspa';
 import { P2pWithdrawalBookResponseTransformer } from '../transformers/p2p-withdrawal-book-response.transformer';
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';

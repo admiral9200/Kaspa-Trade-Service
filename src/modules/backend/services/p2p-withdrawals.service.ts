@@ -3,7 +3,7 @@ import { InjectConnection } from "@nestjs/mongoose";
 import { MONGO_DATABASE_CONNECTIONS } from "../constants";
 import { Connection } from "mongoose";
 import { WithdrawalOrdersBookRepository } from "../repositories/withdrawal-orders-book.repository";
-import { CreateWithdrawalDto } from "../model/dtos/p2p-withdrawals/create-withdrawal.dto";
+import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 import { P2pWithdrawalBookTransformer } from "../transformers/p2p-withdrawal-book.transformer";
 

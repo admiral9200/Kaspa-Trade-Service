@@ -18,6 +18,7 @@ export class OrdersManagementController {
   @Get('order/:id')
   async getOrderById(@Param('id') id: string) {
     return JSON.parse(
+      
       JSON.stringify(await this.ordersManagementProvider.getOrderData(id), (key, value) =>
         typeof value === 'bigint' ? Number(value) : value,
       ),

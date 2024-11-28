@@ -20,8 +20,8 @@ import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
-import { CreateWithdrawalDto } from '../model/dtos/p2p-withdrawals/create-withdrawal.dto';
-import { WithdrawalResponseDto } from '../model/dtos/p2p-withdrawals/withdrawal.response.dto';
+import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
+import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
 
 @Controller('p2p')
 @UseGuards(JwtWalletAuthGuard)
@@ -229,18 +229,5 @@ export class P2pController {
   @Get('walletAddress')
   async getWalletAddress(@CurrentAuthWalletInfo() walletInfo: AuthWalletInfo): Promise<string> {
     return walletInfo.walletAddress;
-  }
-
-
-  @Post('createWithdrawal')
-  async createWithdrawal(
-    @Body() body: CreateWithdrawalDto
-  ): Promise<Partial<WithdrawalResponseDto>> {
-    try {
-      return await this.p2pProvider.createWithdrawal(body);
-    } catch (error) {
-      this.logger.error('Error creating a withdrawal', error);
-      throw error;
-    }
   }
 }

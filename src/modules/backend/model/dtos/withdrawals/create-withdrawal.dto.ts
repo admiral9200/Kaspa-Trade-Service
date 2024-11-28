@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString } from "class-validator";
+import { IsEnum, IsString } from "class-validator";
 import { WithdrawalStatus } from "../../enums/withdrawal-status.enum";
 
 export class CreateWithdrawalDto {

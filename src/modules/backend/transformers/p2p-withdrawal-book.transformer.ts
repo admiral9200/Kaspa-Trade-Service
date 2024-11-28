@@ -1,4 +1,4 @@
-import { CreateWithdrawalDto } from "../model/dtos/p2p-withdrawals/create-withdrawal.dto";
+import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 

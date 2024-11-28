@@ -1,4 +1,4 @@
-import { WithdrawalResponseDto } from "../model/dtos/p2p-withdrawals/withdrawal.response.dto";
+import { WithdrawalResponseDto } from "../model/dtos/withdrawals/withdrawal.response.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 
 export class P2pWithdrawalBookResponseTransformer {
