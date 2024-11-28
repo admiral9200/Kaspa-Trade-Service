@@ -13,9 +13,10 @@ import { JwtWalletStrategy } from '../guards/jwt-wallet.strategy';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { SkipGuardsService } from '../guards/infra/skipGuardsService';
 import { RolesGuard } from '../guards/roles.guard';
+import { WithdrawalController } from '../controllers/withdrawal.controller';
 
 @Module({
-  controllers: [P2pController, OrdersManagementController, LunchpadController, AuthController],
+  controllers: [P2pController, WithdrawalController, OrdersManagementController, LunchpadController, AuthController],
   providers: [...BASE_PROVIDERS, JwtWalletStrategy, OrdersManagementProvider, JwtWalletAuthGuard, SkipGuardsService, RolesGuard],
   imports: [
     ...BASE_IMPORTS,

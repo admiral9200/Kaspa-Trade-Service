@@ -20,8 +20,6 @@ import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
 import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 import { SkipGuards } from '../guards/infra/skipGuardsService';
-import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
-import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
 
 @Controller('p2p')
 @UseGuards(JwtWalletAuthGuard)

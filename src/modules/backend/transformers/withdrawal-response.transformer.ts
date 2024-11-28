@@ -1,7 +1,7 @@
 import { WithdrawalResponseDto } from "../model/dtos/withdrawals/withdrawal.response.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 
-export class P2pWithdrawalBookResponseTransformer {
+export class WithdrawalResponseTransformer {
     static transformEntityToResponseDto(
         amount: string,
         receivingWallet: string,

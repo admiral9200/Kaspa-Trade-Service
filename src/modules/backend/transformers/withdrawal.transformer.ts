@@ -2,7 +2,7 @@ import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 
-export class P2pWithdrawalBookTransformer {
+export class WithdrawalTransformer {
     static createP2pWithdrawalEntityFromWithdrawalDto(
         createWithdrawalDto: CreateWithdrawalDto
       ): P2pWithdrawalEntity {

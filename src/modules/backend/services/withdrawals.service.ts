@@ -5,10 +5,10 @@ import { Connection } from "mongoose";
 import { WithdrawalOrdersBookRepository } from "../repositories/withdrawal-orders-book.repository";
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
-import { P2pWithdrawalBookTransformer } from "../transformers/p2p-withdrawal-book.transformer";
+import { WithdrawalTransformer } from "../transformers/withdrawal.transformer";
 
 @Injectable()
-export class P2pWithdrawalsService {
+export class WithdrawalsService {
     constructor(
         @InjectConnection(MONGO_DATABASE_CONNECTIONS.P2P) private connection: Connection,
         private readonly withdrawalOrdersBookRepository: WithdrawalOrdersBookRepository
@@ -18,7 +18,7 @@ export class P2pWithdrawalsService {
         createWithdrawalDto: CreateWithdrawalDto,
     ): Promise<P2pWithdrawalEntity> {
         try {
-            const withdrawalOrder: P2pWithdrawalEntity = P2pWithdrawalBookTransformer.createP2pWithdrawalEntityFromWithdrawalDto(createWithdrawalDto);
+            const withdrawalOrder: P2pWithdrawalEntity = WithdrawalTransformer.createP2pWithdrawalEntityFromWithdrawalDto(createWithdrawalDto);
 
             return await this.withdrawalOrdersBookRepository.createWithdrawalOrder(withdrawalOrder);
         } catch (error) {
