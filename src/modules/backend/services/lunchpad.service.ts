@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LunchpadRepository } from '../repositories/lunchpad.repository';
+import { LunchpadOrderWithLunchpad, LunchpadRepository } from '../repositories/lunchpad.repository';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
@@ -331,5 +331,21 @@ export class LunchpadService {
 
   async getLunchpadsWithOpenOrders(): Promise<LunchpadEntity[]> {
     return await this.lunchpadRepository.getLunchpadsForOrdersWithStatus(NEEDED_TO_PROCESS_STATUSES_FOR_LUNCHPAD_ORDER);
+  }
+
+  async getLunchpadOrdersForWallet(
+    getLaunchpadOrderListDto: GetLunchpadOrderListDto,
+    walletAddress: string,
+  ): Promise<{
+    orders: LunchpadOrderWithLunchpad[];
+    tickers: string[];
+    totalCount: number;
+  }> {
+    return await this.lunchpadRepository.getLunchpadOrdersForWallet(
+      walletAddress,
+      getLaunchpadOrderListDto.filters,
+      getLaunchpadOrderListDto.sort,
+      getLaunchpadOrderListDto.pagination,
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
+import { LunchpadOrderWithLunchpad } from '../repositories/lunchpad.repository';
 
 export type LunchpadWalletsInfo = {
   receiverWalletKaspa: number;
@@ -82,11 +83,30 @@ export type ClientSideLunchpadOrderListItem = {
   totalUnits: number;
 };
 
+export type ClientSideUserLunchpadOrderListItem = {
+  id: string;
+  ticker: string;
+  status: LunchpadOrderStatus;
+  roundNumber: number;
+  totalUnits: number;
+  tokenPerUnit: number;
+  kasPerUnit: number;
+  createdAt: Date;
+};
+
 export type ClientSideLunchpadOrderListWithStatus = {
   success: boolean;
   errorCode?: number;
   lunchpadOrders: ClientSideLunchpadOrderListItem[];
   totalCount?: number;
+};
+
+export type ClientSideUserLunchpadOrderListWithStatus = {
+  success: boolean;
+  errorCode?: number;
+  lunchpadOrders: ClientSideUserLunchpadOrderListItem[];
+  totalCount?: number;
+  tickers?: string[];
 };
 
 export class LunchpadTransformer {
@@ -177,6 +197,35 @@ export class LunchpadTransformer {
         totalUnits: order.totalUnits,
       })),
       totalCount,
+    };
+  }
+
+  static transformLunchpadUserOrdersListToClientSide(
+    data: LunchpadOrderWithLunchpad[],
+    totalCount?: number,
+    tickers?: string[],
+  ): ClientSideUserLunchpadOrderListWithStatus {
+    const lunchpadOrders: ClientSideUserLunchpadOrderListItem[] = [];
+    for (const order of data) {
+      const roundData = order.lunchpad.rounds.filter((r) => r.roundNumber == order.roundNumber)[0];
+
+      lunchpadOrders.push({
+        id: order._id,
+        status: order.status,
+        roundNumber: order.roundNumber,
+        totalUnits: order.totalUnits,
+        ticker: order.lunchpad.ticker,
+        kasPerUnit: roundData?.kasPerUnit,
+        tokenPerUnit: roundData?.tokenPerUnit,
+        createdAt: order.createdAt,
+      });
+    }
+
+    return {
+      success: true,
+      lunchpadOrders,
+      totalCount,
+      tickers,
     };
   }
 }

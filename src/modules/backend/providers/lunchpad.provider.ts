@@ -25,6 +25,7 @@ import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad
 import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 import { ApplicationIsClosingError } from '../services/kaspa-network/errors/ApplicationIsClosingError';
+import { LunchpadOrderWithLunchpad } from '../repositories/lunchpad.repository';
 
 @Injectable()
 export class LunchpadProvider {
@@ -1003,13 +1004,15 @@ export class LunchpadProvider {
     return await this.lunchpadService.getLunchpadOrders(lunchpadId, getLaunchpadOrderListDto);
   }
 
+  async getUserLunchpadOrdersList(
+    getLaunchpadOrderListDto: GetLunchpadOrderListDto,
+    walletAddress: string,
+  ): Promise<{ orders: LunchpadOrderWithLunchpad[]; tickers: string[]; totalCount: number }> {
+    return await this.lunchpadService.getLunchpadOrdersForWallet(getLaunchpadOrderListDto, walletAddress);
+  }
+
   async startAllLunchpadsOrdersProcessing() {
     const lunchpadsNeededToBeRun = await this.lunchpadService.getLunchpadsWithOpenOrders();
-
-    console.log(
-      'lunchpadsNeededToBeRun',
-      lunchpadsNeededToBeRun.map((a) => a.ticker),
-    );
 
     for (const lunchpad of lunchpadsNeededToBeRun) {
       this.startLunchpadProcessingOrdersIfNeeded(lunchpad);
