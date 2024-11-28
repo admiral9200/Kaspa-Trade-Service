@@ -52,6 +52,9 @@ export class LunchpadService {
       currentTokensAmount: 0,
       isRunning: false,
       rounds: [],
+      useWhitelist: createLunchpadDto.useWhitelist || false,
+      maxUnitsPerWallet: createLunchpadDto.maxUnitsPerWallet || 10000,
+      whitelistWalletAddresses: createLunchpadDto.whitelistWalletAddresses || [],
     });
   }
 
