@@ -816,12 +816,34 @@ export class LunchpadProvider {
 
     try {
       if (walletType === LunchpadWalletType.SENDER) {
+        const walletBalance = await this.kaspaFacade.getWalletBalanceAndUtxos(lunchpad.senderWalletSequenceId);
+
+        if (KaspaNetworkActionsService.SompiToNumber(walletBalance.totalBalance) < lunchpad.maxFeeRatePerTransaction * 3) {
+          return {
+            success: false,
+            errorCode: ERROR_CODES.LUNCHPAD.NOT_ENOUGH_KASPA_TO_RETREIVE_FUNDS,
+            lunchpad: lunchpad,
+            walletAddress: null,
+          };
+        }
+
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
           lunchpad.senderWalletSequenceId,
           lunchpad.ownerWallet,
           KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
         );
       } else if (walletType === LunchpadWalletType.RECEIVER) {
+        const walletBalance = await this.kaspaFacade.getWalletBalanceAndUtxos(lunchpad.receiverWalletSequenceId);
+
+        if (KaspaNetworkActionsService.SompiToNumber(walletBalance.totalBalance) < lunchpad.maxFeeRatePerTransaction * 3) {
+          return {
+            success: false,
+            errorCode: ERROR_CODES.LUNCHPAD.NOT_ENOUGH_KASPA_TO_RETREIVE_FUNDS,
+            lunchpad: lunchpad,
+            walletAddress: null,
+          };
+        }
+
         const commission = await this.kaspaFacade.getLunchpadComission(lunchpad.receiverWalletSequenceId);
 
         await this.kaspaFacade.transferAllKrc20AndKaspaTokens(
