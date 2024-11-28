@@ -6,6 +6,7 @@ import {
   ClientSideLunchpadOrderListWithStatus,
   ClientSideLunchpadOrderWithStatus,
   ClientSideLunchpadWithStatus,
+  ClientSideUserLunchpadOrderListWithStatus,
   LunchpadTransformer,
 } from '../transformers/lunchpad.transformer';
 import { CreateLunchpadOrderRequestDto } from '../model/dtos/lunchpad/create-lunchpad-order-request.dto';
@@ -19,6 +20,7 @@ import { GetLunchpadListDto } from '../model/dtos/lunchpad/get-lunchpad-list';
 import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad-request.dto';
 import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 import { AllowWithoutWallet } from '../guards/infra/allowWithoutWalletService';
+import { GetUserLunchpadOrderListDto } from '../model/dtos/lunchpad/get-user-lunchpad-order-list';
 
 @Controller('lunchpad')
 @UseGuards(JwtWalletAuthGuard)
@@ -70,6 +72,8 @@ export class LunchpadController {
             result.requiredKaspa,
             result.openOrders,
             true,
+            result.walletTokensAmount,
+            result.walletUnits,
           )
         : null,
       errorCode: result.errorCode,
@@ -262,11 +266,7 @@ export class LunchpadController {
     @Body() body: ProcessLunchpadOrderRequestDto,
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
   ): Promise<ClientSideLunchpadOrderWithStatus> {
-    const result = await this.lunchpadProvider.verifyOrderAndStartLunchpadProcess(
-      orderId,
-      walletInfo.walletAddress,
-      body.transactionId,
-    );
+    const result = await this.lunchpadProvider.verifyOrderAndSetToVerified(orderId, walletInfo.walletAddress, body.transactionId);
 
     return {
       success: result.success,
@@ -317,6 +317,22 @@ export class LunchpadController {
     return LunchpadTransformer.transformLunchpadOrdersListToClientSide(
       lunchpadOrderListData.orders,
       lunchpadOrderListData.totalCount,
+    );
+  }
+
+  @Post('orders-list')
+  async getUserOrdersList(
+    @CurrentAuthWalletInfo() authWalletInfo: AuthWalletInfo,
+    @Body() getLaunchpadOrderListDto: GetUserLunchpadOrderListDto,
+  ): Promise<ClientSideUserLunchpadOrderListWithStatus> {
+    const lunchpadOrderListData = await this.lunchpadProvider.getUserLunchpadOrdersList(
+      getLaunchpadOrderListDto,
+      authWalletInfo.walletAddress,
+    );
+    return LunchpadTransformer.transformLunchpadUserOrdersListToClientSide(
+      lunchpadOrderListData.orders,
+      lunchpadOrderListData.totalCount,
+      lunchpadOrderListData.tickers,
     );
   }
 }

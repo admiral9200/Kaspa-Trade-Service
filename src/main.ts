@@ -72,6 +72,11 @@ async function bootstrap() {
     console.log(`starting ${SERVICE_TYPE} instance`);
 
     app = await NestFactory.createApplicationContext(AppModule);
+
+    const appConfigService: AppConfigService = app.get(AppConfigService);
+    if (appConfigService.isLocalEnv) {
+      mongoose.set('debug', true);
+    }
   }
 
   const logError = async (error: any) => {
@@ -99,9 +104,9 @@ async function bootstrap() {
       ); // 1 hour timeout
 
       try {
-        await ImportantPromisesManager.waitForAllPromisesToResolveIfAny(); // need to be on fargate
+        ImportantPromisesManager.closeApplication();
+        await ImportantPromisesManager.waitForAllPromisesToResolveIfAny();
         await app.close();
-        await ImportantPromisesManager.waitForAllPromisesToResolveIfAny(); // need to be on fargate
 
         console.log('Graceful shutdown completed.');
         clearTimeout(shutdownTimeout);

@@ -26,4 +26,16 @@ export class LunchpadCronJob extends BaseCronJob {
       }
     }, 'handleWaitingKasLunchpadOrders');
   }
+
+  @Cron('*/20 * * * * *') // EVERY 20 SECONDS
+  async startProcessingOrders() {
+    await this.runOnce(async () => {
+      try {
+        await this.lunchpadProvider.startAllLunchpadsOrdersProcessing();
+      } catch (error) {
+        this.logger.error('error in startAllLunchpadsOrdersProcessing');
+        this.logger.error(error, error?.stack, error?.meta);
+      }
+    }, 'startAllLunchpadsOrdersProcessing');
+  }
 }

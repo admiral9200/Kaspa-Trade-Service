@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LunchpadRepository } from '../repositories/lunchpad.repository';
+import { LunchpadOrderWithLunchpad, LunchpadRepository } from '../repositories/lunchpad.repository';
 import { CreateLunchpadRequestDto } from '../model/dtos/lunchpad/create-lunchpad-request.dto';
 import { LunchpadOrderStatus, LunchpadStatus } from '../model/enums/lunchpad-statuses.enum';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
@@ -14,6 +14,10 @@ import { UpdateLunchpadRequestDto } from '../model/dtos/lunchpad/update-lunchpad
 import { GetLunchpadOrderListDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
 
 export const ALLOWED_UPDATE_STATUSES_FOR_LUNCHPAD = [LunchpadStatus.SOLD_OUT, LunchpadStatus.INACTIVE];
+export const NEEDED_TO_PROCESS_STATUSES_FOR_LUNCHPAD_ORDER = [
+  LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
+  LunchpadOrderStatus.PROCESSING,
+];
 @Injectable()
 export class LunchpadService {
   constructor(
@@ -68,8 +72,12 @@ export class LunchpadService {
     return await this.lunchpadRepository.findOne({ _id: id, ownerWallet });
   }
 
+  calculateLunchpadUnits(totalTokens: number, tokenPerUnit: number) {
+    return Math.floor(totalTokens / tokenPerUnit);
+  }
+
   async startLunchpad(lunchpad: LunchpadEntity, totalTokens: number) {
-    const totalUnits = Math.floor(totalTokens / lunchpad.tokenPerUnit);
+    const totalUnits = this.calculateLunchpadUnits(totalTokens, lunchpad.tokenPerUnit);
 
     const lunchpadRounds = lunchpad.rounds;
     const currentRound = lunchpad.roundNumber + 1;
@@ -158,11 +166,11 @@ export class LunchpadService {
     );
   }
 
-  async setOrderStatusToProcessing(orderId: string): Promise<LunchpadOrder> {
+  async setOrderStatusToProcessing(orderId: string, isProcessing: boolean = false): Promise<LunchpadOrder> {
     return await this.lunchpadRepository.transitionLunchpadOrderStatus(
       orderId,
       LunchpadOrderStatus.PROCESSING,
-      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
+      isProcessing ? LunchpadOrderStatus.PROCESSING : LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING, // like this to do verification
     );
   }
 
@@ -263,9 +271,12 @@ export class LunchpadService {
   }
 
   async getReadyToProcessOrders(lunchpad: LunchpadEntity) {
-    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(lunchpad._id, lunchpad.roundNumber, [
-      LunchpadOrderStatus.VERIFIED_AND_WAITING_FOR_PROCESSING,
-    ]);
+    return await this.lunchpadRepository.getOrdersByRoundAndStatuses(
+      lunchpad._id,
+      lunchpad.roundNumber,
+      NEEDED_TO_PROCESS_STATUSES_FOR_LUNCHPAD_ORDER,
+      { createdAt: 1 },
+    );
   }
 
   async setWalletKeyExposedBy(batchMint: LunchpadEntity, viewerWallet: string, walletType: string) {
@@ -278,6 +289,10 @@ export class LunchpadService {
     pagination: PaginationDto,
     walletAddress?: string,
   ): Promise<{ lunchpads: LunchpadEntity[]; totalCount: number }> {
+    if (filters.ownerOnly && !walletAddress) {
+      return { lunchpads: [], totalCount: 0 };
+    }
+
     return await this.lunchpadRepository.getLunchpadList(filters, sort, pagination, walletAddress);
   }
 
@@ -312,5 +327,25 @@ export class LunchpadService {
     }
 
     return { tokenPerUnit: roundData.tokenPerUnit, kasPerUnit: roundData.kasPerUnit };
+  }
+
+  async getLunchpadsWithOpenOrders(): Promise<LunchpadEntity[]> {
+    return await this.lunchpadRepository.getLunchpadsForOrdersWithStatus(NEEDED_TO_PROCESS_STATUSES_FOR_LUNCHPAD_ORDER);
+  }
+
+  async getLunchpadOrdersForWallet(
+    getLaunchpadOrderListDto: GetLunchpadOrderListDto,
+    walletAddress: string,
+  ): Promise<{
+    orders: LunchpadOrderWithLunchpad[];
+    tickers: string[];
+    totalCount: number;
+  }> {
+    return await this.lunchpadRepository.getLunchpadOrdersForWallet(
+      walletAddress,
+      getLaunchpadOrderListDto.filters,
+      getLaunchpadOrderListDto.sort,
+      getLaunchpadOrderListDto.pagination,
+    );
   }
 }

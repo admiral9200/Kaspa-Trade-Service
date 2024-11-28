@@ -15,8 +15,13 @@ import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { LunchpadNotEnoughUserAvailableQtyError } from '../services/kaspa-network/errors/LunchpadNotEnoughUserAvailableQtyError';
 import { GetLunchpadOrderListFiltersDto } from '../model/dtos/lunchpad/get-lunchpad-order-list';
+import { GetUserLunchpadOrderListFiltersDto } from '../model/dtos/lunchpad/get-user-lunchpad-order-list';
 
 const WAITING_FOR_KAS_TIME_TO_CHECK = 10 * 60 * 1000;
+
+export interface LunchpadOrderWithLunchpad extends LunchpadOrder {
+  lunchpad: LunchpadEntity;
+}
 
 @Injectable()
 export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
@@ -95,7 +100,7 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     return await super.updateByOne(
       '_id',
       lunchpadId,
-      { status: LunchpadStatus.INACTIVE, rounds: roundsData },
+      { status: LunchpadStatus.INACTIVE, rounds: roundsData, totalUnits: 0, availabeUnits: 0 },
       { isRunning: false, status: LunchpadStatus.STOPPING },
     );
   }
@@ -355,13 +360,19 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       throw error;
     }
   }
-
   async getOrdersByRoundAndStatuses(
     lunchpadId: string,
     roundNumber: number,
     statuses: LunchpadOrderStatus[],
+    orderBy?: { [key: string]: 1 | -1 },
   ): Promise<LunchpadOrder[]> {
-    return await this.lunchpadOrderModel.find({ lunchpadId, roundNumber, status: { $in: statuses } }).exec();
+    const query = this.lunchpadOrderModel.find({ lunchpadId, roundNumber, status: { $in: statuses } });
+
+    if (orderBy) {
+      query.sort(orderBy);
+    }
+
+    return await query.exec();
   }
 
   async setWalletKeyExposedBy(lunchpad: LunchpadEntity, viewerWallet: string, walletType: string) {
@@ -521,5 +532,135 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
     const orders = await query.exec();
 
     return { orders, totalCount };
+  }
+
+  async getLunchpadsForOrdersWithStatus(statuses: LunchpadOrderStatus[]): Promise<LunchpadEntity[]> {
+    return await this.lunchpadOrderModel
+      .aggregate([
+        {
+          $match: {
+            status: { $in: statuses },
+          },
+        },
+        {
+          $group: {
+            _id: '$lunchpadId', // Group by lunchpadId
+          },
+        },
+        { $addFields: { convertedId: { $toObjectId: '$_id' } } }, // Convert if needed
+        {
+          $lookup: {
+            from: this.lunchpadModel.collection.name, // The name of the lunchpad collection
+            localField: 'convertedId', // The field from lunchpadOrderModel
+            foreignField: '_id', // The field in lunchpadModel to match
+            as: 'lunchpadData', // The resulting array field
+          },
+        },
+        {
+          $unwind: '$lunchpadData', // Flatten the results
+        },
+        {
+          $replaceRoot: { newRoot: '$lunchpadData' }, // Replace root with the lunchpad data
+        },
+        {
+          $match: {
+            isRunning: false,
+          },
+        },
+      ])
+      .exec();
+  }
+
+  async getLunchpadOrdersForWallet(
+    walletAddress: string,
+    filters: GetUserLunchpadOrderListFiltersDto,
+    sort: SortDto,
+    pagination: PaginationDto,
+  ): Promise<{ orders: LunchpadOrderWithLunchpad[]; tickers: string[]; totalCount: number }> {
+    const filterQuery: any = { userWalletAddress: walletAddress };
+
+    const tickersQuery = await this.lunchpadOrderModel
+      .aggregate([
+        { $match: filterQuery }, // Apply the initial filter
+        { $addFields: { convertedId: { $toObjectId: '$lunchpadId' } } }, // Convert if needed
+        {
+          $lookup: {
+            from: this.lunchpadModel.collection.name, // Join with lunchpad collection
+            localField: 'convertedId',
+            foreignField: '_id',
+            as: 'lunchpad',
+          },
+        },
+        { $unwind: '$lunchpad' }, // Flatten the joined data
+        {
+          $group: {
+            _id: '$lunchpad.ticker', // Group by the ticker field
+          },
+        },
+        {
+          $project: {
+            ticker: '$_id', // Project only the ticker field
+            _id: 0, // Exclude the `_id` field from the result
+          },
+        },
+      ])
+      .exec();
+
+    if (filters) {
+      if (filters.statuses && filters.statuses.length > 0) {
+        filterQuery.status = { $in: filters.statuses };
+      }
+
+      if (filters.roundNumber) {
+        filterQuery.roundNumber = filters.roundNumber;
+      }
+
+      if (filters.startDateTimestamp || filters.endDateTimestamp) {
+        filterQuery.createdAt = {};
+        if (filters.startDateTimestamp) {
+          filterQuery.createdAt.$gte = new Date(filters.startDateTimestamp);
+        }
+        if (filters.endDateTimestamp) {
+          filterQuery.createdAt.$lte = new Date(filters.endDateTimestamp);
+        }
+      }
+    }
+
+    // Aggregation pipeline
+    const pipeline: any[] = [
+      // Match orders based on filters
+      { $match: filterQuery },
+      { $addFields: { convertedId: { $toObjectId: '$lunchpadId' } } }, // Convert if needed
+      // Join with the lunchpad collection
+      {
+        $lookup: {
+          from: this.lunchpadModel.collection.name,
+          localField: 'convertedId',
+          foreignField: '_id',
+          as: 'lunchpad',
+        },
+      },
+      { $unwind: '$lunchpad' }, // Unwind the joined data
+    ];
+
+    if (filters.tickers && filters.tickers.length > 0) {
+      pipeline.push({ $match: { 'lunchpad.ticker': { $in: filters.tickers } } });
+    }
+
+    // Create the base query
+    // const orders = await this.lunchpadOrderModel.aggregate(pipeline).exec();
+
+    // let query: any = this.lunchpadOrderModel.find(filterQuery);
+    const totalCountQuery = await this.lunchpadOrderModel.aggregate([...pipeline, { $count: 'totalCount' }]).exec();
+    const totalCount = totalCountQuery[0]?.totalCount || 0;
+
+    // Apply sorting
+    pipeline.push(this.applySortPipeline(sort));
+    pipeline.push(...this.applyPaginationPipeline(pagination));
+
+    // Execute the query
+    const orders = await this.lunchpadOrderModel.aggregate(pipeline).exec();
+
+    return { orders, tickers: tickersQuery.map((l) => l.ticker), totalCount };
   }
 }
