@@ -1,11 +1,13 @@
 import { AppConfigService } from '../../../core/modules/config/app-config.service';
 import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { P2pOrderEntity } from 'src/modules/backend/model/schemas/p2p-order.schema';
 import { isEmptyString } from 'src/modules/backend/utils/object.utils';
 import { MIMINAL_COMMITION } from 'src/modules/backend/services/kaspa-network/kaspa-network-actions.service';
+import { BatchMintEntity } from 'src/modules/backend/model/schemas/batch-mint.schema';
+import { P2pOrderV2Entity } from 'src/modules/backend/model/schemas/p2p-order-v2.schema';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -44,7 +46,8 @@ export class TelegramBotService {
       };
 
       try {
-        const response = await lastValueFrom(this.httpService.post(url, data));
+        const response = await firstValueFrom(this.httpService.post(url, data));
+
         if (response.status === 200) {
           console.log('Formatted message sent successfully');
         } else {
@@ -58,9 +61,10 @@ export class TelegramBotService {
     }
   }
 
-  async sendError(channelId: string, error: any): Promise<void> {
+  async sendError(channelId: string, error: any, skipStack = false): Promise<void> {
     try {
-      const message = `Error:\n**__Name:__** ${TelegramBotService.escapeMarkdown(error?.name || '')}\n**__Message:__** ${TelegramBotService.escapeMarkdown(error?.message || error.toString())}\n**__Stack:__** ${TelegramBotService.escapeMarkdown(error?.stack || '')}, \n**__additionalData:__** ${TelegramBotService.escapeMarkdown(
+      const stackText = skipStack ? '' : `**__Stack:__** ${TelegramBotService.escapeMarkdown(error?.stack || '')}, \n`;
+      const message = `Error:\n**__Name:__** ${TelegramBotService.escapeMarkdown(error?.name || '')}\n**__Message:__** ${TelegramBotService.escapeMarkdown(error?.message || error.toString())}\n${stackText}**__additionalData:__** ${TelegramBotService.escapeMarkdown(
         JSON.stringify(error, (key, value) => (typeof value === 'bigint' ? value.toString() + 'n' : value)),
       )}`;
 
@@ -71,23 +75,28 @@ export class TelegramBotService {
     }
   }
 
-  async notifyOrderCompleted(order: P2pOrderEntity): Promise<void> {
+  async notifyOrderCompleted(order: P2pOrderEntity | P2pOrderV2Entity, isNew = false): Promise<void> {
     if (
       !isEmptyString(this.optionalNotificationApiKey) &&
       !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
     ) {
       try {
-        const comission = Math.max(
-          order.totalPrice * (this.configService.swapCommissionPercentage / 100),
-          Number(MIMINAL_COMMITION) / 1e8,
-        ).toFixed(3);
+        let comission = ((order as P2pOrderV2Entity).feeAmount || 0).toFixed(3);
+
+        if (!isNew) {
+          comission = Math.max(
+            order.totalPrice * (this.configService.swapCommissionPercentage / 100),
+            Number(MIMINAL_COMMITION) / 1e8,
+          ).toFixed(3);
+        }
+
         let message = TelegramBotService.escapeMarkdown(
           `Order completed.^n^Total Kaspa: ${order.totalPrice}^n^Tokens: ${order.quantity} ${order.ticker}^n^Commission: ${comission}`,
         );
 
         message = message.replace(/\^n\^/g, '\n');
 
-        this.sendFormattedMessage(
+        await this.sendFormattedMessage(
           this.configService.getTelegramOrdersNotificationsChannelId,
           message,
           this.optionalNotificationApiKey,
@@ -100,8 +109,38 @@ export class TelegramBotService {
     }
   }
 
-  async sendErrorToErrorsChannel(error: any): Promise<void> {
-    return await this.sendError(this.configService.getTelegramErrorsChannelId, error);
+  async notifyBatchMintCompleted(batchMint: BatchMintEntity, commission: number): Promise<void> {
+    if (
+      !isEmptyString(this.optionalNotificationApiKey) &&
+      !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
+    ) {
+      try {
+        const statusText = batchMint.isReachedMintLimit
+          ? `Reached Mint Limit (${batchMint.stopMintsAtMintsLeft})`
+          : batchMint.isUserCanceled
+            ? 'User Canceled'
+            : 'Completed Successfully';
+        let message = TelegramBotService.escapeMarkdown(
+          `Btach mint completed.^n^Ticker: ${batchMint.ticker}^n^Mints: ${batchMint.finishedMints}/${batchMint.totalMints}^n^Status: ${statusText}^n^Commission: ${commission.toFixed(3)}`,
+        );
+
+        message = message.replace(/\^n\^/g, '\n');
+
+        await this.sendFormattedMessage(
+          this.configService.getTelegramOrdersNotificationsChannelId,
+          message,
+          this.optionalNotificationApiKey,
+        );
+      } catch (error) {
+        console.error('Error notifying batch mint completed:', error);
+        this.logger.error('Error notifying batch mint completed');
+        this.logger.error(error, error?.stack, error?.meta);
+      }
+    }
+  }
+
+  async sendErrorToErrorsChannel(error: any, skipStack = false): Promise<void> {
+    return await this.sendError(this.configService.getTelegramErrorsChannelId, error, skipStack);
   }
 
   static escapeMarkdown(text: string): string {

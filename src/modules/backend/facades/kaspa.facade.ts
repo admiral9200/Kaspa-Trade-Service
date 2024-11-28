@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AMOUNT_FOR_SWAP_FEES, KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
+import {
+  ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
+  AMOUNT_FOR_SWAP_FEES,
+  KaspaNetworkActionsService,
+} from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { KasplexApiService } from '../services/kasplex-api/services/kasplex-api.service';
@@ -8,14 +12,22 @@ import { LunchpadOrder } from '../model/schemas/lunchpad-order.schema';
 import { KRC20ActionTransations } from '../services/kaspa-network/interfaces/Krc20ActionTransactions.interface';
 import { LunchpadEntity } from '../model/schemas/lunchpad.schema';
 import { LunchpadWalletTokenBalanceIncorrect } from '../services/kaspa-network/errors/LunchpadWalletTokenBalanceIncorrect';
+import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
+import { Krc20TransactionsResult } from '../services/kaspa-network/interfaces/Krc20TransactionsResult.interface';
+import { isEmptyString } from '../utils/object.utils';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
 import { UtxoEntry } from 'libs/kaspa/kaspa';
+import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectUtxoAmountForBatchMint';
+import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
+import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
+import { UtilsHelper } from '../helpers/utils.helper';
 
 @Injectable()
 export class KaspaFacade {
   constructor(
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly kasplexApiService: KasplexApiService,
+    private readonly utils: UtilsHelper,
   ) {}
 
   async getAccountWalletAddressAtIndex(sequenceId: number): Promise<string> {
@@ -26,7 +38,7 @@ export class KaspaFacade {
   async checkIfWalletHasKrc20Token(address: string, ticker: string, amount: number): Promise<boolean> {
     const walletTokensAmount = await this.getKrc20TokenBalance(address, ticker);
 
-    return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompi(String(amount));
+    return walletTokensAmount >= KaspaNetworkActionsService.KaspaToSompiFromNumber(amount);
   }
 
   async getKrc20TokenBalance(address: string, ticker: string): Promise<bigint> {
@@ -38,12 +50,14 @@ export class KaspaFacade {
     from: string,
     to: string,
     amount: number = 0,
+    acceptableAmountRange: number = 0,
   ): Promise<boolean> {
     return await this.kaspaNetworkActionsService.verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
       transactionId,
       from,
       to,
-      KaspaNetworkActionsService.KaspaToSompi(String(amount)) + AMOUNT_FOR_SWAP_FEES,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(amount) + AMOUNT_FOR_SWAP_FEES,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(acceptableAmountRange),
     );
   }
 
@@ -57,17 +71,22 @@ export class KaspaFacade {
     const swapWallet = await this.getAccountWalletAddressAtIndex(order.walletSequenceId);
     const isValidData = await this.kaspaNetworkActionsService.isValidKaspaAmountForSwap(
       swapWallet,
-      KaspaNetworkActionsService.KaspaToSompi(String(order.totalPrice)),
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice),
     );
 
     return isValidData.isValid;
   }
 
-  async getUtxoSenderWallet(receiverWalletAddress: string, utxoEntry: UtxoEntry): Promise<any> {
+  async getUtxoSenderWallet(
+    receiverWalletAddress: string,
+    utxoEntry: UtxoEntry,
+    acceptableAmountRange: number = 0,
+  ): Promise<any> {
     return await this.kaspaNetworkActionsService.getTransactionSenderWallet(
       utxoEntry.outpoint.transactionId,
       receiverWalletAddress,
       utxoEntry.amount,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(acceptableAmountRange),
     );
   }
 
@@ -79,8 +98,8 @@ export class KaspaFacade {
       const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
       const holderWalletPrivateKey = walletAccount.privateKey;
 
-      const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
-      const totalPrice = KaspaNetworkActionsService.KaspaToSompi(`${order.totalPrice}`);
+      const quantity = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.quantity);
+      const totalPrice = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.totalPrice);
 
       return await this.kaspaNetworkActionsService.doSellSwap(
         holderWalletPrivateKey,
@@ -104,7 +123,7 @@ export class KaspaFacade {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(order.walletSequenceId);
     const holderWalletPrivateKey = walletAccount.privateKey;
 
-    const quantity = KaspaNetworkActionsService.KaspaToSompi(String(order.quantity));
+    const quantity = KaspaNetworkActionsService.KaspaToSompiFromNumber(order.quantity);
 
     return await this.kaspaNetworkActionsService.cancelSellSwap(
       holderWalletPrivateKey,
@@ -116,35 +135,271 @@ export class KaspaFacade {
     );
   }
 
-  async verifyTokensAndProcessLunchpadOrder(
+  async verifyLunchpadTokensAmount(lunchpad: LunchpadEntity) {
+    const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
+
+    const lunchpadSenderWalletTokensAmount = KaspaNetworkActionsService.SompiToNumber(
+      await this.getKrc20TokenBalance(lunchpadSenderWallet.address, lunchpad.ticker),
+    );
+
+    if (lunchpadSenderWalletTokensAmount < lunchpad.currentTokensAmount) {
+      throw new LunchpadWalletTokenBalanceIncorrect(
+        lunchpad.ticker,
+        lunchpadSenderWallet.address,
+        lunchpad.currentTokensAmount,
+        lunchpadSenderWalletTokensAmount,
+      );
+    }
+  }
+
+  async processLunchpadOrder(
     lunchpadOrder: LunchpadOrder,
     lunchpad: LunchpadEntity,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
   ): Promise<KRC20ActionTransations> {
     // Verify wallet amount
-    const lunchpadWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.walletSequenceId);
+    const lunchpadSenderWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(lunchpad.senderWalletSequenceId);
 
-    const lunchpadWalletTokensAmount = KaspaNetworkActionsService.SompiToNumber(
-      await this.getKrc20TokenBalance(lunchpadWallet.address, lunchpad.ticker),
+    return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+      lunchpadSenderWallet.privateKey,
+      lunchpadOrder.userWalletAddress,
+      lunchpad.ticker,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpadOrder.totalUnits * lunchpad.tokenPerUnit),
+      lunchpadOrder.transactions || {},
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
+      notifyUpdate,
+      true,
+      true,
+    );
+  }
+
+  getRequiredAmountForBatchMint(totalMints: number, maxPriorityFee: number): number {
+    return KaspaNetworkActionsService.SompiToNumber(
+      this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
+        totalMints,
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(maxPriorityFee),
+      ),
+    );
+  }
+
+  getRequiredKaspaAmountForLunchpad(totalUnits: number, minUnits: number, maxPriorityFee: number): number {
+    return KaspaNetworkActionsService.SompiToNumber(
+      this.kaspaNetworkActionsService.getRequiredKaspaAmountForLunchpad(
+        totalUnits,
+        minUnits,
+        KaspaNetworkActionsService.KaspaToSompiFromNumber(maxPriorityFee),
+      ),
+    );
+  }
+
+  async validateBatchMintWalletAmount(batchMintEntity: BatchMintEntity): Promise<boolean> {
+    const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(
+      batchMintEntity.walletSequenceId,
     );
 
-    if (lunchpadWalletTokensAmount != lunchpad.currentTokensAmount) {
-      throw new LunchpadWalletTokenBalanceIncorrect(
-        lunchpad.ticker,
-        lunchpadWallet.address,
-        lunchpad.currentTokensAmount,
-        lunchpadWalletTokensAmount,
+    const walletUtxoData = await this.getWalletBalanceAndUtxos(batchMintEntity.walletSequenceId);
+
+    const requiredKaspaAmount = this.kaspaNetworkActionsService.getRequiredKaspaAmountForBatchMint(
+      batchMintEntity.totalMints,
+      KaspaNetworkActionsService.KaspaToSompiFromNumber(batchMintEntity.maxPriorityFee),
+    );
+
+    if (
+      requiredKaspaAmount >
+      walletUtxoData.totalBalance + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE)
+    ) {
+      throw new IncorrectKaspaAmountForBatchMint(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
+    }
+
+    if (batchMintEntity.finishedMints == 0) {
+      if (walletUtxoData.utxoEntries.length != 1) {
+        throw new IncorrectUtxoAmountForBatchMint(walletUtxoData.utxoEntries.length, 1, batchMintEntity);
+      }
+
+      if (
+        !(await this.kaspaNetworkActionsService.verifyPaymentTransaction(
+          walletUtxoData.utxoEntries[0].outpoint.transactionId,
+          batchMintEntity.ownerWallet,
+          walletAccount.address,
+          requiredKaspaAmount,
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE),
+        ))
+      ) {
+        throw new BatchMintUnknownMoneyError(walletUtxoData.totalBalance, requiredKaspaAmount, batchMintEntity);
+      }
+    }
+
+    return true;
+  }
+
+  async getLunchpadComission(walletSequenceId: number): Promise<bigint> {
+    return await this.kaspaNetworkActionsService.getLunchpadCommissionInSompi(walletSequenceId);
+  }
+
+  async transferAllKrc20AndKaspaTokens(
+    walletSequenceId: number,
+    targetWallet: string,
+    maxPriorityFee: bigint,
+    commission: bigint = 0n,
+  ) {
+    await this.kasplexApiService.waitForIndexerToBeSynced();
+    const originWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(walletSequenceId);
+
+    const walletKrc20Tokens = await this.kasplexApiService.getAddressTokenList(originWallet.address);
+
+    console.log('walletKrc20Tokens', walletKrc20Tokens);
+
+    for (const krc20Token of walletKrc20Tokens.result) {
+      await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+        originWallet.privateKey,
+        targetWallet,
+        krc20Token.tick,
+        BigInt(krc20Token.balance),
+        {},
+        maxPriorityFee,
+        async () => {},
       );
     }
 
-    return await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
-      lunchpadWallet.privateKey,
-      lunchpadOrder.userWalletAddress,
-      lunchpad.ticker,
-      KaspaNetworkActionsService.KaspaToSompi(String(lunchpadOrder.totalUnits * lunchpadOrder.tokenPerUnit)),
-      lunchpadOrder.transactions || {},
-      KaspaNetworkActionsService.KaspaToSompi(String(lunchpad.maxFeeRatePerTransaction)),
-      notifyUpdate,
+    await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
+      originWallet.privateKey,
+      maxPriorityFee,
+      targetWallet,
+      async () => {},
+      commission,
     );
+  }
+
+  async doBatchMint(
+    batchMintEntity: BatchMintEntity,
+    notifyUpdate: (result: Partial<Krc20TransactionsResult>) => Promise<void>,
+    notifyUpdateTransferTransaction: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void>,
+    getUpdatedBatchMintEntity: () => BatchMintEntity,
+  ): Promise<{
+    isMintOver: boolean;
+    refundTransactionId: string;
+    commission: number;
+  }> {
+    const batchMintWallet = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(batchMintEntity.walletSequenceId);
+
+    const finishedTransactionsLength = (batchMintEntity.transactions && batchMintEntity.transactions.length) || 0;
+    let isMintOver = false;
+
+    let lastTransactions: Partial<KRC20ActionTransations> =
+      batchMintEntity.transactions && finishedTransactionsLength
+        ? batchMintEntity.transactions[finishedTransactionsLength - 1]
+        : {};
+
+    let timesLeftToRun = batchMintEntity.totalMints - finishedTransactionsLength;
+
+    if (!isEmptyString(lastTransactions.commitTransactionId) && isEmptyString(lastTransactions.revealTransactionId)) {
+      timesLeftToRun++;
+    } else {
+      lastTransactions = {};
+    }
+
+    let updatedBatchMintEntity = getUpdatedBatchMintEntity();
+
+    for (let completedRuns = 0; completedRuns < timesLeftToRun; completedRuns++) {
+      console.log('completedRuns', completedRuns);
+
+      if (Object.keys(lastTransactions).length == 0) {
+        updatedBatchMintEntity = getUpdatedBatchMintEntity();
+
+        if (updatedBatchMintEntity.isUserCanceled) {
+          console.log('USER CANCELLED BREAK');
+          break;
+        }
+
+        const mintsLeft = await this.kasplexApiService.getTokenRemainingMints(batchMintEntity.ticker);
+
+        console.log('REMAINING MINTS', mintsLeft);
+
+        if (mintsLeft <= batchMintEntity.stopMintsAtMintsLeft) {
+          console.log('BREAKING');
+          isMintOver = true;
+          break;
+        }
+      }
+
+      await this.kaspaNetworkActionsService.mintAndNotify(
+        batchMintWallet.privateKey,
+        batchMintEntity.ticker,
+        KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
+        lastTransactions,
+        notifyUpdate,
+      );
+
+      lastTransactions = {};
+    }
+
+    updatedBatchMintEntity = getUpdatedBatchMintEntity();
+
+    console.log('TOTAL COMPLETED MINTS', updatedBatchMintEntity.finishedMints);
+
+    if (updatedBatchMintEntity.finishedMints > 0) {
+      if (!(updatedBatchMintEntity.transactions && updatedBatchMintEntity.transactions.length)) {
+        throw new Error('No transactions for batch mint while finished mints > 0');
+      }
+
+      const lastTransactionReveal =
+        updatedBatchMintEntity.transactions[updatedBatchMintEntity.transactions.length - 1].revealTransactionId;
+
+      if (!lastTransactionReveal) {
+        throw new Error('No last reveal transaction for batch mint');
+      }
+
+      await this.kasplexApiService.waitForIndexerToBeSynced();
+
+      await this.utils.retryOnError(
+        async () => {
+          const verifyLastTransactionAtKasplexData = await this.kasplexApiService.fetchOperationResults(lastTransactionReveal);
+
+          if (!verifyLastTransactionAtKasplexData) {
+            throw new Error('Operation not found at kasplex');
+          }
+        },
+        30,
+        2000,
+        true,
+      );
+
+      const tokenAmountToSend = await this.kasplexApiService.fetchWalletBalance(
+        batchMintWallet.address,
+        updatedBatchMintEntity.ticker,
+      );
+
+      if (tokenAmountToSend > 0n) {
+        await this.kaspaNetworkActionsService.transferKrc20TokenAndNotify(
+          batchMintWallet.privateKey,
+          batchMintEntity.ownerWallet,
+          batchMintEntity.ticker,
+          tokenAmountToSend,
+          batchMintEntity.transferTokenTransactions || {},
+          KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
+          notifyUpdateTransferTransaction,
+        );
+      }
+    }
+
+    const commission =
+      updatedBatchMintEntity.finishedMints > 0
+        ? this.kaspaNetworkActionsService.getBatchMintCommissionInSompi(updatedBatchMintEntity.finishedMints)
+        : null;
+
+    const refundTransaction = await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
+      batchMintWallet.privateKey,
+      KaspaNetworkActionsService.KaspaToSompi(batchMintEntity.maxPriorityFee.toFixed(8)),
+      batchMintEntity.ownerWallet,
+      notifyUpdateKasRefundTransaction,
+      commission,
+    );
+
+    return {
+      isMintOver,
+      refundTransactionId: refundTransaction.summary.finalTransactionId,
+      commission: KaspaNetworkActionsService.SompiToNumber(commission),
+    };
   }
 }

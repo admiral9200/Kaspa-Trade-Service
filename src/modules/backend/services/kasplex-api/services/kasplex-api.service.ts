@@ -10,6 +10,9 @@ import { ITokenOperation, ITokenOperationResponse, OperationAcceptResult } from 
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaResponse } from '../model/kaspa-response.interface';
 import { IBalanceArray } from '../model/balance-array.interface';
+import { ITokenDetailsWithHolders } from '../model/token-details-with-holders.interface';
+import { IndexerStatus, IndexerStatusMessage } from '../model/indexer-status.interface';
+import { WalletOperationListInterface } from '../model/wallet-operation-list.interface';
 
 @Injectable()
 export class KasplexApiService {
@@ -81,25 +84,51 @@ export class KasplexApiService {
   //   }
   // }
 
+  async getIndexerStatus(): Promise<IndexerStatus> {
+    const response = await firstValueFrom(this.httpService.get<any>(`info`));
+    return response.data;
+  }
+
+  async waitForIndexerToBeSynced(maxRetries: number = 30): Promise<void> {
+    return await this.utils.retryOnError(
+      async () => {
+        const indexerStatus = await this.getIndexerStatus();
+        if (indexerStatus.message != IndexerStatusMessage.Synced) {
+          throw new Error('Indexer not synced');
+        }
+      },
+      maxRetries,
+      1000,
+      true,
+    );
+  }
+
   async getAddressTokenList(address: string): Promise<IKaspaResponse<IBalanceArray[]>> {
     const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/tokenlist`));
     return response.data;
   }
 
-  // async fetchTokenInfo(
-  //   tick: string,
-  //   holders = true,
-  // ): Promise<IKaspaResponse<ITokenDetailsWithHolders>> {
-  //   try {
-  //     const response = await firstValueFrom(
-  //       this.httpService.get<any>(`krc20/token/${tick}?holder=${holders}`),
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('Error fetching token info:', error);
-  //     return undefined;
-  //   }
-  // }
+  async fetchTokenInfo(ticker: string): Promise<ITokenDetailsWithHolders> {
+    const response = await firstValueFrom(
+      this.httpService.get<IKaspaResponse<ITokenDetailsWithHolders>>(`krc20/token/${ticker}`),
+    );
+
+    return response.data?.result[0];
+  }
+
+  async getTokenRemainingMints(ticker: string): Promise<number> {
+    const response = await this.fetchTokenInfo(ticker);
+
+    const maxTokens = BigInt(response.max);
+    const mintedTokens = BigInt(response.minted);
+    return Number((maxTokens - mintedTokens) / BigInt(response.lim));
+  }
+
+  async getTokenMintsAmount(ticker: string, amount: number): Promise<bigint> {
+    const response = await this.fetchTokenInfo(ticker);
+
+    return BigInt(response.lim) * BigInt(amount);
+  }
 
   // async fetchHoldersCount(ticker: string): Promise<number> {
   //   try {
@@ -138,7 +167,7 @@ export class KasplexApiService {
   async fetchWalletBalance(address: string, ticker: string): Promise<bigint> {
     const response = await firstValueFrom(this.httpService.get<any>(`krc20/address/${address}/token/${ticker}`));
 
-    return response.data.result[0].balance;
+    return response?.data?.result[0].balance;
   }
 
   async fetchOperationResults(revealTransactoinId: string): Promise<ITokenOperation[]> {
@@ -211,5 +240,89 @@ export class KasplexApiService {
       BigInt(transactionData.amt) === amount &&
       transactionData.tick == ticker
     );
+  }
+
+  async getMarketplaceOrders(ticker: string, txId?: string, walletAddress?: string) {
+    const urlParams = new URLSearchParams();
+
+    if (walletAddress) {
+      urlParams.set('address', walletAddress);
+    }
+
+    if (txId) {
+      urlParams.set('txid', txId);
+    }
+
+    const response = await firstValueFrom(
+      this.httpService.get<any>(`krc20/market/${ticker}`, {
+        params: urlParams,
+      }),
+    );
+
+    return response?.data?.result;
+  }
+
+  async getWalletOperationHistory(walletAddress: string, tick?: string): Promise<WalletOperationListInterface[]> {
+    const urlParams = new URLSearchParams();
+    urlParams.set('address', walletAddress);
+
+    if (tick) {
+      urlParams.set('tick', tick);
+    }
+
+    const response = await firstValueFrom(
+      this.httpService.get<any>(`krc20/oplist`, {
+        params: urlParams,
+      }),
+    );
+
+    return response?.data?.result;
+  }
+
+  async findSendOrderPossibleTransactions(
+    sellerWalletAddress: string,
+    ticker: string,
+    tokenAmount: bigint,
+    price: bigint,
+  ): Promise<string[]> {
+    const userActions = await this.utils.retryOnError(
+      async () => {
+        return await this.getWalletOperationHistory(sellerWalletAddress, ticker);
+      },
+      5,
+      5000,
+      true,
+    );
+
+    return userActions
+      .filter(
+        (action) =>
+          action.op === 'send' &&
+          BigInt(action.amt) == tokenAmount &&
+          (BigInt(action.price) >= price || BigInt(action.price) == 0n),
+      )
+      .map((action) => action.hashRev);
+  }
+
+  async validateMarketplaceOrderOffMarket(ticker: string, txId: string, walletAddress: string): Promise<boolean> {
+    try {
+      await this.utils.retryOnError(
+        async () => {
+          const result = await this.getMarketplaceOrders(ticker, txId, walletAddress);
+
+          if (result && result.length > 0) {
+            throw new Error('Order exists');
+          }
+        },
+        10,
+        2000,
+        true,
+      );
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+
+    return true;
   }
 }

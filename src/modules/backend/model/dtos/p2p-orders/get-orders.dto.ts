@@ -1,9 +1,9 @@
 import { SortDto } from '../abstract/sort.dto';
-import { IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsBoolean, IsOptional, ValidateNested } from 'class-validator';
 import { PaginationDto } from '../abstract/pagination.dto';
 import { Type } from 'class-transformer';
-import { PAGINATION_LIMIT_DEFAULT } from '../../../constants/p2p-order.constants';
 import { SortDirection } from '../../enums/sort-direction.enum';
+import { PAGINATION_LIMIT_DEFAULT } from 'src/modules/backend/constants';
 
 export class GetOrdersDto {
   @ValidateNested()
@@ -19,6 +19,10 @@ export class GetOrdersDto {
   pagination: PaginationDto = {
     limit: PAGINATION_LIMIT_DEFAULT,
   };
+
+  @IsOptional()
+  @IsBoolean()
+  completedOrders?: boolean;
 
   constructor() {
     this.sort = new SortDto();

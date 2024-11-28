@@ -1,5 +1,5 @@
-import { IsOptional, Min } from 'class-validator';
-import { PAGINATION_LIMIT_DEFAULT } from '../../../constants/p2p-order.constants';
+import { IsOptional, Max, Min } from 'class-validator';
+import { PAGINATION_LIMIT_DEFAULT, PAGINATION_LIMIT_MAX } from 'src/modules/backend/constants';
 
 export class PaginationDto {
   @IsOptional()
@@ -8,5 +8,6 @@ export class PaginationDto {
 
   @IsOptional()
   @Min(1)
+  @Max(PAGINATION_LIMIT_MAX)
   limit: number = PAGINATION_LIMIT_DEFAULT;
 }

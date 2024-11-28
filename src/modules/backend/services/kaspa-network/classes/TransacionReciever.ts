@@ -1,6 +1,6 @@
 import { RpcClient } from 'libs/kaspa/kaspa';
 
-const WAIT_TIMEOUT = 2 * 60 * 1000;
+const WAIT_TIMEOUT = 120 * 1000;
 export class TransacionReciever {
   static addressesToMontior = {};
 
@@ -96,7 +96,7 @@ export class TransacionReciever {
 
   async waitForTransactionCompletion() {
     setTimeout(() => {
-      this.reject('Timeout on Transaction completion');
+      this.reject('Timeout on Transaction completion at TransacionReciever.waitForTransactionCompletion()');
       this.clearEventListener();
     }, WAIT_TIMEOUT);
     return this.promise;

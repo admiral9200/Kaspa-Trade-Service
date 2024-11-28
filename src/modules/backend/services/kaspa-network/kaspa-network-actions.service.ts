@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { IPaymentOutput, kaspaToSompi, Mnemonic, PrivateKey, PrivateKeyGenerator, XPrv } from 'libs/kaspa/kaspa';
 import { KaspaNetworkTransactionsManagerService, MINIMAL_AMOUNT_TO_SEND } from './kaspa-network-transactions-manager.service';
 import {
+  getMintData,
   getTransferData,
   KRC20_BASE_TRANSACTION_AMOUNT,
-  KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT,
   KRC20_TRANSACTIONS_AMOUNTS,
+  KRC20OperationDataInterface,
 } from './classes/KRC20OperationData';
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { EncryptionService } from '../encryption.service';
@@ -16,14 +17,16 @@ import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwa
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { KRC20ActionTransations } from './interfaces/Krc20ActionTransactions.interface';
+import { IncorrectKaspaAmountForKrc20Action } from './errors/IncorrectKaspaAmountForKrc20Action';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 // MUST BE EQUAL OR ABOVE MINIMAL_AMOUNT_TO_SEND, WHICH IS NOW 0.2 ACCORDING TO WASM LIMITATION
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
 export const MIMINAL_COMMITION = kaspaToSompi('1');
+export const ACCEPTABLE_TRANSACTION_AMOUNT_RANGE = 0.001;
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
-const MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS = kaspaToSompi('1');
+const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10000n;
 
 @Injectable()
 export class KaspaNetworkActionsService {
@@ -34,8 +37,92 @@ export class KaspaNetworkActionsService {
     private readonly kaspaApiService: KaspaApiService,
   ) {}
 
-  async getTransactionSenderWallet(transactionId: string, receiverWallet: string, amount: bigint): Promise<string> {
-    return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount);
+  getBatchMintCommissionInSompi(mintsAmount: number): bigint {
+    const mintsComission =
+      (BigInt(mintsAmount * this.config.batchMintCommissionPercentage) * KRC20_TRANSACTIONS_AMOUNTS.MINT) / 100n;
+
+    return mintsComission < MIMINAL_COMMITION ? MIMINAL_COMMITION : mintsComission;
+  }
+
+  async getLunchpadCommissionInSompi(walletSequenceId: number): Promise<bigint> {
+    const wallet = await this.getWalletAccountAtIndex(walletSequenceId);
+    const totalBalance = await this.getWalletTotalBalance(wallet.address);
+
+    if (totalBalance == 0n) {
+      return 0n;
+    }
+
+    // Doing in this weird way bacause large numbers might be problematic
+    const onePercentOfTotalAmount = KaspaNetworkActionsService.SompiToNumber(totalBalance / 100n);
+    const commission = KaspaNetworkActionsService.KaspaToSompiFromNumber(
+      Math.round(onePercentOfTotalAmount * this.config.lunchpadCommissionPercentage * 10000) / 10000,
+    );
+
+    return commission > MIMINAL_COMMITION ? commission : MIMINAL_COMMITION;
+  }
+
+  getRequiredKaspaAmountForBatchMint(amountToMint: number, maxPriorityFee: bigint): bigint {
+    let maxPriortyFeeWithMintAmount = maxPriorityFee - KRC20_TRANSACTIONS_AMOUNTS.MINT;
+    const estimatedKrc20TransactionsMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
+
+    if (maxPriortyFeeWithMintAmount < 0) {
+      maxPriortyFeeWithMintAmount = 0n;
+    }
+
+    // EXPLNATION -
+    // for every transaction there is commit and reveal
+    // reveal always 1 priority fee or more, maxPriortyFeeWithMintAmount is what is above 1
+    // estimatedKrc20TransactionsMass - how much mass is every transaction more or less
+    const baseAmountForMints =
+      BigInt(amountToMint) *
+        (maxPriorityFee + maxPriortyFeeWithMintAmount + estimatedKrc20TransactionsMass + KRC20_TRANSACTIONS_AMOUNTS.MINT) +
+      KRC20_BASE_TRANSACTION_AMOUNT +
+      this.getBatchMintCommissionInSompi(amountToMint);
+
+    // 3 transactions - commit, reveal and kaspa
+    const amountForTransactionsTuReturnToTheSeller =
+      maxPriorityFee * 3n + estimatedKrc20TransactionsMass + MAX_ESTIMATED_KRC20_TRANSACTION_MASS;
+
+    const requiredAmount = baseAmountForMints + amountForTransactionsTuReturnToTheSeller;
+
+    const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(requiredAmount));
+
+    return KaspaNetworkActionsService.KaspaToSompiFromNumber(requiredAmountCeiled);
+  }
+
+  getRequiredKaspaAmountForLunchpad(totalUnits: number, minUnits: number, maxPriorityFee: bigint): bigint {
+    const estimatedKrc20TransactionsMass = MAX_ESTIMATED_KRC20_TRANSACTION_MASS * 2n;
+
+    const requiredPriorityFeeForTransfer = maxPriorityFee * 2n;
+    const maximumPossibleTransactions = BigInt(Math.floor(totalUnits / minUnits));
+
+    const baseAmountForLunchpad =
+      (requiredPriorityFeeForTransfer + estimatedKrc20TransactionsMass) * BigInt(maximumPossibleTransactions) +
+      KRC20_BASE_TRANSACTION_AMOUNT +
+      MINIMAL_AMOUNT_TO_SEND;
+
+    const requiredAmountCeiled = Math.ceil(KaspaNetworkActionsService.SompiToNumber(baseAmountForLunchpad));
+
+    return KaspaNetworkActionsService.KaspaToSompiFromNumber(requiredAmountCeiled);
+  }
+
+  async getTransactionSenderWallet(
+    transactionId: string,
+    receiverWallet: string,
+    amount: bigint,
+    acceptableAmountRange: bigint,
+  ): Promise<string> {
+    return await this.kaspaApiService.getTransactionSender(transactionId, receiverWallet, amount, acceptableAmountRange);
+  }
+
+  async verifyPaymentTransaction(
+    transactionId: string,
+    from: string,
+    to: string,
+    amount: bigint,
+    acceptableAmountRange: bigint = 0n,
+  ): Promise<boolean> {
+    return await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount, false, acceptableAmountRange);
   }
 
   async verifyTransactionResultWithKaspaApiAndWalletTotalAmount(
@@ -43,18 +130,19 @@ export class KaspaNetworkActionsService {
     from: string,
     to: string,
     amount: bigint,
+    acceptableAmountRange: bigint = 0n,
   ): Promise<boolean> {
-    const kaspaApiResult = await this.kaspaApiService.verifyPaymentTransaction(transactionId, from, to, amount);
+    const kaspaApiResult = await this.verifyPaymentTransaction(transactionId, from, to, amount, acceptableAmountRange);
     if (!kaspaApiResult) {
       return false;
     }
 
     const walletTotalBalance = await this.getWalletTotalBalance(to);
 
-    // Must be == and not >=, Because if there is there extra money it belongs to someone else
-    // And it will be sent to the buyer even though it's not his money
-    // This is in case of an error
-    return walletTotalBalance === amount;
+    const minAccepted = amount - acceptableAmountRange;
+    const maxAccepted = amount + acceptableAmountRange;
+
+    return walletTotalBalance >= minAccepted && walletTotalBalance <= maxAccepted;
   }
 
   async isValidKaspaAmountForSwap(
@@ -65,8 +153,13 @@ export class KaspaNetworkActionsService {
 
     const requiredAmount = swapAmount + AMOUNT_FOR_SWAP_FEES;
 
+    const minRequiredAmount =
+      requiredAmount - KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+    const maxRequiredAmount =
+      requiredAmount + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+
     return {
-      isValid: totalWalletAmountAtStart === requiredAmount,
+      isValid: totalWalletAmountAtStart >= minRequiredAmount && totalWalletAmountAtStart <= maxRequiredAmount,
       requiredAmount,
       currentAmount: totalWalletAmountAtStart,
     };
@@ -201,7 +294,12 @@ export class KaspaNetworkActionsService {
           this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
         );
 
-        if (totalWalletAmountAtStart != AMOUNT_FOR_SWAP_FEES) {
+        const minAcceptableAmountForFee =
+          AMOUNT_FOR_SWAP_FEES - KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+        const maxAcceptableAmountForFee =
+          AMOUNT_FOR_SWAP_FEES + KaspaNetworkActionsService.KaspaToSompiFromNumber(ACCEPTABLE_TRANSACTION_AMOUNT_RANGE);
+
+        if (!(totalWalletAmountAtStart >= minAcceptableAmountForFee && totalWalletAmountAtStart <= maxAcceptableAmountForFee)) {
           throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, AMOUNT_FOR_SWAP_FEES);
         }
 
@@ -248,65 +346,154 @@ export class KaspaNetworkActionsService {
     });
   }
 
-  async transferKrc20TokenAndNotify(
+  private async doKrc20TransactionAndNotifyWithUtxoProcessor(
     holderWalletPrivateKey: PrivateKey,
-    sellerAddress: string,
-    krc20tokenTicker: string,
-    krc20TokenAmount: bigint,
-    alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
+    operationData: KRC20OperationDataInterface,
+    operationCost: bigint,
     maxPriorityFee: bigint,
+    alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
     notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
-  ): Promise<KRC20ActionTransations> {
+    verifyTransactionsReceived: boolean = true,
+    stopOnApplicationClosing: boolean = false,
+  ) {
     const resultTransactions = { ...alreadyFinishedTransactions };
 
-    const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, sellerAddress);
-
     return await this.transactionsManagerService.connectAndDo<KRC20ActionTransations>(async () => {
-      if (!resultTransactions.commitTransactionId) {
+      if (resultTransactions.commitTransactionId) {
+        if (verifyTransactionsReceived) {
+          await this.transactionsManagerService.verifyTransactionReceivedOnKaspaApi(
+            resultTransactions.commitTransactionId,
+            stopOnApplicationClosing,
+          );
+        }
+      } else {
         const totalWalletAmountAtStart = await this.getWalletTotalBalance(
           this.transactionsManagerService.convertPrivateKeyToPublicKey(holderWalletPrivateKey),
         );
 
-        if (totalWalletAmountAtStart < MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS) {
-          throw new IncorrectKaspaAmountForSwap(totalWalletAmountAtStart, MINIMUM_WALLET_AMOUNT_FOR_TRANSFERS);
+        if (totalWalletAmountAtStart < operationCost || totalWalletAmountAtStart < KRC20_BASE_TRANSACTION_AMOUNT) {
+          throw new IncorrectKaspaAmountForKrc20Action(totalWalletAmountAtStart, operationCost);
         }
 
         const baseTransactionAmount =
-          totalWalletAmountAtStart > KRC20_BASE_TRANSACTION_AMOUNT + KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT
-            ? KRC20_BASE_TRANSACTION_AMOUNT
-            : KRC20_MINIMAL_BASE_TRANSACTION_AMOUNT;
+          KRC20_BASE_TRANSACTION_AMOUNT > operationCost ? KRC20_BASE_TRANSACTION_AMOUNT : operationCost;
 
-        const commitTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+        await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
-          krc20OperationData,
+          operationData,
           maxPriorityFee,
           baseTransactionAmount,
+          async (transactionId) => {
+            resultTransactions.commitTransactionId = transactionId;
+            await notifyUpdate(resultTransactions);
+          },
+          stopOnApplicationClosing,
         );
-
-        resultTransactions.commitTransactionId = commitTransaction.summary.finalTransactionId;
-        await notifyUpdate(resultTransactions);
       }
 
-      if (!resultTransactions.revealTransactionId) {
-        const revealTransaction = await this.transactionsManagerService.doKrc20CommitTransactionWithUtxoProcessor(
+      if (resultTransactions.revealTransactionId) {
+        if (verifyTransactionsReceived) {
+          await this.transactionsManagerService.verifyTransactionReceivedOnKaspaApi(
+            resultTransactions.commitTransactionId,
+            stopOnApplicationClosing,
+          );
+        }
+      } else {
+        await this.transactionsManagerService.doKrc20RevealTransactionWithUtxoProcessor(
           holderWalletPrivateKey,
-          krc20OperationData,
-          KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+          operationData,
+          operationCost,
           maxPriorityFee,
+          async (transactionId) => {
+            resultTransactions.revealTransactionId = transactionId;
+            await notifyUpdate(resultTransactions);
+          },
+          stopOnApplicationClosing,
         );
-
-        resultTransactions.revealTransactionId = revealTransaction.summary.finalTransactionId;
-        await notifyUpdate(resultTransactions);
       }
 
       return resultTransactions as KRC20ActionTransations;
     });
   }
 
+  async mintAndNotify(
+    holderWalletPrivateKey: PrivateKey,
+    krc20tokenTicker: string,
+    maxPriorityFee: bigint,
+    alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
+    notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+  ) {
+    const krc20OperationData = getMintData(krc20tokenTicker);
+
+    return await this.doKrc20TransactionAndNotifyWithUtxoProcessor(
+      holderWalletPrivateKey,
+      krc20OperationData,
+      KRC20_TRANSACTIONS_AMOUNTS.MINT,
+      maxPriorityFee,
+      alreadyFinishedTransactions,
+      notifyUpdate,
+    );
+  }
+
+  async transferKrc20TokenAndNotify(
+    holderWalletPrivateKey: PrivateKey,
+    targetAddress: string,
+    krc20tokenTicker: string,
+    krc20TokenAmount: bigint,
+    alreadyFinishedTransactions: Partial<KRC20ActionTransations>,
+    maxPriorityFee: bigint,
+    notifyUpdate: (result: Partial<KRC20ActionTransations>) => Promise<void>,
+    verifyTransactionReceivedOnKaspaApi: boolean = false,
+    stopOnApplicationClosing: boolean = false,
+  ): Promise<KRC20ActionTransations> {
+    const krc20OperationData = getTransferData(krc20tokenTicker, krc20TokenAmount, targetAddress);
+
+    return await this.doKrc20TransactionAndNotifyWithUtxoProcessor(
+      holderWalletPrivateKey,
+      krc20OperationData,
+      KRC20_TRANSACTIONS_AMOUNTS.TRANSFER,
+      maxPriorityFee,
+      alreadyFinishedTransactions,
+      notifyUpdate,
+      verifyTransactionReceivedOnKaspaApi,
+      stopOnApplicationClosing,
+    );
+  }
+
   async transferKaspa(privateKey: PrivateKey, payments: IPaymentOutput[], maxPriorityFee: bigint) {
     return await this.transactionsManagerService.connectAndDo(async () => {
       return await this.transactionsManagerService.createKaspaTransferTransactionAndDo(privateKey, payments, maxPriorityFee);
     });
+  }
+
+  async transferAllRemainingKaspa(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void> = null,
+    commission: bigint = 0n,
+  ) {
+    const payments = [
+      {
+        address: targetWallet,
+        amount: MINIMAL_AMOUNT_TO_SEND,
+      },
+    ];
+
+    if (commission && commission > 0n) {
+      payments.push({
+        address: this.config.commitionWalletAddress,
+        amount: commission,
+      });
+    }
+
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      payments,
+      maxPriorityFee,
+      true,
+      notifyUpdateKasRefundTransaction,
+    );
   }
 
   async transferKrc20Token(
@@ -381,6 +568,10 @@ export class KaspaNetworkActionsService {
 
   static KaspaToSompi(value: string): bigint {
     return kaspaToSompi(value);
+  }
+
+  static KaspaToSompiFromNumber(value: number): bigint {
+    return BigInt(Math.round(value * 1e8).toLocaleString('fullwide', { useGrouping: false }));
   }
 
   static SompiToNumber(value: bigint): number {

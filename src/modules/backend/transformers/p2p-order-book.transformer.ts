@@ -16,6 +16,7 @@ export class P2pOrderBookTransformer {
       expiresAt: entity.expiresAt,
       createdAt: entity.createdAt,
       status: entity.status,
+      isDecentralized: (entity as any).isDecentralized,
     };
   }
 
