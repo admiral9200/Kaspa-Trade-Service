@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { P2pOrdersService } from '../services/p2p-orders.service';
-import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
 import { KaspaFacade } from '../facades/kaspa.facade';
-import { TemporaryWalletSequenceService } from '../services/temporary-wallet-sequence.service';
 import { TelegramBotService } from 'src/modules/shared/telegram-notifier/services/telegram-bot.service';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
-import { KaspianoBackendApiService } from '../services/kaspiano-backend-api/services/kaspiano-backend-api.service';
 import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
 import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
 import { PrivateKey } from 'libs/kaspa/kaspa';
@@ -36,15 +32,13 @@ export class WithdrawalProvider {
             const withdrawalOrder = await this.withdrawalService.createWithdrawal(body, walletAddress);
 
             const { receivingWallet, amount } = body;
-            const requiredAmount = KaspaNetworkActionsService.KaspaToSompi(amount);
+            const requiredAmount = this.kaspaFacade.convertFromKaspaToSompi(amount);
 
-            const masterWallet: WalletAccount = await this.kaspaFacade.getWalletAccount(0);
+            const withdrawalWallet: WalletAccount = await this.kaspaFacade.getWalletAccount(0);
 
-            const privateKey = masterWallet.privateKey.toKeypair().privateKey;
+            const privateKey = withdrawalWallet.privateKey.toKeypair().privateKey;
 
-            const { totalBalance } = await this.kaspaFacade.getWalletTotalBalance("kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju");
-
-            console.log("balances: ", totalBalance, requiredAmount);
+            const { totalBalance } = await this.kaspaFacade.getWalletTotalBalance(withdrawalWallet.address);
 
             if (requiredAmount > totalBalance) {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
@@ -53,7 +47,7 @@ export class WithdrawalProvider {
                 await this.telegramBotService.sendErrorToErrorsChannel(withdrawalError);
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
-                    String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
+                    String(this.kaspaFacade.convertFromKaspaToSompi(withdrawal.amount.toString())),
                     withdrawal.receivingWallet,
                     WithdrawalStatus.WAITING_FOR_KAS,
                     withdrawal.createdAt,
@@ -90,7 +84,7 @@ export class WithdrawalProvider {
             }
             let transactionId: string = null;
 
-            const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(new PrivateKey("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a"), 1n, receivingWallet, amount);
+            const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(new PrivateKey(privateKey), 1n, receivingWallet, amount);
 
             if (result) {
                 transactionId = result.transactions[0].id;
@@ -105,7 +99,7 @@ export class WithdrawalProvider {
             }
 
             return WithdrawalResponseTransformer.transformEntityToResponseDto(
-                String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
+                String(this.kaspaFacade.convertFromKaspaToSompi(withdrawal.amount.toString())),
                 withdrawal.receivingWallet,
                 WithdrawalStatus.COMPLETED,
                 withdrawal.createdAt,

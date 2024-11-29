@@ -456,48 +456,5 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     return stuckOrders;
   }
 
-  /**
-   * Calculating the available balance after buying token.
-   * @param receivingAddress 
-   * @returns 
-   */
-  async getAvailableBalanceWithBuyerAddress(
-    receivingAddress: string
-  ): Promise<number> {
-    const result = await this.sellOrdersModel.aggregate([
-      {
-        $match: {
-          buyerWalletAddress: receivingAddress,
-          status: SellOrderStatus.WAITING_FOR_KAS
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalBalance: {
-            $sum: { $multiply: ["$quantity", "$pricePerToken"] }
-          }
-        }
-      }
-    ]);
-
-    return result.length > 0 ? result[0].totalBalance : 0;
-  }
-
-  async getSequenceId(walletAddress: string): Promise<number> {
-    if (!walletAddress) {
-      throw new Error("Wallet address is required");
-    }
-
-    const order = await this.sellOrdersModel
-      .findOne({ buyerWalletAddress: walletAddress })
-      .select('walletSequenceId')
-      .lean();
-
-    if (!order) {
-      throw new InvalidWalletSequenceIdError(`No sequence ID found for wallet: ${walletAddress}`);
-    }
-
-    return order.walletSequenceId;
-  }
+  
 }

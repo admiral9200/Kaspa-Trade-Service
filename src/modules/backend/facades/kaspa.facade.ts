@@ -21,6 +21,8 @@ import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/error
 import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
 import { UtilsHelper } from '../helpers/utils.helper';
+import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
+import { EncryptionService } from '../services/encryption.service';
 
 @Injectable()
 export class KaspaFacade {
@@ -28,6 +30,8 @@ export class KaspaFacade {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly kasplexApiService: KasplexApiService,
     private readonly utils: UtilsHelper,
+    private readonly config: AppConfigService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async getAccountWalletAddressAtIndex(sequenceId: number): Promise<string> {
@@ -413,10 +417,14 @@ export class KaspaFacade {
   }
 
   async getWalletAccount(index: number): Promise<WalletAccount> {
-    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index);
+    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
   }
 
   async getWalletTotalBalance(address: string): Promise<TotalBalanceWithUtxosInterface> {
     return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(address);
+  }
+
+  convertFromKaspaToSompi(value: string): bigint {
+    return KaspaNetworkActionsService.KaspaToSompi(value);
   }
 }

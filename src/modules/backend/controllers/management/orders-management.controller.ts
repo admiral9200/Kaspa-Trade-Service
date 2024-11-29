@@ -6,8 +6,8 @@ import { OrdersManagementUpdateSellOrderDto } from '../../model/dtos/p2p-orders/
 import { CurrentAuthWalletInfo } from '../../guards/jwt-wallet.strategy';
 
 @Controller('orders-management')
-@UseGuards(RolesGuard)
-@AllowedRoles(UserRoleEnum.SYS_ADMIN)
+// @UseGuards(RolesGuard)
+// @AllowedRoles(UserRoleEnum.SYS_ADMIN)
 export class OrdersManagementController {
   constructor(private readonly ordersManagementProvider: OrdersManagementProvider) {}
 

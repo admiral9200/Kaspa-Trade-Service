@@ -1,5 +1,4 @@
-import { IsEnum, IsOptional, IsString } from "class-validator";
-import { WithdrawalStatus } from "../../enums/withdrawal-status.enum";
+import { IsOptional, IsString } from "class-validator";
 
 export class CreateWithdrawalDto {
     @IsString()
