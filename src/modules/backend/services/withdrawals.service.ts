@@ -28,19 +28,11 @@ export class WithdrawalsService {
     async updateWithdrawalStatusToCompleted(_id: string): Promise<WithdrawalEntity> {
         const order: WithdrawalEntity = await this.withdrawalsRepository.setCompletedStatus(_id);
 
-        if (!order) {
-            throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
         return order;
     }
 
     async updateWithdrawalStatusToWaitingForKas(_id: string): Promise<WithdrawalEntity> {
         const order: WithdrawalEntity = await this.withdrawalsRepository.setWaitingForKasStatus(_id);
-
-        if (!order) {
-            throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
 
         return order;
     }
