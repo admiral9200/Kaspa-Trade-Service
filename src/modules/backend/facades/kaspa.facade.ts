@@ -16,7 +16,7 @@ import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 import { Krc20TransactionsResult } from '../services/kaspa-network/interfaces/Krc20TransactionsResult.interface';
 import { isEmptyString } from '../utils/object.utils';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
-import { UtxoEntry } from 'libs/kaspa/kaspa';
+import { IPaymentOutput, PrivateKey, UtxoEntry } from 'libs/kaspa/kaspa';
 import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectUtxoAmountForBatchMint';
 import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
@@ -401,5 +401,14 @@ export class KaspaFacade {
       refundTransactionId: refundTransaction.summary.finalTransactionId,
       commission: KaspaNetworkActionsService.SompiToNumber(commission),
     };
+  }
+
+  async doKaspaTransferForWithdrawal(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    amount: bigint
+  ) {
+    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
   }
 }

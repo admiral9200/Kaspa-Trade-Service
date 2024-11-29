@@ -1,6 +1,4 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
-import { P2pProvider } from '../providers/p2p.provider';
-import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
 import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
@@ -14,8 +12,7 @@ import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 @UseGuards(JwtWalletAuthGuard)
 export class WithdrawalController {
   constructor(
-    private readonly withdrawalProvider: WithdrawalProvider,
-    private readonly logger: AppLogger,
+    private readonly withdrawalProvider: WithdrawalProvider
   ) {}
 
   @Post('create')

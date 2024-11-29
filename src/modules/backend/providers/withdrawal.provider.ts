@@ -22,6 +22,7 @@ import { InvalidKaspaAmountForWithdrawalError } from '../services/kaspa-network/
 @Injectable()
 export class WithdrawalProvider {
     constructor(
+        private readonly kaspaFacade: KaspaFacade,
         private readonly p2pOrderBookService: P2pOrdersService,
         private readonly withdrawalService: WithdrawalsService,
         private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
@@ -45,25 +46,28 @@ export class WithdrawalProvider {
 
             const privateKey = masterWallet.privateKey.toKeypair().privateKey;
 
-            const availableBalance = KaspaNetworkActionsService.KaspaToSompi(String(await this.p2pOrderBookService.getAvailableBalance(walletAddress)));
+            const maxKaspa = KaspaNetworkActionsService.KaspaToSompi(String(await this.p2pOrderBookService.getAvailableBalance(walletAddress)));
 
-            if (withdrawalOrder.amount > availableBalance) {
+            if (withdrawalOrder.amount > maxKaspa) {
                 return {
                     success: false
                 };
             }
 
-            const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance(masterWallet.address);
+            // const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance(masterWallet.address);
+            const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance("kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju")
 
-            if (totalBalance > availableBalance && requiredAmount <= availableBalance) {
+            console.log("balances: ", totalBalance, maxKaspa, requiredAmount);
+
+            if (requiredAmount <= maxKaspa) {
                 return await this.processKaspaTransfer(privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
-            } else if(totalBalance > availableBalance && requiredAmount > availableBalance) {
+            } else if(totalBalance > maxKaspa && requiredAmount > maxKaspa) {
                 throw new Error('Required amount exceeds than your available balance!')
             } 
             else {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
-                const withdrawalError = new InvalidKaspaAmountForWithdrawalError(requiredAmount, availableBalance);
+                const withdrawalError = new InvalidKaspaAmountForWithdrawalError(requiredAmount, maxKaspa);
                 await this.telegramBotService.sendErrorToErrorsChannel(withdrawalError);
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
@@ -86,7 +90,7 @@ export class WithdrawalProvider {
      * Process the transfer in withdrawal.
      * @param privateKey 
      * @param receivingWallet 
-     * @param availableBalance 
+     * @param maxKaspa 
      * @param id 
      * @returns 
      */
@@ -100,19 +104,15 @@ export class WithdrawalProvider {
             if (!privateKey || !receivingWallet || !amount || !id) {
                 throw new Error("Invalid parameters: privateKey, receivingWallet, amount, and id are required.");
             }
+            let transactionId: string = null;
 
-            await this.kaspaNetworkActionsService.transferKaspa(
-                new PrivateKey(privateKey),
-                [
-                    {
-                        address: receivingWallet,
-                        amount: amount,
-                    },
-                ],
-                1n
-            );
+            const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(new PrivateKey("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a"), 1n, receivingWallet, amount);
 
-            const withdrawal = await this.withdrawalService.updateWithdrawalStatusToCompleted(id);
+            if(result) {
+                transactionId = result.transactions[0].id;
+            }
+
+            const withdrawal = await this.withdrawalService.updateWithdrawalStatusToCompleted(id, transactionId);
 
             try {
                 await this.telegramBotService.notifyWithdrawalCompleted(withdrawal);

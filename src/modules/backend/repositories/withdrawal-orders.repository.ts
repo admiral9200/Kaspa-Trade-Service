@@ -7,7 +7,6 @@ import { ClientSession, Model, Query } from "mongoose";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 import { InvalidStatusForWithdrawalUpdateError } from "../services/kaspa-network/errors/InvalidStatusForWithdrawalUpdate";
 import { WithdrawalHistoryDto } from "../model/dtos/withdrawals/withdrawal-history.dto";
-import { SortDto } from "../model/dtos/abstract/sort.dto";
 
 @Injectable()
 export class WithdrawalsRepository extends BaseRepository<WithdrawalEntity> {
@@ -32,7 +31,6 @@ export class WithdrawalsRepository extends BaseRepository<WithdrawalEntity> {
     async setWaitingForKasStatus(
         orderId: string,
         session?: ClientSession,
-        fromExpired: boolean = false,
     ): Promise<WithdrawalEntity> {
         return await this.transitionOrderStatus(
             orderId,
@@ -45,15 +43,13 @@ export class WithdrawalsRepository extends BaseRepository<WithdrawalEntity> {
 
     async setCompletedStatus(
         _id: string,
-        session?: ClientSession,
-        fromExpired: boolean = false,
+        transactionId?: string
     ): Promise<WithdrawalEntity> {
         return await this.transitionOrderStatus(
             _id,
             WithdrawalStatus.COMPLETED,
             WithdrawalStatus.CREATED,
-            {},
-            session,
+            {transactionId: transactionId},
         )
     }
 

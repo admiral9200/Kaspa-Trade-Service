@@ -19,9 +19,4 @@ export class WithdrawalHistoryDto {
     pagination: PaginationDto = {
         limit: PAGINATION_LIMIT_DEFAULT
     };
-
-    constructor() {
-        this.sort = new SortDto();
-        this.pagination = new PaginationDto();
-    }
 }

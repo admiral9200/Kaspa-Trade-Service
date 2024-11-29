@@ -22,6 +22,9 @@ export class WithdrawalEntity {
     @Prop({ required: true })
     status: WithdrawalStatus;
 
+    @Prop({ })
+    transactionId?: string;
+
     @Prop()
     createdAt?: Date;
 

@@ -582,4 +582,27 @@ export class KaspaNetworkActionsService {
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
   }
+
+  async performKaspaTransferForWithdrawal(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    amount: bigint,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void> = null,
+  ) {
+    const payment = [
+      {
+        address: targetWallet,
+        amount: amount
+      }
+    ];
+
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      payment,
+      maxPriorityFee,
+      false,
+      notifyUpdateKasRefundTransaction
+    );
+  }
 }

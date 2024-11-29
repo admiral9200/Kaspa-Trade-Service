@@ -25,8 +25,11 @@ export class WithdrawalsService {
         }
     }
 
-    async updateWithdrawalStatusToCompleted(_id: string): Promise<WithdrawalEntity> {
-        const order: WithdrawalEntity = await this.withdrawalsRepository.setCompletedStatus(_id);
+    async updateWithdrawalStatusToCompleted(
+        _id: string,
+        transactionId: string
+    ): Promise<WithdrawalEntity> {
+        const order: WithdrawalEntity = await this.withdrawalsRepository.setCompletedStatus(_id, transactionId);
 
         return order;
     }
