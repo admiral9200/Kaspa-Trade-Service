@@ -293,10 +293,6 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.getStuckOrders();
   }
 
-  async getAvailableBalance(receivingAddress: string): Promise<number> {
-    return await this.sellOrdersBookRepository.getAvailableBalanceWithBuyerAddress(receivingAddress);
-  }
-
   async getOrderSequenceId(walletAddress: string): Promise<number | null> {
     return await this.sellOrdersBookRepository.getSequenceId(walletAddress);
   }

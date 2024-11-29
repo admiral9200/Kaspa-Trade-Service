@@ -411,4 +411,12 @@ export class KaspaFacade {
   ) {
     return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
   }
+
+  async getWalletAccount(index: number): Promise<WalletAccount> {
+    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index);
+  }
+
+  async getWalletTotalBalance(address: string): Promise<TotalBalanceWithUtxosInterface> {
+    return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(address);
+  }
 }

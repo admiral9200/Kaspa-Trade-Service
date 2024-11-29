@@ -23,9 +23,7 @@ import { InvalidKaspaAmountForWithdrawalError } from '../services/kaspa-network/
 export class WithdrawalProvider {
     constructor(
         private readonly kaspaFacade: KaspaFacade,
-        private readonly p2pOrderBookService: P2pOrdersService,
         private readonly withdrawalService: WithdrawalsService,
-        private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
         private readonly telegramBotService: TelegramBotService,
         private readonly logger: AppLogger,
     ) { }
@@ -37,37 +35,21 @@ export class WithdrawalProvider {
         try {
             const withdrawalOrder = await this.withdrawalService.createWithdrawal(body, walletAddress);
 
-            const {receivingWallet, amount} = body;
+            const { receivingWallet, amount } = body;
             const requiredAmount = KaspaNetworkActionsService.KaspaToSompi(amount);
 
-            const sequenceId = await this.p2pOrderBookService.getOrderSequenceId(walletAddress);
-            
-            const masterWallet: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);
+            const masterWallet: WalletAccount = await this.kaspaFacade.getWalletAccount(0);
 
             const privateKey = masterWallet.privateKey.toKeypair().privateKey;
 
-            const maxKaspa = KaspaNetworkActionsService.KaspaToSompi(String(await this.p2pOrderBookService.getAvailableBalance(walletAddress)));
+            const { totalBalance } = await this.kaspaFacade.getWalletTotalBalance("kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju");
 
-            if (withdrawalOrder.amount > maxKaspa) {
-                return {
-                    success: false
-                };
-            }
+            console.log("balances: ", totalBalance, requiredAmount);
 
-            // const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance(masterWallet.address);
-            const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance("kaspatest:qq42ugcctz6l76nxj5hzq7h0746jew8pqeech0rm822qqmw9649a627vur2ju")
-
-            console.log("balances: ", totalBalance, maxKaspa, requiredAmount);
-
-            if (requiredAmount <= maxKaspa) {
-                return await this.processKaspaTransfer(privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
-            } else if(totalBalance > maxKaspa && requiredAmount > maxKaspa) {
-                throw new Error('Required amount exceeds than your available balance!')
-            } 
-            else {
+            if (requiredAmount > totalBalance) {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
-                const withdrawalError = new InvalidKaspaAmountForWithdrawalError(requiredAmount, maxKaspa);
+                const withdrawalError = new InvalidKaspaAmountForWithdrawalError(requiredAmount, totalBalance);
                 await this.telegramBotService.sendErrorToErrorsChannel(withdrawalError);
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
@@ -79,6 +61,8 @@ export class WithdrawalProvider {
                     false
                 );
             }
+
+            return await this.processKaspaTransfer(privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
         } catch (error) {
             console.log("error: ", error);
             this.logger.error(error);
@@ -108,7 +92,7 @@ export class WithdrawalProvider {
 
             const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(new PrivateKey("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a"), 1n, receivingWallet, amount);
 
-            if(result) {
+            if (result) {
                 transactionId = result.transactions[0].id;
             }
 
@@ -149,16 +133,16 @@ export class WithdrawalProvider {
             if (!walletAddress) {
                 throw new Error("Wallet address is required to fetch withdrawal history.");
             }
-    
+
             const { withdrawals, totalCount } = await this.withdrawalService.getWithdrawalHistory(
                 getHistoryRequestDto,
                 walletAddress
             );
-    
+
             const transformedWithdrawals = withdrawals.map((withdrawal) =>
                 WithdrawalTransformer.transformWithdrawalEntityToListedWithdrawalDto(withdrawal)
             );
-    
+
             return {
                 withdrawals: transformedWithdrawals,
                 totalCount,
@@ -168,5 +152,5 @@ export class WithdrawalProvider {
             throw error;
         }
     }
-    
+
 }

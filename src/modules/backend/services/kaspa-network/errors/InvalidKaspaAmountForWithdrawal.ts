@@ -1,9 +1,9 @@
 export class InvalidKaspaAmountForWithdrawalError extends Error {
     constructor(
         public readonly requiredAmount: bigint,
-        public readonly availableBalance: bigint
+        public readonly totalBalance: bigint
     ) {
-      super(`Invalid Kaspa Amount for withdrawal. Available balance is ${availableBalance}, required balance is ${requiredAmount}.`);
+      super(`Invalid Kaspa Amount for withdrawal. Total balance is ${totalBalance}, required balance is ${requiredAmount}.`);
       this.name = 'InvalidKaspaAmountForWithdrawalError';
     }
   }
