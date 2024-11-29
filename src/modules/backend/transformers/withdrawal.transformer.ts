@@ -1,7 +1,7 @@
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { ListedWithdrawalDto } from "../model/dtos/withdrawals/listed-withdrawal.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
-import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
+import { WithdrawalEntity } from "../model/schemas/withdrawal.schema";
 
 export class WithdrawalTransformer {
   static transformWithdrawalEntityToListedWithdrawalDto(entity: WithdrawalEntity): ListedWithdrawalDto {

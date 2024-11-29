@@ -6,7 +6,7 @@ import { AppConfigService } from '../../core/modules/config/app-config.service';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { AppConfigModule } from '../../core/modules/config/app-config.module';
 import { P2pOrderEntity, P2pOrderSchema } from '../model/schemas/p2p-order.schema';
-import { WithdrawalEntity, P2pWithdrawalSchema } from '../model/schemas/p2p-withdrawal.schema';
+import { WithdrawalEntity, WithdrawalSchema } from '../model/schemas/withdrawal.schema';
 import { SellOrdersBookRepository } from '../repositories/sell-orders-book.repository';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
@@ -103,7 +103,7 @@ export const BASE_IMPORTS = [
       { name: TemporaryWalletsSequence.name, schema: TemporaryWalletsSequenceSchema },
       { name: LunchpadEntity.name, schema: LunchpadEntitySchema },
       { name: LunchpadOrder.name, schema: LunchpadOrderSchema },
-      { name: WithdrawalEntity.name, schema: P2pWithdrawalSchema },
+      { name: WithdrawalEntity.name, schema: WithdrawalSchema },
       { name: BatchMintEntity.name, schema: BatchMintEntitySchema },
     ],
     MONGO_DATABASE_CONNECTIONS.P2P,

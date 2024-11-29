@@ -4,7 +4,7 @@ import { MONGO_DATABASE_CONNECTIONS } from "../constants";
 import { Connection } from "mongoose";
 import { WithdrawalsRepository } from "../repositories/withdrawal-orders.repository";
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
-import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
+import { WithdrawalEntity } from "../model/schemas/withdrawal.schema";
 import { WithdrawalTransformer } from "../transformers/withdrawal.transformer";
 import { WithdrawalHistoryDto } from "../model/dtos/withdrawals/withdrawal-history.dto";
 import { WithdrawalDm } from "../model/dms/withdrawal.dm";

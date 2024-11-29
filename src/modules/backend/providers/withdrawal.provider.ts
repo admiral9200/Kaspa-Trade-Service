@@ -12,7 +12,7 @@ import { PrivateKey } from 'libs/kaspa/kaspa';
 import { WithdrawalResponseTransformer } from '../transformers/withdrawal-response.transformer';
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
 import { WithdrawalsService } from '../services/withdrawals.service';
-import { WithdrawalEntity } from '../model/schemas/p2p-withdrawal.schema';
+import { WithdrawalEntity } from '../model/schemas/withdrawal.schema';
 import { WithdrawalHistoryDto } from '../model/dtos/withdrawals/withdrawal-history.dto';
 import { WithdrawalTransformer } from '../transformers/withdrawal.transformer';
 import { ListedWithdrawalDto } from '../model/dtos/withdrawals/listed-withdrawal.dto';
@@ -21,13 +21,10 @@ import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-accou
 @Injectable()
 export class WithdrawalProvider {
     constructor(
-        private readonly kaspaFacade: KaspaFacade,
         private readonly p2pOrderBookService: P2pOrdersService,
         private readonly withdrawalService: WithdrawalsService,
-        private readonly temporaryWalletService: TemporaryWalletSequenceService,
         private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
         private readonly telegramBotService: TelegramBotService,
-        private readonly kaspianoBackendApiService: KaspianoBackendApiService,
         private readonly logger: AppLogger,
     ) { }
 
@@ -38,11 +35,11 @@ export class WithdrawalProvider {
         try {
             const withdrawalOrder = await this.withdrawalService.createWithdrawal(body, walletAddress);
 
-            const receivingWallet = body.receivingWallet;
-            const requiredAmount = KaspaNetworkActionsService.KaspaToSompi(body.amount);
+            const {receivingWallet, amount} = body;
+            const requiredAmount = KaspaNetworkActionsService.KaspaToSompi(amount);
 
-            // Getting private key...
             const sequenceId = await this.p2pOrderBookService.getOrderSequenceId(walletAddress);
+            
             const masterWallet: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);
 
             const privateKey = masterWallet.privateKey.toKeypair().privateKey;
@@ -55,11 +52,14 @@ export class WithdrawalProvider {
                 };
             }
 
-            const totalBalance = await this.kaspaNetworkActionsService.fetchTotalBalanceForPublicWallet("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a");
+            const totalBalance = await this.kaspaNetworkActionsService.getWalletTotalBalance(masterWallet.address);
 
-            if (totalBalance > availableBalance) {
-                return await this.processKaspaTransfer("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a", receivingWallet, requiredAmount, withdrawalOrder._id);
-            } else {
+            if (totalBalance > availableBalance && requiredAmount <= availableBalance) {
+                return await this.processKaspaTransfer(privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
+            } else if(totalBalance > availableBalance && requiredAmount > availableBalance) {
+                throw new Error('Required amount exceeds than your available balance!')
+            } 
+            else {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
                 await this.telegramBotService.notifyWithdrawalWaitingForKas(withdrawal).catch(() => { });
@@ -79,41 +79,92 @@ export class WithdrawalProvider {
         }
     }
 
-    // Consider: This should be service?
-    async processKaspaTransfer(privateKey: string, receivingWallet: string, availableBalance: bigint, id: string): Promise<Partial<WithdrawalResponseDto>> {
-        await this.kaspaNetworkActionsService.transferKaspa(
-            new PrivateKey(privateKey),
-            [{
-                address: receivingWallet,
-                amount: availableBalance,
-            }],
-            1n
-        );
 
-        const withdrawal = await this.withdrawalService.updateWithdrawalStatusToCompleted(id);
+    /**
+     * Process the transfer in withdrawal.
+     * @param privateKey 
+     * @param receivingWallet 
+     * @param availableBalance 
+     * @param id 
+     * @returns 
+     */
+    async processKaspaTransfer(
+        privateKey: string,
+        receivingWallet: string,
+        amount: bigint,
+        id: string
+    ): Promise<Partial<WithdrawalResponseDto>> {
+        try {
+            if (!privateKey || !receivingWallet || !amount || !id) {
+                throw new Error("Invalid parameters: privateKey, receivingWallet, amount, and id are required.");
+            }
 
-        await this.telegramBotService.notifyWithdrawalCompleted(withdrawal).catch(() => { });
+            await this.kaspaNetworkActionsService.transferKaspa(
+                new PrivateKey(privateKey),
+                [
+                    {
+                        address: receivingWallet,
+                        amount: amount,
+                    },
+                ],
+                1n
+            );
 
-        return WithdrawalResponseTransformer.transformEntityToResponseDto(
-            String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
-            withdrawal.receivingWallet,
-            WithdrawalStatus.COMPLETED,
-            withdrawal.createdAt,
-            withdrawal.updatedAt,
-            true
-        );
+            const withdrawal = await this.withdrawalService.updateWithdrawalStatusToCompleted(id);
+
+            try {
+                await this.telegramBotService.notifyWithdrawalCompleted(withdrawal);
+            } catch (notifyError) {
+                console.warn(`Failed to notify Telegram for withdrawal ID ${id}:`, notifyError.message);
+            }
+
+            return WithdrawalResponseTransformer.transformEntityToResponseDto(
+                String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
+                withdrawal.receivingWallet,
+                WithdrawalStatus.COMPLETED,
+                withdrawal.createdAt,
+                withdrawal.updatedAt,
+                true
+            );
+        } catch (error) {
+            console.error(`Error processing Kaspa transfer for withdrawal ID ${id}:`, error.message);
+            throw error;
+        }
     }
 
 
+    /**
+     * Getting withdrawal history with owner wallet address.
+     * @param getHistoryRequestDto 
+     * @param walletAddress 
+     * @returns 
+     */
     async getWithdrawalHistory(
         getHistoryRequestDto: WithdrawalHistoryDto,
         walletAddress: string
-    ): Promise<{ withdrawals: ListedWithdrawalDto[], totalCount: number }> {
-        const { withdrawals, totalCount } = await this.withdrawalService.getWithdrawalHistory(getHistoryRequestDto, walletAddress);
-
-        return {
-            withdrawals: withdrawals.map((withdrawal) => WithdrawalTransformer.transformWithdrawalEntityToListedWithdrawalDto(withdrawal)),
-            totalCount
-        };
+    ): Promise<{ withdrawals: ListedWithdrawalDto[]; totalCount: number }> {
+        try {
+            if (!walletAddress) {
+                throw new Error("Wallet address is required to fetch withdrawal history.");
+            }
+    
+            const { withdrawals, totalCount } = await this.withdrawalService.getWithdrawalHistory(
+                getHistoryRequestDto,
+                walletAddress
+            );
+    
+            const transformedWithdrawals = withdrawals.map((withdrawal) =>
+                WithdrawalTransformer.transformWithdrawalEntityToListedWithdrawalDto(withdrawal)
+            );
+    
+            return {
+                withdrawals: transformedWithdrawals,
+                totalCount,
+            };
+        } catch (error) {
+            console.error("Error fetching withdrawal history:", error.message);
+            throw error;
+        }
     }
+    
 }

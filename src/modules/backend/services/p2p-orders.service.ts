@@ -293,7 +293,6 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.getStuckOrders();
   }
 
-  // TODO: Remove this function.
   async getAvailableBalance(receivingAddress: string): Promise<number> {
     return await this.sellOrdersBookRepository.getAvailableBalanceWithBuyerAddress(receivingAddress);
   }

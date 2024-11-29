@@ -582,17 +582,4 @@ export class KaspaNetworkActionsService {
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
   }
-
-  /**
-   * Action service function to invoke root level function.
-   * @param privateKey 
-   * @returns 
-   */
-  async fetchTotalBalanceForPublicWallet(privateKey: string) {
-    const publicAddress = await this.transactionsManagerService.convertPrivateKeyToPublicKey(
-      new PrivateKey(privateKey)
-    );
-
-    return this.kaspaApiService.fetchTotalBalanceForPublicWallet(publicAddress);
-  }
 }

@@ -8,7 +8,7 @@ import { isEmptyString } from 'src/modules/backend/utils/object.utils';
 import { MIMINAL_COMMITION } from 'src/modules/backend/services/kaspa-network/kaspa-network-actions.service';
 import { BatchMintEntity } from 'src/modules/backend/model/schemas/batch-mint.schema';
 import { P2pOrderV2Entity } from 'src/modules/backend/model/schemas/p2p-order-v2.schema';
-import { WithdrawalEntity } from 'src/modules/backend/model/schemas/p2p-withdrawal.schema';
+import { WithdrawalEntity } from 'src/modules/backend/model/schemas/withdrawal.schema';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -192,10 +192,6 @@ export class TelegramBotService {
       !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
     ) {
       try {
-        const commission = Math.max(
-          order.amount * (this.configService.swapCommissionPercentage / 100),
-          Number(MIMINAL_COMMITION) / 1e8,
-        ).toFixed(3);
         let message = TelegramBotService.escapeMarkdown(
           `Withdrawal is waiting.^n^Total Kaspa: ${order.amount}^n^Tokens!`,
         );

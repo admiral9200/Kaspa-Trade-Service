@@ -30,4 +30,4 @@ export class WithdrawalEntity {
 }
 
 export type WithdrawalDocument = HydratedDocument<WithdrawalEntity>;
-export const P2pWithdrawalSchema = SchemaFactory.createForClass(WithdrawalEntity);
+export const WithdrawalSchema = SchemaFactory.createForClass(WithdrawalEntity);

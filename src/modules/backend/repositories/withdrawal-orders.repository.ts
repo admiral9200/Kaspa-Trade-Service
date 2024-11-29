@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { BaseRepository } from "./base.repository";
-import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
+import { WithdrawalEntity } from "../model/schemas/withdrawal.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { MONGO_DATABASE_CONNECTIONS } from "../constants";
 import { ClientSession, Model, Query } from "mongoose";

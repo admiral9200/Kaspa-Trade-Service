@@ -484,15 +484,20 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     return result.length > 0 ? result[0].totalBalance : 0;
   }
 
-  async getSequenceId(walletAddress: string): Promise<any> {
-    const order = await this.sellOrdersModel.find({
-      buyerWalletAddress: walletAddress
-    });
-
-    if(!order || order.length === 0) {
-      throw new InvalidWalletSequenceIdError(walletAddress);
+  async getSequenceId(walletAddress: string): Promise<number> {
+    if (!walletAddress) {
+      throw new Error("Wallet address is required");
     }
 
-    return order[0].walletSequenceId;
+    const order = await this.sellOrdersModel
+      .findOne({ buyerWalletAddress: walletAddress })
+      .select('walletSequenceId')
+      .lean();
+
+    if (!order) {
+      throw new InvalidWalletSequenceIdError(`No sequence ID found for wallet: ${walletAddress}`);
+    }
+
+    return order.walletSequenceId;
   }
 }
