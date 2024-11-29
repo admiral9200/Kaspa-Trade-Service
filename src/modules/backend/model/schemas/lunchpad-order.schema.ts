@@ -13,16 +13,10 @@ export class LunchpadOrder {
   _id?: string;
 
   @Prop({ required: true })
-  lunchpadId: string; // Index
+  lunchpadId: string;
 
   @Prop({ required: true })
   totalUnits: number;
-
-  @Prop({ required: true })
-  kasPerUnit: number;
-
-  @Prop({ required: true })
-  tokenPerUnit: number;
 
   @Prop({ required: true, default: LunchpadOrderStatus.WAITING_FOR_KAS })
   status: LunchpadOrderStatus;
@@ -31,10 +25,10 @@ export class LunchpadOrder {
   userWalletAddress: string;
 
   @Prop({ required: true })
-  roundNumber: number; // Index with lunchpadId
+  roundNumber: number;
 
-  @Prop()
-  userTransactionId?: string; // Unique index - important
+  @Prop({ unique: true, sparse: true })
+  userTransactionId?: string;
 
   @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
@@ -54,3 +48,5 @@ export class LunchpadOrder {
 
 export type LunchpadOrderDocument = HydratedDocument<LunchpadOrder>;
 export const LunchpadOrderSchema = SchemaFactory.createForClass(LunchpadOrder);
+
+LunchpadOrderSchema.index({ lunchpadId: 1, userWalletAddress: 1, status: 1 });

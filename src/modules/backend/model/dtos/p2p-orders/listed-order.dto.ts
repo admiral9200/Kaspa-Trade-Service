@@ -1,3 +1,4 @@
+import { SellOrderStatusV2 } from '../../enums/sell-order-status-v2.enum';
 import { SellOrderStatus } from '../../enums/sell-order-status.enum';
 
 export interface ListedOrderDto {
@@ -8,5 +9,7 @@ export interface ListedOrderDto {
   totalPrice: number;
   expiresAt: Date;
   createdAt: Date;
-  status?: SellOrderStatus;
+  status?: SellOrderStatus | SellOrderStatusV2;
+  isDecentralized?: boolean;
+  sellerWalletAddress?: string;
 }

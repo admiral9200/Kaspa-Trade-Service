@@ -4,7 +4,7 @@ import { MONGO_DATABASE_CONNECTIONS } from "../constants";
 import { Connection } from "mongoose";
 import { WithdrawalOrdersBookRepository } from "../repositories/withdrawal-orders-book.repository";
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
-import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
+import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 import { WithdrawalTransformer } from "../transformers/withdrawal.transformer";
 
 @Injectable()
@@ -16,9 +16,9 @@ export class WithdrawalsService {
 
     public async createWithdrawal(
         createWithdrawalDto: CreateWithdrawalDto,
-    ): Promise<P2pWithdrawalEntity> {
+    ): Promise<WithdrawalEntity> {
         try {
-            const withdrawalOrder: P2pWithdrawalEntity = WithdrawalTransformer.createP2pWithdrawalEntityFromWithdrawalDto(createWithdrawalDto);
+            const withdrawalOrder: WithdrawalEntity = WithdrawalTransformer.createWithdrawalEntityFromWithdrawalDto(createWithdrawalDto);
 
             return await this.withdrawalOrdersBookRepository.createWithdrawalOrder(withdrawalOrder);
         } catch (error) {
@@ -26,8 +26,8 @@ export class WithdrawalsService {
         }
     }
 
-    async updateWithdrawalStatusToCompleted(_id: string): Promise<P2pWithdrawalEntity> {
-        const order: P2pWithdrawalEntity = await this.withdrawalOrdersBookRepository.setCompletedStatus(_id);
+    async updateWithdrawalStatusToCompleted(_id: string): Promise<WithdrawalEntity> {
+        const order: WithdrawalEntity = await this.withdrawalOrdersBookRepository.setCompletedStatus(_id);
 
         if (!order) {
             throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -36,8 +36,8 @@ export class WithdrawalsService {
         return order;
     }
 
-    async updateWithdrawalStatusToWaitingForKas(_id: string): Promise<P2pWithdrawalEntity> {
-        const order: P2pWithdrawalEntity = await this.withdrawalOrdersBookRepository.setWaitingForKasStatus(_id);
+    async updateWithdrawalStatusToWaitingForKas(_id: string): Promise<WithdrawalEntity> {
+        const order: WithdrawalEntity = await this.withdrawalOrdersBookRepository.setWaitingForKasStatus(_id);
 
         if (!order) {
             throw new HttpException('Withdrawal order is not in the matching status.', HttpStatus.INTERNAL_SERVER_ERROR);

@@ -1,11 +1,11 @@
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
-import { P2pWithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
+import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 
 export class WithdrawalTransformer {
-    static createP2pWithdrawalEntityFromWithdrawalDto(
+    static createWithdrawalEntityFromWithdrawalDto(
         createWithdrawalDto: CreateWithdrawalDto
-      ): P2pWithdrawalEntity {
+      ): WithdrawalEntity {
         return {
             amount: Number(createWithdrawalDto.amount),
             ownerWallet: createWithdrawalDto.ownerWallet,

@@ -17,6 +17,7 @@ import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 import { isEmptyString } from '../utils/object.utils';
+import { GetUserListingsDto } from '../model/dtos/p2p-orders/user-listings.dto';
 
 @Injectable()
 export class P2pOrdersService {
@@ -29,7 +30,7 @@ export class P2pOrdersService {
     return await this.sellOrdersBookRepository.getListedSellOrders(ticker, getSellOrdersDto.sort, getSellOrdersDto.pagination);
   }
   public async getUserListings(
-    getSellOrdersDto: GetOrdersDto,
+    getSellOrdersDto: GetUserListingsDto,
     walletAddress: string,
   ): Promise<{ orders: OrderDm[]; totalCount: number }> {
     return await this.sellOrdersBookRepository.getUserListedSellOrders(

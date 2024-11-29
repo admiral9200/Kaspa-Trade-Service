@@ -7,7 +7,7 @@ import { HydratedDocument } from "mongoose";
     collection: 'p2p_withdrawals',
     timestamps: true
 })
-export class P2pWithdrawalEntity {
+export class WithdrawalEntity {
     _id?: string;
 
     @Prop({ required: true })
@@ -29,5 +29,5 @@ export class P2pWithdrawalEntity {
     updatedAt?: Date;
 }
 
-export type WithdrawalDocument = HydratedDocument<P2pWithdrawalEntity>;
-export const P2pWithdrawalSchema = SchemaFactory.createForClass(P2pWithdrawalEntity);
+export type WithdrawalDocument = HydratedDocument<WithdrawalEntity>;
+export const P2pWithdrawalSchema = SchemaFactory.createForClass(WithdrawalEntity);

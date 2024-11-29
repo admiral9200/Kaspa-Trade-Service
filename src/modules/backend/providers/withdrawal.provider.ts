@@ -12,7 +12,7 @@ import { PrivateKey } from 'libs/kaspa/kaspa';
 import { WithdrawalResponseTransformer } from '../transformers/withdrawal-response.transformer';
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
 import { WithdrawalsService } from '../services/withdrawals.service';
-import { P2pWithdrawalEntity } from '../model/schemas/p2p-withdrawal.schema';
+import { WithdrawalEntity } from '../model/schemas/p2p-withdrawal.schema';
 
 @Injectable()
 export class WithdrawalProvider {
@@ -47,7 +47,7 @@ export class WithdrawalProvider {
             if (totalBalance > availableBalance) {
                 return await this.processKaspaTransfer(privateKey, receivingWallet, requiredBalance, withdrawalOrder._id);
             } else {
-                const withdrawal: P2pWithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
+                const withdrawal: WithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
                     String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),

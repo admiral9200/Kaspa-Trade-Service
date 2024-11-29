@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
-import { Model, SortOrder, ClientSession, Query } from 'mongoose';
+import { Model, SortOrder, ClientSession } from 'mongoose';
 import { SellOrderStatus } from '../model/enums/sell-order-status.enum';
 import { SortDto } from '../model/dtos/abstract/sort.dto';
 import { PaginationDto } from '../model/dtos/abstract/pagination.dto';
@@ -11,7 +11,6 @@ import { SortDirection } from '../model/enums/sort-direction.enum';
 import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/errors/InvalidStatusForOrderUpdate';
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
-import { isEmpty } from '../utils/object.utils';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
 
 const STUCK_SWAPS_TIME_TO_CHECK = 60 * 60 * 1000;
@@ -422,32 +421,6 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
       console.error('Error getting orders history:', error);
       throw error;
     }
-  }
-
-  private applySort(
-    query: Query<P2pOrderEntity[], P2pOrderEntity>,
-    sort: SortDto = { direction: SortDirection.DESC },
-    defaultSortField: string = 'createdAt',
-  ): Query<P2pOrderEntity[], P2pOrderEntity> {
-    if (!sort || isEmpty(sort)) {
-      sort = { direction: SortDirection.DESC };
-    }
-    const sortField = sort.field || defaultSortField;
-    const sortOrder = sort.direction === SortDirection.ASC ? 1 : -1;
-    return query.sort({ [sortField]: sortOrder } as any);
-  }
-
-  private applyPagination(
-    query: Query<P2pOrderEntity[], P2pOrderEntity>,
-    pagination?: PaginationDto,
-  ): Query<P2pOrderEntity[], P2pOrderEntity> {
-    if (!pagination || isEmpty(pagination)) {
-      pagination = { limit: 10, offset: 0 };
-    }
-
-    query = query.skip(pagination.offset);
-    query = query.limit(pagination.limit);
-    return query;
   }
 
   async updateOrderFromOrdersManagement(

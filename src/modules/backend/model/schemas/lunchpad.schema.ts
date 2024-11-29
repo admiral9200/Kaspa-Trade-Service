@@ -7,6 +7,16 @@ export const MIN_KAS_PER_UNIT = 1;
 export const MIN_TOKEN_PER_UNIT = 1;
 export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 
+export type LunchpadRound = {
+  roundNumber: number;
+  tokensAmount: number;
+  totalUnits: number;
+  unitsLeft?: number;
+  kasPerUnit: number;
+  tokenPerUnit: number;
+  maxFeeRatePerTransaction: number;
+};
+
 @Schema({
   versionKey: false,
   collection: 'lunchpads',
@@ -15,8 +25,7 @@ export const MIN_FEE_RATE_PER_TRANSACTION = 0.0001;
 export class LunchpadEntity {
   _id?: string;
 
-  // INDEX UNIQUE
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   ticker: string;
 
   @Prop({ required: true })
@@ -35,7 +44,10 @@ export class LunchpadEntity {
   maxFeeRatePerTransaction: number;
 
   @Prop({ required: true })
-  walletSequenceId: number;
+  senderWalletSequenceId: number;
+
+  @Prop({ required: true })
+  receiverWalletSequenceId: number;
 
   @Prop({ required: true })
   ownerWallet: string;
@@ -56,7 +68,22 @@ export class LunchpadEntity {
   maxUnitsPerOrder?: number;
 
   @Prop({ type: Array })
+  rounds: LunchpadRound[];
+
+  @Prop({ default: false })
+  isRunning: boolean;
+
+  @Prop({ type: Array })
   walletKeyExposedBy?: WalletPrivateKeyExposedRecord[];
+
+  @Prop()
+  useWhitelist?: boolean;
+
+  @Prop({ type: Array })
+  whitelistWalletAddresses?: string[];
+
+  @Prop()
+  maxUnitsPerWallet?: number;
 
   @Prop()
   createdAt?: Date;
