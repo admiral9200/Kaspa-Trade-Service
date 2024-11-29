@@ -23,12 +23,7 @@ export class WithdrawalController {
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Body() body: CreateWithdrawalDto
   ): Promise<Partial<WithdrawalResponseDto>> {
-    try {
-      return await this.withdrawalProvider.createWithdrawal(body, walletInfo.walletAddress);
-    } catch (error) {
-      this.logger.error('Error creating a withdrawal', error);
-      throw error;
-    }
+    return await this.withdrawalProvider.createWithdrawal(body, walletInfo.walletAddress);
   }
 
 
@@ -38,11 +33,6 @@ export class WithdrawalController {
     @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Query(ValidationPipe) query: WithdrawalHistoryDto  
   ): Promise<{ withdrawals: ListedWithdrawalDto[], totalCount: number }> {
-    try {
-      return await this.withdrawalProvider.getWithdrawalHistory(query, walletInfo.walletAddress);
-    } catch (error) {
-      this.logger.error('Error getting a list of withdrawals', error);
-      throw error;
-    }
+    return await this.withdrawalProvider.getWithdrawalHistory(query, walletInfo.walletAddress);
   }
 }

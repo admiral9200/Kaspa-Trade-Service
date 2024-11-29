@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { first, firstValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { UtilsHelper } from 'src/modules/backend/helpers/utils.helper';
 import { IKaspaApiTransactionData } from '../model/kaspa-api-transaction-data.interface';
 import { groupBy } from 'loadsh';

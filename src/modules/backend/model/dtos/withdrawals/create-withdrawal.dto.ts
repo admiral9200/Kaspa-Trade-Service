@@ -11,7 +11,4 @@ export class CreateWithdrawalDto {
 
     @IsString()
     receivingWallet: string;
-
-    @IsEnum(WithdrawalStatus, { message: 'Status must be a valid WithdrawalStatus value' })
-    status: WithdrawalStatus
 }

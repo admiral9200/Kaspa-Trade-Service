@@ -1,7 +1,4 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { InjectConnection } from "@nestjs/mongoose";
-import { MONGO_DATABASE_CONNECTIONS } from "../constants";
-import { Connection } from "mongoose";
 import { WithdrawalsRepository } from "../repositories/withdrawal-orders.repository";
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
 import { WithdrawalEntity } from "../model/schemas/withdrawal.schema";
@@ -12,7 +9,6 @@ import { WithdrawalDm } from "../model/dms/withdrawal.dm";
 @Injectable()
 export class WithdrawalsService {
     constructor(
-        @InjectConnection(MONGO_DATABASE_CONNECTIONS.P2P) private connection: Connection,
         private readonly withdrawalsRepository: WithdrawalsRepository
     ) { }
 

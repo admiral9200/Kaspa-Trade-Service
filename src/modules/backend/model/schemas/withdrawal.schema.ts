@@ -11,16 +11,16 @@ export class WithdrawalEntity {
     _id?: string;
 
     @Prop({ required: true })
-    amount?: number;
+    amount: number;
 
     @Prop({ required: true })
-    ownerWallet?: string;
+    ownerWallet: string;
 
     @Prop({ required: true })
-    receivingWallet?: string;
+    receivingWallet: string;
 
     @Prop({ required: true })
-    status?: WithdrawalStatus;
+    status: WithdrawalStatus;
 
     @Prop()
     createdAt?: Date;

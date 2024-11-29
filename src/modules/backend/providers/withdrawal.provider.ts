@@ -17,6 +17,7 @@ import { WithdrawalHistoryDto } from '../model/dtos/withdrawals/withdrawal-histo
 import { WithdrawalTransformer } from '../transformers/withdrawal.transformer';
 import { ListedWithdrawalDto } from '../model/dtos/withdrawals/listed-withdrawal.dto';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
+import { InvalidKaspaAmountForWithdrawalError } from '../services/kaspa-network/errors/InvalidKaspaAmountForWithdrawal';
 
 @Injectable()
 export class WithdrawalProvider {
@@ -62,7 +63,8 @@ export class WithdrawalProvider {
             else {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
 
-                await this.telegramBotService.notifyWithdrawalWaitingForKas(withdrawal).catch(() => { });
+                const withdrawalError = new InvalidKaspaAmountForWithdrawalError(requiredAmount, availableBalance);
+                await this.telegramBotService.sendErrorToErrorsChannel(withdrawalError);
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
                     String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
