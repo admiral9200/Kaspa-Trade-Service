@@ -185,4 +185,33 @@ export class TelegramBotService {
       }
     }
   }
+
+  async notifyWithdrawalWaitingForKas(order: WithdrawalEntity): Promise<void> {
+    if (
+      !isEmptyString(this.optionalNotificationApiKey) &&
+      !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
+    ) {
+      try {
+        const commission = Math.max(
+          order.amount * (this.configService.swapCommissionPercentage / 100),
+          Number(MIMINAL_COMMITION) / 1e8,
+        ).toFixed(3);
+        let message = TelegramBotService.escapeMarkdown(
+          `Withdrawal is waiting.^n^Total Kaspa: ${order.amount}^n^Tokens!`,
+        );
+
+        message = message.replace(/\^n\^/g, '\n');
+
+        this.sendFormattedMessage(
+          this.configService.getTelegramOrdersNotificationsChannelId,
+          message,
+          this.optionalNotificationApiKey,
+        );
+      } catch (error) {
+        console.error('Error notifying withdrawal completed:', error);
+        this.logger.error('Error notifying order completed');
+        this.logger.error(error, error?.stack, error?.meta);
+      }
+    }
+  }
 }

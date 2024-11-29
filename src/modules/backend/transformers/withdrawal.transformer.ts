@@ -1,14 +1,28 @@
 import { CreateWithdrawalDto } from "../model/dtos/withdrawals/create-withdrawal.dto";
+import { ListedWithdrawalDto } from "../model/dtos/withdrawals/listed-withdrawal.dto";
 import { WithdrawalStatus } from "../model/enums/withdrawal-status.enum";
 import { WithdrawalEntity } from "../model/schemas/p2p-withdrawal.schema";
 
 export class WithdrawalTransformer {
+  static transformWithdrawalEntityToListedWithdrawalDto(entity: WithdrawalEntity): ListedWithdrawalDto {
+    return {
+      withdrawalId: entity._id,
+      amount: entity.amount,
+      ownerWallet: entity.ownerWallet,
+      receivingWallet: entity.receivingWallet,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      status: entity.status
+    };
+  }
+
     static createWithdrawalEntityFromWithdrawalDto(
-        createWithdrawalDto: CreateWithdrawalDto
+        createWithdrawalDto: CreateWithdrawalDto,
+        walletAddress: string
       ): WithdrawalEntity {
         return {
             amount: Number(createWithdrawalDto.amount),
-            ownerWallet: createWithdrawalDto.ownerWallet,
+            ownerWallet: walletAddress,
             receivingWallet: createWithdrawalDto.receivingWallet,
             status: WithdrawalStatus.CREATED,
             createdAt: new Date(),

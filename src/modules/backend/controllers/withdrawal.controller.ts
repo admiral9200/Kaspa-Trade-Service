@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
 import { P2pProvider } from '../providers/p2p.provider';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { CreateWithdrawalDto } from '../model/dtos/withdrawals/create-withdrawal.dto';
 import { WithdrawalResponseDto } from '../model/dtos/withdrawals/withdrawal.response.dto';
 import { WithdrawalProvider } from '../providers/withdrawal.provider';
+import { WithdrawalHistoryDto } from '../model/dtos/withdrawals/withdrawal-history.dto';
+import { ListedWithdrawalDto } from '../model/dtos/withdrawals/listed-withdrawal.dto';
+import { CurrentAuthWalletInfo } from '../guards/jwt-wallet.strategy';
+import { AuthWalletInfo } from '../model/dtos/auth/auth-wallet-info';
 
 @Controller('withdrawal')
 @UseGuards(JwtWalletAuthGuard)
@@ -16,10 +20,11 @@ export class WithdrawalController {
 
   @Post('create')
   async createWithdrawal(
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
     @Body() body: CreateWithdrawalDto
   ): Promise<Partial<WithdrawalResponseDto>> {
     try {
-      return await this.withdrawalProvider.createWithdrawal(body);
+      return await this.withdrawalProvider.createWithdrawal(body, walletInfo.walletAddress);
     } catch (error) {
       this.logger.error('Error creating a withdrawal', error);
       throw error;
@@ -27,14 +32,14 @@ export class WithdrawalController {
   }
 
 
-  // There should another function here.
-  @Get('histories/:walletAddress')
+
+  @Get('histories')
   async getWithdrawalHistory(
-    @Param('walletAddress') walletAddress: string
-  ): Promise<string[]> {
+    @CurrentAuthWalletInfo() walletInfo: AuthWalletInfo,
+    @Query(ValidationPipe) query: WithdrawalHistoryDto  
+  ): Promise<{ withdrawals: ListedWithdrawalDto[], totalCount: number }> {
     try {
-      // return await this.withdrawalProvider.getWithdrawalHistory(walletAddress);
-      return;
+      return await this.withdrawalProvider.getWithdrawalHistory(query, walletInfo.walletAddress);
     } catch (error) {
       this.logger.error('Error getting a list of withdrawals', error);
       throw error;

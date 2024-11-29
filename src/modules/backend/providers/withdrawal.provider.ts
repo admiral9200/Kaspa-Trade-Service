@@ -13,13 +13,17 @@ import { WithdrawalResponseTransformer } from '../transformers/withdrawal-respon
 import { WithdrawalStatus } from '../model/enums/withdrawal-status.enum';
 import { WithdrawalsService } from '../services/withdrawals.service';
 import { WithdrawalEntity } from '../model/schemas/p2p-withdrawal.schema';
+import { WithdrawalHistoryDto } from '../model/dtos/withdrawals/withdrawal-history.dto';
+import { WithdrawalTransformer } from '../transformers/withdrawal.transformer';
+import { ListedWithdrawalDto } from '../model/dtos/withdrawals/listed-withdrawal.dto';
+import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 
 @Injectable()
 export class WithdrawalProvider {
     constructor(
         private readonly kaspaFacade: KaspaFacade,
         private readonly p2pOrderBookService: P2pOrdersService,
-        private readonly p2pWithdrawalBookService: WithdrawalsService,
+        private readonly withdrawalService: WithdrawalsService,
         private readonly temporaryWalletService: TemporaryWalletSequenceService,
         private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
         private readonly telegramBotService: TelegramBotService,
@@ -27,14 +31,23 @@ export class WithdrawalProvider {
         private readonly logger: AppLogger,
     ) { }
 
-    async createWithdrawal(body: CreateWithdrawalDto): Promise<Partial<WithdrawalResponseDto> | null> {
+    async createWithdrawal(
+        body: CreateWithdrawalDto,
+        walletAddress: string
+    ): Promise<Partial<WithdrawalResponseDto> | null> {
         try {
-            const withdrawalOrder = await this.p2pWithdrawalBookService.createWithdrawal(body);
+            const withdrawalOrder = await this.withdrawalService.createWithdrawal(body, walletAddress);
 
             const receivingWallet = body.receivingWallet;
-            const requiredBalance = KaspaNetworkActionsService.KaspaToSompi(body.amount);
-            const privateKey = body.ownerWallet;
-            const availableBalance = KaspaNetworkActionsService.KaspaToSompi(String(await this.p2pOrderBookService.getAvailableBalance(receivingWallet)));
+            const requiredAmount = KaspaNetworkActionsService.KaspaToSompi(body.amount);
+
+            // Getting private key...
+            const sequenceId = await this.p2pOrderBookService.getOrderSequenceId(walletAddress);
+            const masterWallet: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);
+
+            const privateKey = masterWallet.privateKey.toKeypair().privateKey;
+
+            const availableBalance = KaspaNetworkActionsService.KaspaToSompi(String(await this.p2pOrderBookService.getAvailableBalance(walletAddress)));
 
             if (withdrawalOrder.amount > availableBalance) {
                 return {
@@ -42,17 +55,19 @@ export class WithdrawalProvider {
                 };
             }
 
-            const totalBalance = await this.kaspaNetworkActionsService.fetchTotalBalanceForPublicWallet(privateKey);
+            const totalBalance = await this.kaspaNetworkActionsService.fetchTotalBalanceForPublicWallet("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a");
 
             if (totalBalance > availableBalance) {
-                return await this.processKaspaTransfer(privateKey, receivingWallet, requiredBalance, withdrawalOrder._id);
+                return await this.processKaspaTransfer("05f31c6967afc6ca3745ea6cca68a132d609b085015d1cbfefec8ad80f30400a", receivingWallet, requiredAmount, withdrawalOrder._id);
             } else {
-                const withdrawal: WithdrawalEntity = await this.p2pWithdrawalBookService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
+                const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
+
+                await this.telegramBotService.notifyWithdrawalWaitingForKas(withdrawal).catch(() => { });
 
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
                     String(KaspaNetworkActionsService.KaspaToSompi(withdrawal.amount.toString())),
                     withdrawal.receivingWallet,
-                    WithdrawalStatus.COMPLETED,
+                    WithdrawalStatus.WAITING_FOR_KAS,
                     withdrawal.createdAt,
                     withdrawal.updatedAt,
                     false
@@ -75,7 +90,7 @@ export class WithdrawalProvider {
             1n
         );
 
-        const withdrawal = await this.p2pWithdrawalBookService.updateWithdrawalStatusToCompleted(id);
+        const withdrawal = await this.withdrawalService.updateWithdrawalStatusToCompleted(id);
 
         await this.telegramBotService.notifyWithdrawalCompleted(withdrawal).catch(() => { });
 
@@ -90,7 +105,15 @@ export class WithdrawalProvider {
     }
 
 
-    async getWithdrawalHistory(walletAddress: string) {
+    async getWithdrawalHistory(
+        getHistoryRequestDto: WithdrawalHistoryDto,
+        walletAddress: string
+    ): Promise<{ withdrawals: ListedWithdrawalDto[], totalCount: number }> {
+        const { withdrawals, totalCount } = await this.withdrawalService.getWithdrawalHistory(getHistoryRequestDto, walletAddress);
 
+        return {
+            withdrawals: withdrawals.map((withdrawal) => WithdrawalTransformer.transformWithdrawalEntityToListedWithdrawalDto(withdrawal)),
+            totalCount
+        };
     }
 }

@@ -12,6 +12,7 @@ import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/erro
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
+import { InvalidWalletSequenceIdError } from '../services/kaspa-network/errors/InvalidWalletSequenceIdError';
 
 const STUCK_SWAPS_TIME_TO_CHECK = 60 * 60 * 1000;
 const WAITING_FOR_TOKENS_TIME_TO_CHECK = 5 * 60 * 1000;
@@ -481,5 +482,17 @@ export class SellOrdersBookRepository extends BaseRepository<P2pOrderEntity> {
     ]);
 
     return result.length > 0 ? result[0].totalBalance : 0;
+  }
+
+  async getSequenceId(walletAddress: string): Promise<any> {
+    const order = await this.sellOrdersModel.find({
+      buyerWalletAddress: walletAddress
+    });
+
+    if(!order || order.length === 0) {
+      throw new InvalidWalletSequenceIdError(walletAddress);
+    }
+
+    return order[0].walletSequenceId;
   }
 }

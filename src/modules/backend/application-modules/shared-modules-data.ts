@@ -41,7 +41,7 @@ import { P2pOrdersV2Service } from '../services/p2p-orders-v2.service';
 import { P2pOrderV2Entity, P2pOrderV2Schema } from '../model/schemas/p2p-order-v2.schema';
 import { SellOrdersV2Repository } from '../repositories/sell-orders-v2.repository';
 import { WithdrawalsService } from '../services/withdrawals.service';
-import { WithdrawalOrdersBookRepository } from '../repositories/withdrawal-orders-book.repository';
+import { WithdrawalsRepository } from '../repositories/withdrawal-orders.repository';
 import { WithdrawalProvider } from '../providers/withdrawal.provider';
 
 export const BASE_PROVIDERS: Provider[] = [
@@ -77,7 +77,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Repositories
   SellOrdersBookRepository,
-  WithdrawalOrdersBookRepository,
+  WithdrawalsRepository,
   SellOrdersV2Repository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
