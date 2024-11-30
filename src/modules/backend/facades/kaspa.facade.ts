@@ -3,7 +3,7 @@ import {
   ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
   AMOUNT_FOR_SWAP_FEES,
   KaspaNetworkActionsService,
-  LISTING_PSKT_TRANSACTION_AMOUNT,
+  LISTING_PSKT_TRANSACTION_AMOUNT_RANGE,
 } from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
@@ -77,10 +77,15 @@ export class KaspaFacade {
       );
 
       if (
-        outputByWalletAddress[walletAddress]?.value &&
-        BigInt(outputByWalletAddress[walletAddress].value) !=
-          KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice + LISTING_PSKT_TRANSACTION_AMOUNT)
+        !(
+          outputByWalletAddress[walletAddress]?.value &&
+          BigInt(outputByWalletAddress[walletAddress].value) >=
+            KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice) &&
+          BigInt(outputByWalletAddress[walletAddress].value) <=
+            KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice + LISTING_PSKT_TRANSACTION_AMOUNT_RANGE)
+        )
       ) {
+        console.log('Im here bitch');
         throw new Error('Pskt invalid order total amount');
       }
 
