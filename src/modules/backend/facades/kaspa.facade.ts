@@ -85,7 +85,6 @@ export class KaspaFacade {
             KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice + LISTING_PSKT_TRANSACTION_AMOUNT_RANGE)
         )
       ) {
-        console.log('Im here bitch');
         throw new Error('Pskt invalid order total amount');
       }
 
