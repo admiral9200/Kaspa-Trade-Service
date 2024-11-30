@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { SellOrderStatusV2 } from '../enums/sell-order-status-v2.enum';
 
+export const MIN_COMMISSION = 0.5;
+
 @Schema({
   versionKey: false,
   collection: 'p2p_orders_v2',

@@ -6,7 +6,7 @@ export enum OperationAcceptResult {
 
 export interface ITokenOperation {
   p: string;
-  op: string;
+  op: OperationType;
   tick: string;
   max: string;
   lim: string;
@@ -22,6 +22,14 @@ export interface ITokenOperation {
   opError: string;
   mtsAdd: string;
   mtsMod: string;
+}
+
+export enum OperationType {
+  TRANSFER = 'transfer',
+  MINT = 'mint',
+  DEPLOY = 'deploy',
+  LIST = 'list',
+  SEND = 'send',
 }
 
 export interface ITokenOperationResponse {
