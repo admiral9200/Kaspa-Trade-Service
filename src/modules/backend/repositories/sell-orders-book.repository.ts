@@ -12,7 +12,6 @@ import { InvalidStatusForOrderUpdateError } from '../services/kaspa-network/erro
 import { SwapTransactionsResult } from '../services/kaspa-network/interfaces/SwapTransactionsResult.interface';
 import { GetOrdersHistoryFiltersDto } from '../model/dtos/p2p-orders/get-orders-history-filters.dto';
 import { OrdersManagementUpdateSellOrderDto } from '../model/dtos/p2p-orders/orders-management-update-sell-order.dto';
-import { InvalidWalletSequenceIdError } from '../services/kaspa-network/errors/InvalidWalletSequenceIdError';
 
 const STUCK_SWAPS_TIME_TO_CHECK = 60 * 60 * 1000;
 const WAITING_FOR_TOKENS_TIME_TO_CHECK = 5 * 60 * 1000;

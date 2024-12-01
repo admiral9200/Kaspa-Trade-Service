@@ -29,7 +29,6 @@ import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtx
 import { NotEnoughBalanceError } from './errors/NotEnoughBalance';
 import { KaspaNetworkConnectionManagerService } from './kaspa-network-connection-manager.service';
 import { UtxoProcessorManager } from './classes/UnxoProcessorManager';
-import { WithdrawalStatus } from '../../model/enums/withdrawal-status.enum';
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { ApplicationIsClosingError } from './errors/ApplicationIsClosingError';
 import { ImportantPromisesManager } from '../../important-promises-manager/important-promises-manager';

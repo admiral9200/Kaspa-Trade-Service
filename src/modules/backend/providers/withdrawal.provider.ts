@@ -34,11 +34,9 @@ export class WithdrawalProvider {
             const { receivingWallet, amount } = body;
             const requiredAmount = this.kaspaFacade.convertFromKaspaToSompi(amount);
 
-            const withdrawalWallet: WalletAccount = await this.kaspaFacade.getWalletAccount(0);
+            const withdrawalWallet: WalletAccount = await this.kaspaFacade.retrieveWalletAccountAtIndex(0);
 
-            const privateKey = withdrawalWallet.privateKey.toKeypair().privateKey;
-
-            const { totalBalance } = await this.kaspaFacade.getWalletTotalBalance(withdrawalWallet.address);
+            const { totalBalance } = await this.kaspaFacade.getWalletTotalBalanceAndUtxos(withdrawalWallet.address);
 
             if (requiredAmount > totalBalance) {
                 const withdrawal: WithdrawalEntity = await this.withdrawalService.updateWithdrawalStatusToWaitingForKas(withdrawalOrder._id);
@@ -56,7 +54,7 @@ export class WithdrawalProvider {
                 );
             }
 
-            return await this.processKaspaTransfer(privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
+            return await this.processKaspaTransfer(withdrawalWallet.privateKey, receivingWallet, requiredAmount, withdrawalOrder._id);
         } catch (error) {
             console.log("error: ", error);
             this.logger.error(error);
@@ -73,7 +71,7 @@ export class WithdrawalProvider {
      * @returns 
      */
     async processKaspaTransfer(
-        privateKey: string,
+        privateKey: PrivateKey,
         receivingWallet: string,
         amount: bigint,
         id: string
@@ -84,7 +82,7 @@ export class WithdrawalProvider {
             }
             let transactionId: string = null;
 
-            const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(new PrivateKey(privateKey), 1n, receivingWallet, amount);
+            const result = await this.kaspaFacade.doKaspaTransferForWithdrawal(privateKey, 1n, receivingWallet, amount);
 
             if (result) {
                 transactionId = result.transactions[0].id;

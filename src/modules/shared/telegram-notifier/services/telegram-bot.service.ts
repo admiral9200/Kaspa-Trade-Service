@@ -163,10 +163,6 @@ export class TelegramBotService {
       !isEmptyString(this.configService.getTelegramOrdersNotificationsChannelId)
     ) {
       try {
-        const commission = Math.max(
-          order.amount * (this.configService.swapCommissionPercentage / 100),
-          Number(MIMINAL_COMMITION) / 1e8,
-        ).toFixed(3);
         let message = TelegramBotService.escapeMarkdown(
           `Withdrawal completed.^n^Total Kaspa: ${order.amount}^n^Tokens!`,
         );

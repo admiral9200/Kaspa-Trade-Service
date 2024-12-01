@@ -12,7 +12,6 @@ export class WithdrawalTransformer {
       receivingWallet: entity.receivingWallet,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
-      status: entity.status,
       transactionId: entity.transactionId
     };
   }

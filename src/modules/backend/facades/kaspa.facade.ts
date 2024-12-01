@@ -416,11 +416,11 @@ export class KaspaFacade {
     return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
   }
 
-  async getWalletAccount(index: number): Promise<WalletAccount> {
+  async retrieveWalletAccountAtIndex (index: number): Promise<WalletAccount> {
     return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
   }
 
-  async getWalletTotalBalance(address: string): Promise<TotalBalanceWithUtxosInterface> {
+  async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
     return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(address);
   }
 
