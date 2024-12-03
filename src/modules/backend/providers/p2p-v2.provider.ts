@@ -18,6 +18,8 @@ import { AppConfigService } from 'src/modules/core/modules/config/app-config.ser
 import { IsVerifiedSendAction } from '../services/kaspa-api/model/is-verified-send-action.interface';
 import { FailedOrderVerification } from '../services/kaspa-network/errors/FailedSellOrderVerification';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
+import { KaspaFacade } from '../facades/kaspa.facade';
+import { SellOrderPsktVerificationFailed } from '../services/kaspa-network/errors/SellOrderPsktVerificationFailed';
 
 @Injectable()
 export class P2pV2Provider {
@@ -29,10 +31,23 @@ export class P2pV2Provider {
     private readonly kasplexApiService: KasplexApiService,
     private readonly config: AppConfigService,
     private readonly logger: AppLogger,
+    private readonly kaspaFacade: KaspaFacade,
   ) {}
 
   public async createOrder(sellOrderDto: SellOrderV2Dto, walletAddress: string): Promise<SellRequestV2ResponseDto> {
-    const createdOrderEntity: P2pOrderV2Entity = await this.p2pOrdersV2Service.create(sellOrderDto, walletAddress);
+    const psktVerification = await this.kaspaFacade.verifyPsktSellOrder(sellOrderDto, walletAddress);
+    const createdOrderEntity: P2pOrderV2Entity = await this.p2pOrdersV2Service.create(
+      sellOrderDto,
+      walletAddress,
+      psktVerification.psktTransactionId,
+      psktVerification.isVerified,
+    );
+
+    if (!psktVerification.isVerified) {
+      const failedVerificationError = new SellOrderPsktVerificationFailed(createdOrderEntity, psktVerification.error);
+      this.logger.error(failedVerificationError.message, failedVerificationError.stack);
+      this.telegramBotService.sendErrorToErrorsChannel(failedVerificationError);
+    }
 
     return P2pOrderV2ResponseTransformer.createSellOrderCreatedResponseDto(createdOrderEntity);
   }

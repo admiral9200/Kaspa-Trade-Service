@@ -17,7 +17,4 @@ export class SellOrderV2Dto {
 
   @IsString()
   psktSeller: string;
-
-  @IsString()
-  psktTransactionId: string;
 }

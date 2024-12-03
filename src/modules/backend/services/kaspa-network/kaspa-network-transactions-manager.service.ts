@@ -679,4 +679,8 @@ export class KaspaNetworkTransactionsManagerService {
       (error) => error instanceof ApplicationIsClosingError,
     );
   }
+
+  getWalletAddressFromScriptPublicKey(scriptPublicKey: string): string {
+    return addressFromScriptPublicKey(scriptPublicKey, this.rpcService.getNetwork()).toString();
+  }
 }

@@ -3,6 +3,7 @@ import {
   ACCEPTABLE_TRANSACTION_AMOUNT_RANGE,
   AMOUNT_FOR_SWAP_FEES,
   KaspaNetworkActionsService,
+  LISTING_PSKT_TRANSACTION_AMOUNT_RANGE,
 } from '../services/kaspa-network/kaspa-network-actions.service';
 import { WalletAccount } from '../services/kaspa-network/interfaces/wallet-account.interface';
 import { P2pOrderEntity } from '../model/schemas/p2p-order.schema';
@@ -21,8 +22,16 @@ import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/error
 import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
 import { UtilsHelper } from '../helpers/utils.helper';
+
 import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { EncryptionService } from '../services/encryption.service';
+
+import { SellOrderV2Dto } from '../model/dtos/p2p-orders/sell-order-v2.dto';
+import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
+import { MIN_COMMISSION } from '../model/schemas/p2p-order-v2.schema';
+import { SellOrderPskt } from '../services/kaspa-network/interfaces/SellOrderPskt.interface';
+import * as _ from 'loadsh';
+import { OperationType } from '../services/kasplex-api/model/token-operation.interface';
 
 @Injectable()
 export class KaspaFacade {
@@ -32,7 +41,119 @@ export class KaspaFacade {
     private readonly utils: UtilsHelper,
     private readonly config: AppConfigService,
     private readonly encryptionService: EncryptionService,
+    private readonly logger: AppLogger,
   ) {}
+
+  async verifyPsktSellOrder(
+    orderData: SellOrderV2Dto,
+    walletAddress: string,
+  ): Promise<{ isVerified: boolean; error: any; psktTransactionId: string }> {
+    let psktTransactionId = null;
+    let validationError = null;
+
+    try {
+      const psktData: SellOrderPskt = JSON.parse(orderData.psktSeller);
+
+      if (psktData?.inputs?.length !== 1) {
+        throw new Error('Pskt invalid inputs amount');
+      }
+
+      psktTransactionId = psktData?.inputs[0]?.transactionId;
+
+      if (!psktTransactionId) {
+        throw new Error('Pskt transaction id is missing');
+      }
+
+      const commission = this.calculateSellOrderCommission(orderData.totalPrice);
+
+      let outputsAmount = 2;
+
+      if (!commission) {
+        outputsAmount = 1;
+      }
+
+      if (psktData?.outputs.length !== outputsAmount) {
+        throw new Error('Pskt invalid outputs amount');
+      }
+
+      const outputByWalletAddress = _.keyBy(psktData.outputs, (output) =>
+        this.kaspaNetworkActionsService.getWalletAddressFromScriptPublicKey(output.scriptPublicKey),
+      );
+
+      if (
+        !(
+          outputByWalletAddress[walletAddress]?.value &&
+          BigInt(outputByWalletAddress[walletAddress].value) >=
+            KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice) &&
+          BigInt(outputByWalletAddress[walletAddress].value) <=
+            KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.totalPrice + LISTING_PSKT_TRANSACTION_AMOUNT_RANGE)
+        )
+      ) {
+        throw new Error('Pskt invalid order total amount');
+      }
+
+      if (
+        commission &&
+        outputByWalletAddress[this.config.commitionWalletAddress]?.value &&
+        BigInt(outputByWalletAddress[this.config.commitionWalletAddress].value) !=
+          KaspaNetworkActionsService.KaspaToSompiFromNumber(commission)
+      ) {
+        throw new Error('Pskt invalid commission amount');
+      }
+
+      const kasplexOperationsData = await this.utils.retryOnError(
+        async () => await this.kasplexApiService.fetchOperationResults(psktTransactionId),
+        15,
+        2000,
+        true,
+      );
+
+      const operationData = kasplexOperationsData && kasplexOperationsData[0];
+
+      if (!operationData) {
+        throw new Error('Kasplex operation data not found');
+      }
+
+      if (operationData.op != OperationType.LIST) {
+        throw new Error('Pskt invalid operation type');
+      }
+
+      if (BigInt(operationData.amt) != KaspaNetworkActionsService.KaspaToSompiFromNumber(orderData.quantity)) {
+        throw new Error('Pskt invalid order quantity');
+      }
+
+      if (operationData.tick != orderData.ticker) {
+        throw new Error('Pskt invalid order ticker');
+      }
+
+      if (operationData.from != walletAddress) {
+        throw new Error('Pskt invalid order wallet address');
+      }
+
+      return {
+        isVerified: true,
+        error: null,
+        psktTransactionId,
+      };
+    } catch (err) {
+      this.logger.error(err?.message || err, err?.stack, err?.trace);
+      validationError = err;
+    }
+
+    return {
+      isVerified: false,
+      error: validationError,
+      psktTransactionId,
+    };
+  }
+
+  calculateSellOrderCommission(totalPrice: number): number {
+    if (!this.config.swapCommissionPercentage) {
+      return 0;
+    }
+
+    return Math.max((totalPrice * this.config.swapCommissionPercentage) / 100, MIN_COMMISSION);
+  }
 
   async getAccountWalletAddressAtIndex(sequenceId: number): Promise<string> {
     const walletAccount: WalletAccount = await this.kaspaNetworkActionsService.getWalletAccountAtIndex(sequenceId);

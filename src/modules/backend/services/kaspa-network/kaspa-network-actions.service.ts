@@ -25,10 +25,10 @@ export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
 // I SEPERATED THIS BECAUSE THIS IS MORE MONEY RELATED AND THE OTHER IS MORE GETTING DEMO TRANSACTION RELATED
 export const MIMINAL_COMMITION = kaspaToSompi('1');
 export const ACCEPTABLE_TRANSACTION_AMOUNT_RANGE = 0.001;
+export const LISTING_PSKT_TRANSACTION_AMOUNT_RANGE = 3;
 const KASPA_TRANSACTION_MASS = 3000;
 const KRC20_TRANSACTION_MASS = 3370;
 const MAX_ESTIMATED_KRC20_TRANSACTION_MASS = 10000n;
-
 @Injectable()
 export class KaspaNetworkActionsService {
   constructor(
@@ -577,6 +577,10 @@ export class KaspaNetworkActionsService {
 
   static SompiToNumber(value: bigint): number {
     return Number(value) / 1e8;
+  }
+
+  getWalletAddressFromScriptPublicKey(addressScript: string): string {
+    return this.transactionsManagerService.getWalletAddressFromScriptPublicKey(addressScript);
   }
 
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
