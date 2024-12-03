@@ -6,6 +6,7 @@ import { AppConfigService } from '../../core/modules/config/app-config.service';
 import { MONGO_DATABASE_CONNECTIONS } from '../constants';
 import { AppConfigModule } from '../../core/modules/config/app-config.module';
 import { P2pOrderEntity, P2pOrderSchema } from '../model/schemas/p2p-order.schema';
+import { WithdrawalEntity, WithdrawalSchema } from '../model/schemas/withdrawal.schema';
 import { SellOrdersBookRepository } from '../repositories/sell-orders-book.repository';
 import { KaspaFacade } from '../facades/kaspa.facade';
 import { KaspaNetworkActionsService } from '../services/kaspa-network/kaspa-network-actions.service';
@@ -39,12 +40,16 @@ import { P2pV2Provider } from '../providers/p2p-v2.provider';
 import { P2pOrdersV2Service } from '../services/p2p-orders-v2.service';
 import { P2pOrderV2Entity, P2pOrderV2Schema } from '../model/schemas/p2p-order-v2.schema';
 import { SellOrdersV2Repository } from '../repositories/sell-orders-v2.repository';
+import { WithdrawalsService } from '../services/withdrawals.service';
+import { WithdrawalsRepository } from '../repositories/withdrawal-orders.repository';
+import { WithdrawalProvider } from '../providers/withdrawal.provider';
 
 export const BASE_PROVIDERS: Provider[] = [
   // Providers
   P2pProvider,
   P2pV2Provider,
   LunchpadProvider,
+  WithdrawalProvider,
   BatchMintProvider,
   PodJobProvider,
 
@@ -53,6 +58,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Services
   P2pOrdersService,
+  WithdrawalsService,
   P2pOrdersV2Service,
   KaspaNetworkActionsService,
   KaspaNetworkTransactionsManagerService,
@@ -71,6 +77,7 @@ export const BASE_PROVIDERS: Provider[] = [
 
   // Repositories
   SellOrdersBookRepository,
+  WithdrawalsRepository,
   SellOrdersV2Repository,
   P2pTemporaryWalletsSequenceRepository,
   LunchpadRepository,
@@ -96,6 +103,7 @@ export const BASE_IMPORTS = [
       { name: TemporaryWalletsSequence.name, schema: TemporaryWalletsSequenceSchema },
       { name: LunchpadEntity.name, schema: LunchpadEntitySchema },
       { name: LunchpadOrder.name, schema: LunchpadOrderSchema },
+      { name: WithdrawalEntity.name, schema: WithdrawalSchema },
       { name: BatchMintEntity.name, schema: BatchMintEntitySchema },
     ],
     MONGO_DATABASE_CONNECTIONS.P2P,
