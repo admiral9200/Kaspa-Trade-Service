@@ -416,7 +416,7 @@ export class KaspaFacade {
     return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
   }
 
-  async retrieveWalletAccountAtIndex (index: number): Promise<WalletAccount> {
+  async retrieveWithdrawalWalletAccountAtIndex (index: number): Promise<WalletAccount> {
     return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
   }
 

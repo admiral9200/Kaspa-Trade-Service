@@ -34,7 +34,7 @@ export class WithdrawalProvider {
             const { receivingWallet, amount } = body;
             const requiredAmount = this.kaspaFacade.convertFromKaspaToSompi(amount);
 
-            const withdrawalWallet: WalletAccount = await this.kaspaFacade.retrieveWalletAccountAtIndex(0);
+            const withdrawalWallet: WalletAccount = await this.kaspaFacade.retrieveWithdrawalWalletAccountAtIndex(0);
 
             const { totalBalance } = await this.kaspaFacade.getWalletTotalBalanceAndUtxos(withdrawalWallet.address);
 
@@ -47,7 +47,7 @@ export class WithdrawalProvider {
                 return WithdrawalResponseTransformer.transformEntityToResponseDto(
                     String(this.kaspaFacade.convertFromKaspaToSompi(withdrawal.amount.toString())),
                     withdrawal.receivingWallet,
-                    WithdrawalStatus.WAITING_FOR_KAS,
+                    withdrawal.status,
                     withdrawal.createdAt,
                     withdrawal.updatedAt,
                     false
@@ -99,7 +99,7 @@ export class WithdrawalProvider {
             return WithdrawalResponseTransformer.transformEntityToResponseDto(
                 String(this.kaspaFacade.convertFromKaspaToSompi(withdrawal.amount.toString())),
                 withdrawal.receivingWallet,
-                WithdrawalStatus.COMPLETED,
+                withdrawal.status,
                 withdrawal.createdAt,
                 withdrawal.updatedAt,
                 true

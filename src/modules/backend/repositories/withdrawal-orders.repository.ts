@@ -19,12 +19,7 @@ export class WithdrawalsRepository extends BaseRepository<WithdrawalEntity> {
 
     
     async createWithdrawalOrder(withdrawalOrder: WithdrawalEntity, session?: ClientSession): Promise<WithdrawalEntity> {
-        try {
-          return await super.create(withdrawalOrder, session);
-        } catch (error) {
-          console.error('Error creating sell order:', error);
-          throw error;
-        }
+        return await super.create(withdrawalOrder, session);
       }
 
 

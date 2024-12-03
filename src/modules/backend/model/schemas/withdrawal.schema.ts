@@ -13,7 +13,7 @@ export class WithdrawalEntity {
     @Prop({ required: true })
     amount: number;
 
-    @Prop({ required: true })
+    @Prop({ required: true, index: true })
     ownerWallet: string;
 
     @Prop()
