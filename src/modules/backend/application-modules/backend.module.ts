@@ -13,6 +13,7 @@ import { JwtWalletStrategy } from '../guards/jwt-wallet.strategy';
 import { JwtWalletAuthGuard } from '../guards/jwt-wallet-auth.guard';
 import { SkipGuardsService } from '../guards/infra/skipGuardsService';
 import { RolesGuard } from '../guards/roles.guard';
+import { WithdrawalController } from '../controllers/withdrawal.controller';
 import { BatchMintController } from '../controllers/batch-mint.controller';
 import { BatchMintManagementController } from '../controllers/management/batch-mint-management.controller';
 import { BatchMintManagementProvider } from '../providers/management/batch-mint-management.provider';
@@ -31,6 +32,7 @@ import { AllowWithoutWalletService } from '../guards/infra/allowWithoutWalletSer
     AuthController,
     BatchMintController,
     BatchMintManagementController,
+    WithdrawalController
   ],
   providers: [
     ...BASE_PROVIDERS,

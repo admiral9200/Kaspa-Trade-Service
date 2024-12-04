@@ -131,4 +131,8 @@ export class AppConfigService {
   get jwtSecretKey() {
     return this.configService.get('JWT_SECRET_KEY');
   }
+
+  get withdrawalWalletKey() {
+    return this.configService.get('WITHDRAWAL_WALLET_KEY');
+  }
 }

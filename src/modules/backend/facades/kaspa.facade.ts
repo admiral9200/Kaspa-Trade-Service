@@ -17,14 +17,17 @@ import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 import { Krc20TransactionsResult } from '../services/kaspa-network/interfaces/Krc20TransactionsResult.interface';
 import { isEmptyString } from '../utils/object.utils';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
-import { UtxoEntry } from 'libs/kaspa/kaspa';
+import { IPaymentOutput, PrivateKey, UtxoEntry } from 'libs/kaspa/kaspa';
 import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectUtxoAmountForBatchMint';
 import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
 import { UtilsHelper } from '../helpers/utils.helper';
+
+import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
+import { EncryptionService } from '../services/encryption.service';
+
 import { SellOrderV2Dto } from '../model/dtos/p2p-orders/sell-order-v2.dto';
 import { AppLogger } from 'src/modules/core/modules/logger/app-logger.abstract';
-import { AppConfigService } from 'src/modules/core/modules/config/app-config.service';
 import { MIN_COMMISSION } from '../model/schemas/p2p-order-v2.schema';
 import { SellOrderPskt } from '../services/kaspa-network/interfaces/SellOrderPskt.interface';
 import * as _ from 'loadsh';
@@ -36,8 +39,9 @@ export class KaspaFacade {
     private readonly kaspaNetworkActionsService: KaspaNetworkActionsService,
     private readonly kasplexApiService: KasplexApiService,
     private readonly utils: UtilsHelper,
-    private readonly logger: AppLogger,
     private readonly config: AppConfigService,
+    private readonly encryptionService: EncryptionService,
+    private readonly logger: AppLogger,
   ) {}
 
   async verifyPsktSellOrder(
@@ -522,5 +526,26 @@ export class KaspaFacade {
       refundTransactionId: refundTransaction.summary.finalTransactionId,
       commission: KaspaNetworkActionsService.SompiToNumber(commission),
     };
+  }
+
+  async doKaspaTransferForWithdrawal(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    amount: bigint
+  ) {
+    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
+  }
+
+  async retrieveWithdrawalWalletAccountAtIndex (index: number): Promise<WalletAccount> {
+    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
+  }
+
+  async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {
+    return await this.kaspaNetworkActionsService.getWalletTotalBalanceAndUtxos(address);
+  }
+
+  convertFromKaspaToSompi(value: string): bigint {
+    return KaspaNetworkActionsService.KaspaToSompi(value);
   }
 }
