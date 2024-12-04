@@ -17,6 +17,7 @@ import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwa
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { KRC20ActionTransations } from './interfaces/Krc20ActionTransactions.interface';
+import { WithdrawalStatus } from '../../model/enums/withdrawal-status.enum';
 import { IncorrectKaspaAmountForKrc20Action } from './errors/IncorrectKaspaAmountForKrc20Action';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
@@ -584,5 +585,28 @@ export class KaspaNetworkActionsService {
 
   async veryfySignedMessageAndGetWalletAddress(message: string, signature: string, publicKey: string): Promise<string | null> {
     return await this.transactionsManagerService.veryfySignedMessageAndGetWalletAddress(message, signature, publicKey);
+  }
+
+  async performKaspaTransferForWithdrawal(
+    privateKey: PrivateKey,
+    maxPriorityFee: bigint,
+    targetWallet: string,
+    amount: bigint,
+    notifyUpdateKasRefundTransaction: (result: string) => Promise<void> = null,
+  ) {
+    const payment = [
+      {
+        address: targetWallet,
+        amount: amount
+      }
+    ];
+
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      payment,
+      maxPriorityFee,
+      false,
+      notifyUpdateKasRefundTransaction
+    );
   }
 }
