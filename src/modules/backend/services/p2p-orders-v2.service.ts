@@ -68,7 +68,7 @@ export class P2pOrdersV2Service {
       orderId,
       SellOrderStatusV2.COMPLETED,
       SellOrderStatusV2.VERIFYING,
-      { feeAmount: commission, buyerWalletAddress, sendTransactionId },
+      { feeAmount: commission, buyerWalletAddress, sendTransactionId, fulfillmentTimestamp: Date.now() },
     );
   }
 
