@@ -663,7 +663,6 @@ export class KaspaNetworkTransactionsManagerService {
     return null;
   }
 
-
   async verifyTransactionReceivedOnKaspaApi(txnId: string, stopOnApplicationClosing: boolean = false): Promise<void> {
     await this.utils.retryOnError(
       async () => {

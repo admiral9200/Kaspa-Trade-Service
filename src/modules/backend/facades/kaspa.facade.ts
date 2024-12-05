@@ -17,7 +17,7 @@ import { BatchMintEntity } from '../model/schemas/batch-mint.schema';
 import { Krc20TransactionsResult } from '../services/kaspa-network/interfaces/Krc20TransactionsResult.interface';
 import { isEmptyString } from '../utils/object.utils';
 import { TotalBalanceWithUtxosInterface } from '../services/kaspa-network/interfaces/TotalBalanceWithUtxos.interface';
-import { IPaymentOutput, PrivateKey, UtxoEntry } from 'libs/kaspa/kaspa';
+import { PrivateKey, UtxoEntry } from 'libs/kaspa/kaspa';
 import { IncorrectUtxoAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectUtxoAmountForBatchMint';
 import { IncorrectKaspaAmountForBatchMint } from '../services/kaspa-network/errors/batch-mint/IncorrectKaspaAmountForBatchMint';
 import { BatchMintUnknownMoneyError } from '../services/kaspa-network/errors/batch-mint/BatchMintUnknownMoneyError';
@@ -528,17 +528,20 @@ export class KaspaFacade {
     };
   }
 
-  async doKaspaTransferForWithdrawal(
-    privateKey: PrivateKey,
-    maxPriorityFee: bigint,
-    targetWallet: string,
-    amount: bigint
-  ) {
-    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
+  async doKaspaTransferForWithdrawal(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string, amount: bigint) {
+    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(
+      privateKey,
+      maxPriorityFee,
+      targetWallet,
+      amount,
+    );
   }
 
-  async retrieveWithdrawalWalletAccountAtIndex (index: number): Promise<WalletAccount> {
-    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
+  async retrieveWithdrawalWalletAccountAtIndex(index: number): Promise<WalletAccount> {
+    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(
+      index,
+      await this.encryptionService.decrypt(this.config.withdrawalWalletKey),
+    );
   }
 
   async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {

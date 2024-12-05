@@ -17,7 +17,6 @@ import { IncorrectKaspaAmountForSwap } from './errors/IncorrectKaspaAmountForSwa
 import { KaspaApiService } from '../kaspa-api/services/kaspa-api.service';
 import { TotalBalanceWithUtxosInterface } from './interfaces/TotalBalanceWithUtxos.interface';
 import { KRC20ActionTransations } from './interfaces/Krc20ActionTransactions.interface';
-import { WithdrawalStatus } from '../../model/enums/withdrawal-status.enum';
 import { IncorrectKaspaAmountForKrc20Action } from './errors/IncorrectKaspaAmountForKrc20Action';
 
 export const AMOUNT_FOR_SWAP_FEES = kaspaToSompi('5');
@@ -597,8 +596,8 @@ export class KaspaNetworkActionsService {
     const payment = [
       {
         address: targetWallet,
-        amount: amount
-      }
+        amount: amount,
+      },
     ];
 
     return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
@@ -606,7 +605,7 @@ export class KaspaNetworkActionsService {
       payment,
       maxPriorityFee,
       false,
-      notifyUpdateKasRefundTransaction
+      notifyUpdateKasRefundTransaction,
     );
   }
 }
