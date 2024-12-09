@@ -47,7 +47,7 @@ export class KaspaFacade {
   async verifyPsktSellOrder(
     orderData: SellOrderV2Dto,
     walletAddress: string,
-  ): Promise<{ isVerified: boolean; error: any; psktTransactionId: string }> {
+  ): Promise<{ isVerified: boolean; error: any; psktTransactionId: string; commission?: number }> {
     let psktTransactionId = null;
     let validationError = null;
 
@@ -134,6 +134,7 @@ export class KaspaFacade {
         isVerified: true,
         error: null,
         psktTransactionId,
+        commission,
       };
     } catch (err) {
       this.logger.error(err?.message || err, err?.stack, err?.trace);
@@ -386,6 +387,15 @@ export class KaspaFacade {
       );
     }
 
+    const walletBalance = await this.getWalletBalanceAndUtxos(walletSequenceId);
+
+    if (walletBalance.utxoEntries.length > 10) {
+      await this.kaspaNetworkActionsService.compoundUtxos(originWallet.privateKey, maxPriorityFee);
+
+      // To make sure the compunded utxos returned
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+
     await this.kaspaNetworkActionsService.transferAllRemainingKaspa(
       originWallet.privateKey,
       maxPriorityFee,
@@ -528,17 +538,20 @@ export class KaspaFacade {
     };
   }
 
-  async doKaspaTransferForWithdrawal(
-    privateKey: PrivateKey,
-    maxPriorityFee: bigint,
-    targetWallet: string,
-    amount: bigint
-  ) {
-    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(privateKey, maxPriorityFee, targetWallet, amount);
+  async doKaspaTransferForWithdrawal(privateKey: PrivateKey, maxPriorityFee: bigint, targetWallet: string, amount: bigint) {
+    return await this.kaspaNetworkActionsService.performKaspaTransferForWithdrawal(
+      privateKey,
+      maxPriorityFee,
+      targetWallet,
+      amount,
+    );
   }
 
-  async retrieveWithdrawalWalletAccountAtIndex (index: number): Promise<WalletAccount> {
-    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(index, (await this.encryptionService.decrypt(this.config.withdrawalWalletKey)));
+  async retrieveWithdrawalWalletAccountAtIndex(index: number): Promise<WalletAccount> {
+    return await this.kaspaNetworkActionsService.getWalletAccountAtIndex(
+      index,
+      await this.encryptionService.decrypt(this.config.withdrawalWalletKey),
+    );
   }
 
   async getWalletTotalBalanceAndUtxos(address: string): Promise<TotalBalanceWithUtxosInterface> {

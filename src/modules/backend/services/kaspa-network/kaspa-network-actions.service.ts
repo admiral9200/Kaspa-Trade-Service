@@ -467,6 +467,20 @@ export class KaspaNetworkActionsService {
     });
   }
 
+  async compoundUtxos(privateKey: PrivateKey, maxPriorityFee: bigint) {
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      [
+        {
+          address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
+          amount: 0n,
+        },
+      ],
+      maxPriorityFee,
+      true,
+    );
+  }
+
   async transferAllRemainingKaspa(
     privateKey: PrivateKey,
     maxPriorityFee: bigint,
@@ -597,8 +611,8 @@ export class KaspaNetworkActionsService {
     const payment = [
       {
         address: targetWallet,
-        amount: amount
-      }
+        amount: amount,
+      },
     ];
 
     return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
@@ -606,7 +620,7 @@ export class KaspaNetworkActionsService {
       payment,
       maxPriorityFee,
       false,
-      notifyUpdateKasRefundTransaction
+      notifyUpdateKasRefundTransaction,
     );
   }
 }
