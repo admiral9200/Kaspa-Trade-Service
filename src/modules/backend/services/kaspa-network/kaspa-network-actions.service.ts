@@ -466,6 +466,20 @@ export class KaspaNetworkActionsService {
     });
   }
 
+  async compoundUtxos(privateKey: PrivateKey, maxPriorityFee: bigint) {
+    return await this.transactionsManagerService.doKaspaTransferTransactionWithUtxoProcessor(
+      privateKey,
+      [
+        {
+          address: this.transactionsManagerService.convertPrivateKeyToPublicKey(privateKey),
+          amount: 0n,
+        },
+      ],
+      maxPriorityFee,
+      true,
+    );
+  }
+
   async transferAllRemainingKaspa(
     privateKey: PrivateKey,
     maxPriorityFee: bigint,
