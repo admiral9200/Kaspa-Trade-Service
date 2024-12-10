@@ -190,8 +190,6 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       if (lockedLunchpad.maxUnitsPerWallet) {
         const walletUnits = await this.getWalletBoughtUntisForLunchpad(lockedLunchpad.id, orderCreatorWallet);
 
-        console.log('getWalletBoughtUntisForLunchpad', walletUnits);
-
         const remainingUnitsAvailable = lockedLunchpad.maxUnitsPerWallet - walletUnits;
 
         if (remainingUnitsAvailable <= 0) {
@@ -206,8 +204,6 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
       }
 
       const updateStatus = {};
-
-      console.log({ lunchpadId, units, orderCreatorWallet, lockedLunchpad, amountToReduce });
 
       if (lockedLunchpad.availabeUnits - amountToReduce < lockedLunchpad.minUnitsPerOrder) {
         updateStatus['$set'] = { status: LunchpadStatus.NO_UNITS_LEFT };
@@ -422,8 +418,6 @@ export class LunchpadRepository extends BaseRepository<LunchpadEntity> {
 
     // Create the base query
     let query: any = this.lunchpadModel.find(filterQuery);
-
-    console.log(filterQuery);
 
     // Apply sorting
     query = this.applySort(query, sort);

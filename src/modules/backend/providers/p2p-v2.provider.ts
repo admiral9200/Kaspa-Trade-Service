@@ -41,6 +41,7 @@ export class P2pV2Provider {
       walletAddress,
       psktVerification.psktTransactionId,
       psktVerification.isVerified,
+      psktVerification.commission,
     );
 
     if (!psktVerification.isVerified) {

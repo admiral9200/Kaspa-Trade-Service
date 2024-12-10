@@ -414,9 +414,6 @@ export class KaspaNetworkTransactionsManagerService {
             return await createTransactions(baseTransactionData);
           });
 
-          console.log('current transaction amount', currentTransactions.transactions.length);
-          console.log('current transaction summry', currentTransactions.summary);
-
           if (additionalOptions.notifyCreatedTransactions) {
             await additionalOptions.notifyCreatedTransactions(currentTransactions.summary.finalTransactionId);
           }
@@ -662,7 +659,6 @@ export class KaspaNetworkTransactionsManagerService {
 
     return null;
   }
-
 
   async verifyTransactionReceivedOnKaspaApi(txnId: string, stopOnApplicationClosing: boolean = false): Promise<void> {
     await this.utils.retryOnError(

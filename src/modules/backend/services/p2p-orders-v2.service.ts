@@ -11,7 +11,13 @@ import { GetOrderListFiltersDto } from '../model/dtos/p2p-orders/get-order-list-
 export class P2pOrdersV2Service {
   constructor(private readonly sellOrdersV2Repository: SellOrdersV2Repository) {}
 
-  async create(sellOrderDto: SellOrderV2Dto, walletAddress: string, psktTransactionId: string, isPsktVerified: boolean) {
+  async create(
+    sellOrderDto: SellOrderV2Dto,
+    walletAddress: string,
+    psktTransactionId: string,
+    isPsktVerified: boolean,
+    psktFee: number,
+  ) {
     return await this.sellOrdersV2Repository.createIfNotExists(
       {
         pricePerToken: sellOrderDto.pricePerToken,
@@ -22,6 +28,7 @@ export class P2pOrdersV2Service {
         totalPrice: sellOrderDto.totalPrice,
         status: isPsktVerified ? SellOrderStatusV2.LISTED_FOR_SALE : SellOrderStatusV2.PSKT_VERIFICATION_ERROR,
         psktTransactionId,
+        psktFee,
       },
       'psktSeller',
     );
@@ -68,7 +75,7 @@ export class P2pOrdersV2Service {
       orderId,
       SellOrderStatusV2.COMPLETED,
       SellOrderStatusV2.VERIFYING,
-      { feeAmount: commission, buyerWalletAddress, sendTransactionId },
+      { feeAmount: commission, buyerWalletAddress, sendTransactionId, fulfillmentTimestamp: Date.now() },
     );
   }
 
