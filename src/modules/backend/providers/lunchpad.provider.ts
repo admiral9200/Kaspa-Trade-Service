@@ -853,6 +853,14 @@ export class LunchpadProvider {
           KaspaNetworkActionsService.KaspaToSompiFromNumber(lunchpad.maxFeeRatePerTransaction),
           commission,
         );
+
+        this.telegramBotService
+          .notifyLunchpadWithdrawalCompleted(
+            lunchpad,
+            KaspaNetworkActionsService.SompiToNumber(walletBalance.totalBalance),
+            KaspaNetworkActionsService.SompiToNumber(commission),
+          )
+          .catch((error) => console.error(error));
       } else {
         return {
           success: false,
